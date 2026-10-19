@@ -2429,6 +2429,33 @@ test('a screenshot reports the main-document observation without contacting the 
   assert.equal(observation.error, undefined);
 });
 
+test('an inconclusive retest uses the stored response as its HTTP fallback without a second request', async () => {
+  const fixture = createObservationResponse({
+    status: 200,
+    headers: { 'content-type': 'text/html; charset=utf-8' },
+    text: '<html><body>raw marker body</body></html>',
+  });
+  const harness = createRetestHarness({ response: fixture.response, domText: 'rendered body without the marker' });
+  harness.dependencies.fetchHttpFallback = async () => {
+    harness.calls.fallback += 1;
+    throw new Error('The HTTP fallback must reuse the stored response, never a second request.');
+  };
+
+  const result = await runRetest(
+    { url: 'https://fixture.test/target', expectedEvidence: 'raw marker', headless: true },
+    harness.dependencies,
+  );
+
+  assert.equal(harness.calls.fallback, 0);
+  assert.equal(result.result, 'inconclusive');
+  assert.deepEqual(
+    { source: result.raw.httpFallback.source, matched: result.raw.httpFallback.matched },
+    { source: 'observation', matched: true },
+  );
+  assert.equal(result.raw.httpFallback.excerpt, '<html><body>raw marker body</body></html>');
+  assert.equal(result.raw.classificationReason, 'Raw browser response contained expected evidence only; manual review required.');
+});
+
 test('an inconclusive retest never repeats the target request', async () => {
   const fixture = createObservationResponse({
     status: 200,
