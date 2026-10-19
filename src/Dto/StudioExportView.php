@@ -22,6 +22,7 @@ final readonly class StudioExportView
         public int $missingScreenshotCount = 0,
         public int $unknownBasisCount = 0,
         public string $downloadFormat = 'json',
+        public bool $includeHttpObservations = false,
     ) {
     }
 }

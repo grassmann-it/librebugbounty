@@ -10,7 +10,7 @@ use App\Value\RetestResult;
 $filter = $view->filter;
 $scopeLabels = ['active' => 'Aktiver Bestand', 'all' => 'Alle Fälle einschließlich Archiv', 'discarded' => 'Verworfen · Archiv', 'duplicates' => 'Duplikate · Archiv'];
 $eventLabels = ['reported' => 'Gemeldet (Ingest)', 'sent' => 'Erstmals versendet', 'contacted' => 'Als kontaktiert markiert', 'confirmed' => 'Erstmals manuell bestätigt', 'fixed' => 'Erstmals manuell behoben'];
-$hasAdditionalFilters = $filter->exactDomain || $filter->event !== '' || $filter->from !== '' || $filter->to !== '' || $filter->tld !== '' || $filter->type !== '' || $filter->severity !== '' || $filter->legacyStatus !== '' || $filter->legacyBucket !== '' || $filter->legacyReview !== '';
+$hasAdditionalFilters = $filter->claim !== '' || $filter->claimState !== '' || $filter->exactDomain || $filter->event !== '' || $filter->from !== '' || $filter->to !== '' || $filter->tld !== '' || $filter->type !== '' || $filter->severity !== '' || $filter->legacyStatus !== '' || $filter->legacyBucket !== '' || $filter->legacyReview !== '';
 $hasLegacyFilters = $filter->legacyStatus !== '' || $filter->legacyBucket !== '' || $filter->legacyReview !== '';
 $returnPath = $view->inventoryPath;
 $profile = $view->profile;
@@ -132,6 +132,9 @@ $inventoryFilters = array_filter([
             <details class="studio-export-additional"<?= $hasAdditionalFilters ? ' open' : '' ?>>
               <summary><?= $escape($t('Weitere Filter')) ?><?= $hasAdditionalFilters ? $escape($t(' · aktiv')) : '' ?></summary>
               <div class="studio-export-fields">
+                <?php foreach (['claim' => ['Claim', $filter->claim, \App\Value\ClaimLabels::CLAIMS], 'claim_state' => ['Claim-Zustand', $filter->claimState, \App\Value\ClaimLabels::STATES]] as $name => [$label, $selected, $choices]): ?>
+                  <label class="studio-export-field"><?= $escape($t($label)) ?><select name="<?= $escape($name) ?>"><option value=""><?= $escape($t('Alle')) ?></option><?php foreach ($choices as $value => $choice): ?><option value="<?= $escape($value) ?>"<?= $selected === $value ? ' selected' : '' ?>><?= $escape($t($choice)) ?></option><?php endforeach; ?></select></label>
+                <?php endforeach; ?>
                 <label class="studio-export-field studio-export-field-wide"><?= $escape($t('Domainvergleich')) ?>
                   <select name="exact_domain"><option value="0"<?= !$filter->exactDomain ? ' selected' : '' ?>><?= $escape($t('Enthält den Domainfilter')) ?></option><option value="1"<?= $filter->exactDomain ? ' selected' : '' ?>><?= $escape($t('Entspricht dem Domainfilter exakt')) ?></option></select>
                 </label>
@@ -181,11 +184,11 @@ $inventoryFilters = array_filter([
             <a class="studio-export-text-link studio-export-inventory-link" href="<?= $escape($view->inventoryPath) ?>"><?= $escape($t('Auswahl im Bestand ansehen')) ?> <span aria-hidden="true">↗</span></a>
 
             <?php if ($profile === 'urls'): ?>
-              <div class="studio-export-contents"><h3><?= $escape($t('Das ist enthalten')) ?></h3><p><?= $escape($t('Eine kompakte JSON-Liste mit URL und gespeichertem Befundtyp je Fall.')) ?></p></div>
+              <div class="studio-export-contents"><h3><?= $escape($t('Das ist enthalten')) ?></h3><p><?= $escape($t('Eine kompakte JSON-Liste mit URL und gespeichertem Befundtyp je Fall.')) ?> <?= $escape($t('Vorhandene Claims enthalten Zustand, Quelle und Belegbezug.')) ?></p></div>
             <?php else: ?>
               <fieldset class="studio-export-customize">
                 <legend><?= $escape($t('Inhalt anpassen')) ?></legend>
-                <p class="studio-export-hint"><?= $escape($t('URL, Titel, Befundtyp und Schweregrad bilden die Fallübersicht.')) ?><?= $profile === 'report' ? ' '.$escape($t('Das Meldungspaket verwendet neutrale Fallnummern.')) : '' ?> <?= $escape($t('Wähle die zusätzlichen Angaben selbst.')) ?></p>
+                <p class="studio-export-hint"><?= $escape($t('URL, Titel, Befundtyp und Schweregrad bilden die Fallübersicht.')) ?><?= $profile === 'report' ? ' '.$escape($t('Das Meldungspaket verwendet neutrale Fallnummern.')) : '' ?> <?= $escape($t('Wähle die zusätzlichen Angaben selbst.')) ?> <?= $escape($t('Claims gehören zur Bewertung. Meldungspakete enthalten nur zur Meldung ausgewählte Claims. HTTP-/DOM-Inhalte benötigen eine zusätzliche ausdrückliche Auswahl. Private Claim-Begründungen bleiben ausgeschlossen.')) ?></p>
                 <div class="studio-export-content-options">
                   <?php foreach ($contentGroups as $name => $group): ?>
                     <input type="hidden" name="<?= $escape($name) ?>" value="0">
@@ -200,6 +203,10 @@ $inventoryFilters = array_filter([
                   <p class="studio-export-hint" id="export-screenshot-hint"><?= $escape($t($screenshotHints[$view->screenshotMode])) ?></p>
                 <?php endif; ?>
 
+                <?php if ($profile === 'report'): ?>
+                  <input type="hidden" name="include_http_observations" value="0">
+                  <label class="studio-export-notes"><input type="checkbox" name="include_http_observations" value="1"<?= $view->includeHttpObservations ? ' checked' : '' ?>><span><?= $escape($t('Private HTTP-/DOM-Belege einschließen')) ?><small><?= $escape($t('Nur auf ausdrückliche Auswahl: gespeicherte Inhalte zu gemeldeten Claims. Können vertrauliche Daten enthalten. Benötigt Bewertung.')) ?></small></span></label>
+                <?php endif; ?>
                 <input type="hidden" name="include_notes" value="0">
                 <label class="studio-export-notes" for="export-include-notes"><input type="checkbox" name="include_notes" value="1" id="export-include-notes"<?= $view->includePrivateNotes ? ' checked' : '' ?>><span><?= $escape($t('Private Fallnotizen einschließen')) ?><small><?= $escape($t('Nur nach deiner ausdrücklichen Auswahl.')) ?></small></span></label>
               </fieldset>

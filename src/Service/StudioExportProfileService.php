@@ -17,6 +17,8 @@ final class StudioExportProfileService
 {
     public const CUSTOM_STATE_SCHEMA_VERSION = 2;
     private const PAGE_SIZE = 100;
+    private const MAX_HTTP_ARTIFACT_BYTES = 2 * 1024 * 1024;
+    private const MAX_REPORT_HTTP_BYTES = 64 * 1024 * 1024;
     private const MAX_REPORT_IMAGE_BYTES = 25 * 1024 * 1024;
     private const MAX_REPORT_TOTAL_IMAGE_BYTES = 512 * 1024 * 1024;
     private const JSON_FLAGS = JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
@@ -80,6 +82,7 @@ final class StudioExportProfileService
             missingScreenshotCount: $images['missing'],
             unknownBasisCount: $images['unknownBasis'],
             downloadFormat: $options->profile === 'report' ? 'zip' : 'json',
+            includeHttpObservations: $options->includeHttpObservations,
         );
     }
 
@@ -87,7 +90,7 @@ final class StudioExportProfileService
     public function parse(array $query): StudioExportOptions
     {
         [$filter] = $this->list->parse($query);
-        foreach (['profile', 'include_request_data', 'include_assessment', 'include_contact', 'include_notes', 'screenshots'] as $field) {
+        foreach (['profile', 'include_request_data', 'include_assessment', 'include_contact', 'include_notes', 'screenshots', 'include_http_observations'] as $field) {
             if (array_key_exists($field, $query) && !is_string($query[$field])) {
                 throw new \InvalidArgumentException('Exportangaben müssen einzelne Textwerte sein.');
             }
@@ -110,6 +113,7 @@ final class StudioExportProfileService
             includeContact: $this->boolOption($query, 'include_contact', $defaults[2]),
             includePrivateNotes: $this->boolOption($query, 'include_notes', false),
             screenshotMode: trim($query['screenshots'] ?? $defaults[3]),
+            includeHttpObservations: $this->boolOption($query, 'include_http_observations', false),
         );
     }
 
@@ -124,8 +128,11 @@ final class StudioExportProfileService
                 $write('[');
                 $first = true;
                 foreach ($this->pages($options->filter) as $page) {
+                    $claims = CribrumClaimExport::forFindings($this->connection, array_map(static fn (FindingReadView $finding): string => $finding->id, $page));
                     foreach ($page as $finding) {
-                        $write(($first ? '' : ',').$this->json(['url' => $finding->url, 'type' => $finding->type]));
+                        $record = ['url' => $finding->url, 'type' => $finding->type];
+                        if (isset($claims[$finding->id])) $record['claims'] = $claims[$finding->id];
+                        $write(($first ? '' : ',').$this->json($record));
                         $first = false;
                     }
                 }
@@ -202,7 +209,12 @@ final class StudioExportProfileService
             }
             $opened = true;
             $inspectedImageBytes = 0;
+            $httpBytes = 0;
             foreach ($dataset['findings'] as &$finding) {
+                if ($options->includeHttpObservations) {
+                    $finding['httpObservations'] = $this->archiveHttpObservations($finding, $zip, $httpBytes);
+                }
+                unset($finding['sourceObservationIds']);
                 foreach ($finding['screenshots'] as &$image) {
                     $storedPath = $image['storedPath'];
                     $selectionIssue = $image['selectionIssue'] ?? null;
@@ -324,6 +336,9 @@ final class StudioExportProfileService
             ['ids' => ArrayParameterType::STRING],
         );
         $details = array_column($rows, null, 'id');
+        $claims = CribrumClaimExport::forFindings($this->connection, array_keys($details));
+        foreach ($details as $id => &$detail) $detail['claims'] = $claims[$id] ?? [];
+        unset($detail);
         $observationIds = array_values(array_filter(array_map(
             static fn (FindingReadView $finding): ?string => $finding->observationId,
             $page,
@@ -385,6 +400,11 @@ final class StudioExportProfileService
         $record['discarded'] = $finding->discarded;
         if ($options->profile === 'state' && $options->includeAssessment) {
             $record['legacy'] = ['status' => $finding->legacyStatus, 'reviewState' => $finding->legacyReviewState];
+        }
+        if ($options->includeAssessment && $detail['claims'] !== []) {
+            $record['claims'] = $options->profile === 'report'
+                ? array_values(array_filter($detail['claims'], static fn (array $claim): bool => $claim['reportSelected'] && in_array($claim['state'], ['observed', 'suspected', 'confirmed'], true)))
+                : $detail['claims'];
         }
         if ($options->includePrivateNotes) {
             $record['privateNotes'] = $detail['private_notes'];
@@ -476,6 +496,15 @@ final class StudioExportProfileService
                     $record['updatedAt'],
                     $record['discarded'],
                 );
+                // Package-local references retain the relation without disclosing internal observation IDs.
+                $observationRefs = [];
+                foreach ($record['claims'] ?? [] as $claimIndex => $claim) {
+                    if ($claim['observation'] === null) continue;
+                    $id = $claim['observation']['id'];
+                    $observationRefs[$id] ??= 'observation-'.(count($observationRefs) + 1);
+                    $record['claims'][$claimIndex]['observation']['id'] = $observationRefs[$id];
+                }
+                if ($options->includeHttpObservations) $record['sourceObservationIds'] = $observationRefs;
                 $record['screenshots'] = [];
                 foreach ($selection['byFinding'][$finding->id] ?? [] as $imageIndex => $image) {
                     $item = [
@@ -506,6 +535,56 @@ final class StudioExportProfileService
             ], $summary['domains']),
             'findings' => $findings,
         ];
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function archiveHttpObservations(array $finding, \ZipArchive $zip, int &$totalBytes): array
+    {
+        $result = [];
+        foreach ($finding['sourceObservationIds'] ?? [] as $sourceId => $reference) {
+            $row = $this->connection->fetchAssociative(
+                'SELECT artifact_path, artifact_sha256 FROM http_observation WHERE id = ? AND finding_id = ?',
+                [$sourceId, $finding['sourceFindingId']],
+            );
+            $item = ['id' => $reference, 'available' => false];
+            try {
+                if ($row === false || !is_string($row['artifact_path']) || !is_string($row['artifact_sha256'])) {
+                    throw new \RuntimeException('missing');
+                }
+                $storedPath = str_replace('\\', '/', $row['artifact_path']);
+                if (str_starts_with($storedPath, 'storage/artifacts/')) $storedPath = substr($storedPath, strlen('storage/artifacts/'));
+                if (!str_starts_with($storedPath, $finding['sourceFindingId'].'/')) throw new \RuntimeException('foreign');
+                $size = $this->storage->size($storedPath);
+                if ($size === null || $size > self::MAX_HTTP_ARTIFACT_BYTES || $totalBytes + $size > self::MAX_REPORT_HTTP_BYTES) throw new \RuntimeException('size');
+                $totalBytes += $size;
+                $contents = $this->storage->read($storedPath);
+                if (strlen($contents) > self::MAX_HTTP_ARTIFACT_BYTES || hash('sha256', $contents) !== $row['artifact_sha256']) throw new \RuntimeException('hash');
+                // Bound decompression as well as compressed size; never unpack arbitrary archive members.
+                $decoded = @gzdecode($contents, 10 * 1024 * 1024);
+                if ($decoded === false) throw new \RuntimeException('gzip');
+                $data = json_decode($decoded, true, 8, JSON_THROW_ON_ERROR);
+                if (!is_array($data) || ($data['schema'] ?? null) !== 1 || !is_array($data['manifest'] ?? null)) throw new \RuntimeException('schema');
+                foreach (['rawHtml' => ['rawSha256', 1048576], 'domText' => ['domSha256', 524288]] as $key => [$hashKey, $limit]) {
+                    if (!array_key_exists($key, $data)) throw new \RuntimeException('text');
+                    $value = $data[$key];
+                    if ($value !== null && (!is_string($value) || strlen($value) > $limit || hash('sha256', $value) !== ($data['manifest'][$hashKey] ?? null))) throw new \RuntimeException('text');
+                }
+                // Re-encode an allowlist, excluding metadata, paths and unknown fields even on opt-in.
+                $safe = ['schema' => 1, 'rawHtml' => $data['rawHtml'], 'domText' => $data['domText']];
+                $path = 'observations/'.$finding['packageId'].'/'.$reference.'.json';
+                $safeJson = $this->json($safe);
+                if ($totalBytes + strlen($safeJson) > self::MAX_REPORT_HTTP_BYTES) throw new \RuntimeException('size');
+                $totalBytes += strlen($safeJson);
+                if (!$zip->addFromString($path, $safeJson)) throw new \RuntimeException('zip');
+                $item += ['archivePath' => $path, 'sha256' => hash('sha256', $safeJson)];
+                $item['available'] = true;
+            } catch (\RuntimeException|\JsonException) {
+                $item['missingReason'] = 'missing_or_invalid_http_artifact';
+            }
+            $result[] = $item;
+        }
+
+        return $result;
     }
 
     /** @param list<string> $findingIds @return array{byFinding: array<string, list<array<string, mixed>>>, basisKnown: array<string, bool>, unknownBasis: int} */
@@ -808,6 +887,28 @@ final class StudioExportProfileService
                 $lines[] = $this->indentedCode((string) ($finding['payload'] ?? ''));
                 $lines[] = '- '.$t('Erwarteter Nachweis').':';
                 $lines[] = $this->indentedCode((string) ($finding['expectedEvidence'] ?? ''));
+            }
+            if (isset($finding['claims'])) {
+                $lines[] = '';
+                $lines[] = '### '.$t('Cribrum-Claims');
+                $lines[] = $t('Beobachtung und Verdacht ersetzen keine manuelle Bestätigung.');
+                foreach ($finding['claims'] as $claim) {
+                    $state = $claim['state'];
+                    // SQLi/LFI/RFI may only be presented as confirmed after a manual decision.
+                    if (in_array($claim['claim'], ['sql_injection', 'local_file_inclusion', 'remote_file_inclusion'], true)
+                        && !($state === 'confirmed' && $claim['source'] === 'manual')) $state = 'suspected';
+                    $lines[] = '- '.$this->markdown($t(\App\Value\ClaimLabels::CLAIMS[$claim['claim']])).': '
+                        .$t(\App\Value\ClaimLabels::STATES[$state]).' ('.$t('Quelle').': '.$this->markdown($claim['source']).')';
+                    if ($claim['observation'] !== null) {
+                        $lines[] = '  - '.$t('Belegbezug').': '.$this->markdown($claim['observation']['id'])
+                            .' · '.$t('PoC-Revision').': '.$claim['observation']['pocRevision']
+                            .($claim['observation']['httpStatus'] === null ? '' : ' · HTTP '.$claim['observation']['httpStatus']);
+                    }
+                }
+            }
+            foreach ($finding['httpObservations'] ?? [] as $observation) {
+                $lines[] = '- '.$t('HTTP-Beleg').': '.$this->markdown($observation['id']).' · '
+                    .($observation['available'] ? $this->markdown($observation['archivePath']) : $t('Nicht verfügbar'));
             }
             if (isset($finding['manualAssessment'])) {
                 $assessment = FindingReadLabels::assessment(

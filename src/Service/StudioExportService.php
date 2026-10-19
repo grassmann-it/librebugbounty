@@ -160,6 +160,9 @@ final class StudioExportService
             ['ids' => ArrayParameterType::STRING],
         );
         $details = array_column($rows, null, 'id');
+        $claims = CribrumClaimExport::forFindings($this->connection, array_keys($details));
+        foreach ($details as $id => &$detail) $detail['claims'] = $claims[$id] ?? [];
+        unset($detail);
         $observationIds = array_values(array_filter(array_map(
             static fn (FindingReadView $finding): ?string => $finding->observationId,
             $page,
@@ -219,6 +222,10 @@ final class StudioExportService
             'discarded' => $finding->discarded,
             'legacy' => ['status' => $finding->legacyStatus, 'reviewState' => $finding->legacyReviewState],
         ];
+        // Absent for cases without claims, keeping legacy export records identical.
+        if ($detail['claims'] !== []) {
+            $record['claims'] = $detail['claims'];
+        }
         if ($includeNotes) {
             $record['privateNotes'] = $detail['private_notes'];
         }

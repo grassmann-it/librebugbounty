@@ -26,6 +26,15 @@ The maintenance and workflow items previously considered for separate 2.1.x
 patches are now part of the 2.2.0 plan. Performance changes depend on measured
 benefit. Cribrum does not add automatic disclosure delivery or external AI calls.
 
+C6 now adds claim/state filters to inventory and export, saved-view vocabulary,
+and current active-case claim counts with matching inventory links. A case may
+appear under several claims; claim groups are not summed as case totals.
+URL and state exports retain claim metadata; report packages include only selected
+claims and distinguish observation, suspicion, and manual confirmation. Existing
+cases without claims retain their export shape. Private HTTP/DOM artifacts require
+an explicit report-only selection, are integrity-checked and bounded, and are
+excluded by default along with private claim decision reasons.
+
 ## Configurable shortcuts
 
 - Offer configurable shortcuts for useful actions across the workspace, with
