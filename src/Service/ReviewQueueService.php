@@ -4,6 +4,8 @@ namespace App\Service;
 
 use App\Dto\ReviewQueueView;
 use App\Entity\Evidence;
+use App\Entity\Finding;
+use App\Entity\HttpObservation;
 use App\Entity\RetestRun;
 use App\Entity\FindingReviewAcknowledgement;
 use App\Entity\FindingAssessmentReset;
@@ -35,6 +37,7 @@ final class ReviewQueueService
         private readonly FindingService $findings,
         private readonly CsrfTokenManagerInterface $csrf,
         private readonly ReviewNoticeService $notices,
+        private readonly ?CribrumClaimService $claims = null,
     ) {
     }
 
@@ -112,6 +115,8 @@ final class ReviewQueueService
         $stateFingerprint = $id === null ? '' : $this->fingerprint($id);
         $currentDetail = $id === null ? null : $this->detail->get($id, true);
         $currentNotice = $currentDetail?->notice;
+        $claims = $currentDetail === null ? [] : $this->claimsFor($currentDetail->finding);
+        $claimObservationId = $currentDetail === null ? null : $this->claimObservationId($currentDetail->finding);
         $selectedEvidenceId = null;
         if ($currentDetail !== null) {
             foreach ($currentDetail->screenshots as $screenshot) {
@@ -171,7 +176,100 @@ final class ReviewQueueService
             baselineKnown: $currentNotice?->baselineKnown ?? true,
             noticesAvailable: $noticesAvailable,
             preloadImages: $preloadImages,
+            claims: $claims,
+            claimObservationId: $claimObservationId,
         );
+    }
+
+    /** @return list<array<string,mixed>> */
+    private function claimsFor(Finding $finding): array
+    {
+        if ($this->claims === null || !CribrumClaimService::available($this->entityManager->getConnection())) return [];
+        $rows = [];
+        foreach ($this->claims->currentClaims($finding) as $claim) {
+            $rows[$claim->claim] = [
+                'claim' => $claim->claim,
+                'state' => $claim->state,
+                'reportSelected' => $claim->reportSelected,
+                'revision' => $claim->revision,
+                'source' => $claim->source,
+                'severity' => $claim->severity,
+                'suggestedState' => null,
+                'score' => null,
+                'reasons' => [],
+                'ruleIds' => [],
+            ];
+        }
+        $observation = $this->entityManager->getRepository(HttpObservation::class)->findOneBy(
+            ['finding' => $finding],
+            ['createdAt' => 'DESC'],
+        );
+        $classification = $observation?->getClassification() ?? null;
+        foreach (is_array($classification['suggestions'] ?? null) ? $classification['suggestions'] : [] as $suggestion) {
+            if (!is_array($suggestion) || !is_string($suggestion['claim'] ?? null) || !is_string($suggestion['state'] ?? null)) continue;
+            $claim = $suggestion['claim'];
+            $row = $rows[$claim] ?? [
+                'claim' => $claim, 'state' => null, 'reportSelected' => false, 'revision' => 0,
+                'source' => null, 'severity' => null, 'suggestedState' => null, 'score' => null,
+                'reasons' => [], 'ruleIds' => [],
+            ];
+            $row['suggestedState'] = $suggestion['state'];
+            $row['score'] = is_int($suggestion['score'] ?? null) ? $suggestion['score'] : null;
+            $row['reasons'] = is_array($suggestion['reasons'] ?? null) ? array_values(array_filter($suggestion['reasons'], 'is_string')) : [];
+            $row['ruleIds'] = is_array($suggestion['ruleIds'] ?? null) ? array_values(array_filter($suggestion['ruleIds'], 'is_string')) : [];
+            $rows[$claim] = $row;
+        }
+        ksort($rows);
+        return array_values($rows);
+    }
+
+    private function claimObservationId(Finding $finding): ?string
+    {
+        $observation = $this->entityManager->getRepository(HttpObservation::class)->findOneBy(
+            ['finding' => $finding],
+            ['createdAt' => 'DESC'],
+        );
+
+        return $observation?->getId();
+    }
+
+    /** @param list<array{claim:string,state:string,report:bool,revision:?int}> $decisions */
+    private function applyClaimDecisions(Finding $finding, string $assessment, array $decisions): void
+    {
+        if ($this->claims === null || !CribrumClaimService::available($this->entityManager->getConnection())) return;
+        $current = [];
+        foreach ($this->claims->currentClaims($finding) as $claim) $current[$claim->claim] = $claim;
+        if ($decisions === []) {
+            foreach ($current as $claim) {
+                $open = in_array($claim->state, ['observed', 'suspected', 'confirmed'], true);
+                if ($assessment === 'fixed' && !$open) continue;
+                $decisions[] = [
+                    'claim' => $claim->claim,
+                    'state' => $assessment === 'fixed' ? 'resolved' : $claim->state,
+                    'report' => $assessment === 'fixed' ? false : $claim->reportSelected,
+                    'revision' => $claim->revision,
+                ];
+            }
+        }
+        foreach ($decisions as $decision) {
+            $claimName = $decision['claim'];
+            $state = $decision['state'];
+            if ($assessment === 'fixed' && in_array($state, ['observed', 'suspected', 'confirmed'], true)) $state = 'resolved';
+            if ($state === '') continue;
+            $existing = $current[$claimName] ?? null;
+            $this->claims->apply(
+                $finding,
+                $claimName,
+                $state,
+                $decision['report'] && !in_array($state, ['rejected', 'resolved', 'stale'], true),
+                'manual',
+                [],
+                'Review assessment decision',
+                null,
+                $existing?->severity,
+                $decision['revision'] ?? $existing?->revision,
+            );
+        }
     }
 
     /** @return array{string, string, ?string} */
@@ -219,7 +317,7 @@ final class ReviewQueueService
     }
 
     /** @throws \UnexpectedValueException when the displayed state changed */
-    public function assess(string $id, string $assessment, ?string $reason, ?string $observationId, ?string $evidenceId, string $contextToken, bool $explicitReview = false): string
+    public function assess(string $id, string $assessment, ?string $reason, ?string $observationId, ?string $evidenceId, string $contextToken, bool $explicitReview = false, array $claimDecisions = []): string
     {
         if (!in_array($assessment, ['confirmed', 'fixed', 'discarded', 'keep'], true) || !in_array($reason, [null, 'duplicate'], true)
             || ($assessment !== 'discarded' && $reason !== null)
@@ -277,6 +375,7 @@ final class ReviewQueueService
                 $this->entityManager->flush();
             } else {
                 $this->findings->assess($finding, $assessment, $reason, $observationId, $evidenceId);
+                $this->applyClaimDecisions($finding, $assessment, $claimDecisions);
             }
             if (ReviewDispositionService::available($connection)) {
                 $connection->executeStatement("UPDATE finding_review_disposition SET state = 'reviewed', revision = revision + 1, changed_at = ? WHERE finding_id = ? AND state = 'active'", [(new \DateTimeImmutable())->format('Y-m-d H:i:s'), $id]);
@@ -305,8 +404,10 @@ final class ReviewQueueService
         $reset = AssessmentHistoryProjection::available($connection) ? $connection->fetchAssociative('SELECT * FROM finding_assessment_reset WHERE finding_id = ? ORDER BY reset_at DESC, id DESC LIMIT 1', [$id]) : false;
 
         $disposition = ReviewDispositionService::available($connection) ? $connection->fetchAssociative('SELECT * FROM finding_review_disposition WHERE finding_id = ?', [$id]) : false;
+        $claims = CribrumClaimService::available($connection) ? $connection->fetchAllAssociative('SELECT * FROM finding_claim WHERE finding_id = ? ORDER BY claim', [$id]) : [];
+        $httpObservations = $connection->fetchAllAssociative("SELECT id, poc_revision, http_status, classification, classified_at, created_at FROM http_observation WHERE finding_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 3", [$id]);
 
-        return hash('sha256', json_encode([$finding, $observations, $decision, $ack, $reset, $disposition], JSON_THROW_ON_ERROR));
+        return hash('sha256', json_encode([$finding, $observations, $decision, $ack, $reset, $disposition, $claims, $httpObservations], JSON_THROW_ON_ERROR));
     }
 
     public function exists(string $id): bool

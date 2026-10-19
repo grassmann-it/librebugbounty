@@ -30,6 +30,8 @@ final readonly class ReviewQueueView
         public bool $baselineKnown = true,
         public bool $noticesAvailable = false,
         public array $preloadImages = [],
+        public array $claims = [],
+        public ?string $claimObservationId = null,
     ) {
     }
 }

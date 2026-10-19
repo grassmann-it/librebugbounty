@@ -102,11 +102,32 @@ final class ReviewController
         $parameters = $request->request->all();
         $submitted = [];
         $malformed = false;
+        $claimDecisions = [];
+        $rawClaims = $parameters['claims'] ?? [];
         foreach (['assessment', 'discard_reason', 'observation_id', 'evidence_id', 'displayed_evidence_id', 'kind', 'images', 'after', '_token', 'context_token', 'trail_id', 'trail_version'] as $field) {
             if (array_key_exists($field, $parameters) && !is_string($parameters[$field])) {
                 $malformed = true;
             }
             $submitted[$field] = is_string($parameters[$field] ?? null) ? $parameters[$field] : '';
+        }
+        $submitted['claims'] = is_array($rawClaims) ? $rawClaims : [];
+        if (is_array($rawClaims)) {
+            foreach ($rawClaims as $claim => $decision) {
+                if (!is_string($claim) || !is_array($decision)
+                    || !is_string($decision['state'] ?? null)
+                    || (!is_string($decision['revision'] ?? null) && !is_int($decision['revision'] ?? null))) {
+                    $malformed = true;
+                    continue;
+                }
+                $claimDecisions[] = [
+                    'claim' => $claim,
+                    'state' => $decision['state'],
+                    'report' => ($decision['report'] ?? null) === '1',
+                    'revision' => is_int($decision['revision']) ? $decision['revision'] : (int) $decision['revision'],
+                ];
+            }
+        } else {
+            $malformed = true;
         }
         $query = array_intersect_key($parameters, array_flip(['kind', 'images', 'after']));
         $query['evidence'] = $submitted['displayed_evidence_id'];
@@ -146,6 +167,7 @@ final class ReviewController
                 trim($submitted['evidence_id']) ?: null,
                 $submitted['context_token'],
                 $trail['current']['explicit'] ?? false,
+                claimDecisions: $claimDecisions,
             );
         } catch (\UnexpectedValueException $exception) {
             return $this->render($request, $this->queue->get($query, $id, $trail['current']['explicit'] ?? false), null, $this->i18n->trans($exception->getMessage()), $submitted, Response::HTTP_CONFLICT);

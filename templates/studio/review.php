@@ -26,6 +26,22 @@ $storedTime = static function (?string $value) use ($formatTime): string {
     return $formatTime($value === null || $value === '' ? null : new \DateTimeImmutable($value, new \DateTimeZone('UTC')), true);
 };
 $imageLabels = ['ready' => 'Bildbereit', 'all' => 'Alle Bildzustände', 'missing' => 'Ohne lesbares Bild'];
+$claimLabels = [
+    'xss' => 'XSS', 'sql_injection' => 'SQL-Injection', 'local_file_inclusion' => 'Local File Inclusion',
+    'remote_file_inclusion' => 'Remote File Inclusion', 'information_disclosure' => 'Information Disclosure',
+    'error_disclosure' => 'Fehlermeldung offengelegt', 'stack_trace' => 'Stacktrace',
+];
+$claimStateLabels = [
+    'observed' => 'Beobachtet', 'suspected' => 'Verdacht', 'confirmed' => 'Bestätigt',
+    'rejected' => 'Abgelehnt', 'resolved' => 'Behoben', 'stale' => 'Aktuell nicht belegt',
+];
+$recommendedClaims = [];
+foreach ($view->claims as $claimRow) {
+    if (($claimRow['suggestedState'] ?? null) !== null) {
+        $recommendedClaims[] = ($claimLabels[$claimRow['claim']] ?? $claimRow['claim']).($claimRow['suggestedState'] === 'suspected' ? ' ('.$t('Verdacht').')' : '');
+    }
+}
+$submittedClaims = is_array($submitted['claims'] ?? null) ? $submitted['claims'] : [];
 $jobLabel = static fn (string $status): string => $t(match ($status) {
     'queued' => 'Screenshot vorgemerkt',
     'running' => 'Screenshot wird aufgenommen',
@@ -275,6 +291,37 @@ foreach ($detail?->screenshots ?? [] as $index => $shot) {
               <input type="hidden" name="displayed_evidence_id" value="<?= $escape($selectedEvidenceId ?? '') ?>" data-review-displayed-evidence>
               <div class="review-decision-heading"><div><h3><?= $escape($t('Deine Entscheidung')) ?></h3><p><?= $escape($t('„Not vulnerable“ speichert „Behoben“. „Vulnerable“ bestätigt den Befund. {keep}Überspringen lässt den Fall unverändert.', ['keep' => $canKeep ? $t('„Bewertung behalten“ erledigt die Sichtung ohne neues Urteil. ') : ''])) ?></p></div><p class="review-keyboard" data-review-keyboard hidden><kbd>←</kbd> Not vulnerable <kbd>→</kbd> Vulnerable</p></div>
               <?php if (!$canAssess): ?><p class="review-stale"><?= $escape($t('Dieser Fall gehört nicht mehr zum offenen Review-Vorrat. Öffne den Fall für eine Korrektur oder gehe zum nächsten.')) ?></p><?php endif; ?>
+              <?php if ($view->claims !== []): ?>
+                <fieldset class="review-claims" data-review-claims>
+                  <legend><?= $escape($t('Claims für diese Meldung')) ?></legend>
+                  <p class="review-claims-summary"><?= $escape($t('Wir denken: {claims}. Siehst du das auch?', ['claims' => implode(' · ', $recommendedClaims) ?: $t('kein neuer Claim')])) ?></p>
+                  <details class="review-claim-adjust"<?= $submittedClaims !== [] ? ' open' : '' ?>><summary><?= $escape($t('Claims anpassen')) ?></summary><div class="review-claim-list">
+                  <?php foreach ($view->claims as $claimRow): ?>
+                    <?php
+                      $claimName = $claimRow['claim'];
+                      $submittedClaim = $submittedClaims[$claimName] ?? null;
+                      $submittedState = is_array($submittedClaim) && is_string($submittedClaim['state'] ?? null) ? $submittedClaim['state'] : null;
+                      $claimState = $submittedState !== null && $submittedState !== '' ? $submittedState : ($claimRow['state'] ?? $claimRow['suggestedState'] ?? '');
+                      $reportChecked = is_array($submittedClaim)
+                        ? ($submittedClaim['report'] ?? null) === '1'
+                        : (bool) ($claimRow['reportSelected'] ?? false) || ($claimRow['suggestedState'] ?? null) !== null;
+                      $claimReasons = is_array($claimRow['reasons'] ?? null) ? array_slice(array_values(array_filter($claimRow['reasons'], 'is_string')), 0, 2) : [];
+                    ?>
+                    <div class="review-claim-row" data-review-claim="<?= $escape($claimName) ?>">
+                      <label class="review-claim-select"><span><?= $escape($t($claimLabels[$claimName] ?? $claimName)) ?></span>
+                        <select name="claims[<?= $escape($claimName) ?>][state]"<?= !$canAssess ? ' disabled' : '' ?>>
+                          <option value=""<?= $claimState === '' ? ' selected' : '' ?>><?= $escape($t('Keine Aussage')) ?></option>
+                          <?php foreach ($claimStateLabels as $stateValue => $stateLabel): ?><option value="<?= $escape($stateValue) ?>"<?= $claimState === $stateValue ? ' selected' : '' ?>><?= $escape($t($stateLabel)) ?></option><?php endforeach; ?>
+                        </select>
+                      </label>
+                      <label class="review-claim-report"><input type="checkbox" name="claims[<?= $escape($claimName) ?>][report]" value="1"<?= $reportChecked ? ' checked' : '' ?><?= !$canAssess || in_array($claimState, ['rejected', 'resolved', 'stale'], true) ? ' disabled' : '' ?>> <?= $escape($t('Zur Meldung auswählen')) ?></label>
+                      <input type="hidden" name="claims[<?= $escape($claimName) ?>][revision]" value="<?= $escape((string) ($claimRow['revision'] ?? 0)) ?>">
+                      <?php if ($claimReasons !== []): ?><p class="review-claim-reason"><?= $escape($t('Begründung')).': '.implode(' · ', $claimReasons) ?></p><?php endif; ?>
+                    </div>
+                  <?php endforeach; ?>
+                  </div></details>
+                </fieldset>
+              <?php endif; ?>
               <details class="review-basis"<?= (($submitted['observation_id'] ?? '') !== '' || ($submitted['evidence_id'] ?? '') !== '') ? ' open' : '' ?>><summary><?= $escape($t('Bewertungsgrundlage')) ?> <span><?= $escape($t('optional · ohne Auswahl unbekannt')) ?></span></summary><p><?= $escape($t('Wähle nur einen Beleg oder eine Beobachtung, die du tatsächlich beurteilt hast. Das angezeigte Bild wird nicht automatisch ausgewählt.')) ?></p><div class="review-basis-fields">
                 <label for="review-evidence-basis"><?= $escape($t('Beurteilter Beleg')) ?><select name="evidence_id" id="review-evidence-basis"<?= !$canAssess ? ' disabled' : '' ?>><option value=""><?= $escape($t('Unbekannt / kein konkreter Beleg')) ?></option><?php foreach ($detail->evidence as $item): ?><option value="<?= $escape($item->getId()) ?>"<?= ($submitted['evidence_id'] ?? '') === $item->getId() ? ' selected' : '' ?><?= isset($unavailableEvidence[$item->getId()]) && ($submitted['evidence_id'] ?? '') !== $item->getId() ? ' disabled' : '' ?>><?= $escape($evidenceLabels[$item->getId()] ?? $item->getKind().' · '.$t('Ablage').': '.$formatTime($item->getCreatedAt(), true).' · '.substr($item->getId(), 0, 8)) ?></option><?php endforeach; ?></select></label>
                 <label for="review-observation-basis"><?= $escape($t('Beurteilte Beobachtung')) ?><select name="observation_id" id="review-observation-basis"<?= !$canAssess ? ' disabled' : '' ?>><option value=""><?= $escape($t('Unbekannt / keine konkrete Beobachtung')) ?></option><?php foreach ($detail->runs as $run): ?><option value="<?= $escape($run->getId()) ?>"<?= ($submitted['observation_id'] ?? '') === $run->getId() ? ' selected' : '' ?>><?= $escape($t(FindingReadLabels::observation($run->getResult())).' · '.$formatTime($run->getFinishedAt() ?? $run->getStartedAt(), true).' · '.substr($run->getId(), 0, 8)) ?></option><?php endforeach; ?></select></label>

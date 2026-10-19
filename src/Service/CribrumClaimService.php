@@ -18,6 +18,11 @@ final class CribrumClaimService
     }
 
     /** @return list<FindingClaim> */
+    public static function available(\Doctrine\DBAL\Connection $connection): bool
+    {
+        return (bool) $connection->fetchOne("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'finding_claim'");
+    }
+
     public function currentClaims(Finding $finding): array
     {
         $claims = $this->entityManager->getRepository(FindingClaim::class)->findBy(['finding' => $finding], ['claim' => 'ASC']);
