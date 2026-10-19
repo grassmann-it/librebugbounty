@@ -14,6 +14,7 @@ final readonly class BrowserScreenshotResult
         public ?string $dialogText = null,
         public ?string $captureMethod = null,
         public array $metadata = [],
+        public ?array $observation = null,
     ) {
     }
 }

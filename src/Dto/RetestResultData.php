@@ -13,6 +13,7 @@ final class RetestResultData
         public readonly ?string $screenshotBase64 = null,
         public readonly ?string $errorMessage = null,
         public readonly array $raw = [],
+        public readonly ?array $observation = null,
     ) {
     }
 }

@@ -21,7 +21,7 @@ final class ArtifactAuditCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $references = $this->connection->fetchFirstColumn(
-            'SELECT file_path FROM evidence WHERE file_path IS NOT NULL UNION SELECT screenshot_path FROM retest_run WHERE screenshot_path IS NOT NULL UNION SELECT screenshot_path FROM screenshot_job WHERE screenshot_path IS NOT NULL'
+            'SELECT file_path FROM evidence WHERE file_path IS NOT NULL UNION SELECT screenshot_path FROM retest_run WHERE screenshot_path IS NOT NULL UNION SELECT screenshot_path FROM screenshot_job WHERE screenshot_path IS NOT NULL UNION SELECT artifact_path FROM http_observation WHERE artifact_path IS NOT NULL'
         );
         $known = [];
         $rows = [];

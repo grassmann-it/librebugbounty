@@ -2,6 +2,7 @@
 
 namespace App\Service;
 
+use App\Cribrum\ObservationTransport;
 use App\Dto\BrowserScreenshotRequest;
 use App\Dto\BrowserScreenshotResult;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -86,6 +87,7 @@ class PlaywrightBrowserScreenshotClient implements BrowserScreenshotClientInterf
             dialogText: isset($data['dialogText']) ? (string) $data['dialogText'] : null,
             captureMethod: isset($data['captureMethod']) ? (string) $data['captureMethod'] : null,
             metadata: is_array($data['metadata'] ?? null) ? $data['metadata'] : [],
+            observation: ObservationTransport::normalize($data['observation'] ?? null),
         );
     }
 

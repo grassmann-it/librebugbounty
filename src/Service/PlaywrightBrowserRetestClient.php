@@ -2,6 +2,7 @@
 
 namespace App\Service;
 
+use App\Cribrum\ObservationTransport;
 use App\Dto\BrowserRetestRequest;
 use App\Dto\RetestResultData;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -78,6 +79,7 @@ final class PlaywrightBrowserRetestClient implements BrowserRetestClientInterfac
             screenshotBase64: $data['screenshotBase64'] ?? null,
             errorMessage: $data['errorMessage'] ?? null,
             raw: $data['raw'] ?? [],
+            observation: ObservationTransport::normalize($data['observation'] ?? null),
         );
     }
 }

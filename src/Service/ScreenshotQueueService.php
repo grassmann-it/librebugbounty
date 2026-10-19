@@ -21,6 +21,7 @@ final class ScreenshotQueueService implements ScreenshotEnqueuerInterface
         private readonly EvidenceStorageInterface $storage,
         private readonly SettingsService $settings,
         private readonly ScreenshotOperationLock $operationLock,
+        private readonly ?CribrumProcessingService $cribrum = null,
     ) {
     }
 
@@ -179,6 +180,10 @@ final class ScreenshotQueueService implements ScreenshotEnqueuerInterface
             $this->assertNotDiscarded($job->getFinding());
             $this->assertCurrentPoc($job);
             $this->assertCurrentReviewDisposition($job);
+            $capturedFinding = $job->getFinding();
+            $capturedUrl = $job->getUrl();
+            $capturedPayload = $capturedFinding->getPayload();
+            $capturedEvidence = $capturedFinding->getExpectedEvidence();
             $result = $this->client->capture(new BrowserScreenshotRequest(
                 url: $job->getUrl(),
                 timeoutMs: $this->settings->getReviewScanTimeoutMs(),
@@ -233,6 +238,18 @@ final class ScreenshotQueueService implements ScreenshotEnqueuerInterface
                     $entityManager->flush();
                 });
             });
+            $this->cribrum?->process(
+                $job->getFinding(),
+                $result->observation,
+                $job->getId(),
+                null,
+                $this->jobPocRevision($job),
+                $capturedUrl,
+                $capturedPayload,
+                $capturedEvidence,
+                $result->dialogSeen,
+                $result->dialogText,
+            );
         } catch (\Throwable $error) {
             $failureMessage = $error->getMessage();
             if ($storedPath !== null) {

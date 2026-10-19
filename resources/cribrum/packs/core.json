@@ -1,0 +1,1159 @@
+{
+  "schema": 1,
+  "id": "core",
+  "version": "2026.10.19",
+  "rules": [
+    {
+      "id": "framework/whoops--there-was-an-error",
+      "representation": "text",
+      "any": [
+        "Whoops! There was an error"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 88,
+      "reason": "A framework or runtime error page was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/whoops--there-was-an-error/info",
+      "representation": "text",
+      "any": [
+        "Whoops! There was an error"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 80,
+      "reason": "The framework error page may disclose internal details.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/ignition-by-laravel",
+      "representation": "text",
+      "any": [
+        "Ignition by Laravel"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 88,
+      "reason": "A framework or runtime error page was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/ignition-by-laravel/info",
+      "representation": "text",
+      "any": [
+        "Ignition by Laravel"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 80,
+      "reason": "The framework error page may disclose internal details.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/laravel-framework",
+      "representation": "text",
+      "any": [
+        "laravel/framework"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 88,
+      "reason": "A framework or runtime error page was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/laravel-framework/info",
+      "representation": "text",
+      "any": [
+        "laravel/framework"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 80,
+      "reason": "The framework error page may disclose internal details.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/server-error-in-----application",
+      "representation": "text",
+      "any": [
+        "Server Error in '/' Application"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 88,
+      "reason": "A framework or runtime error page was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/server-error-in-----application/info",
+      "representation": "text",
+      "any": [
+        "Server Error in '/' Application"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 80,
+      "reason": "The framework error page may disclose internal details.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/runtime-error-description-",
+      "representation": "text",
+      "any": [
+        "Runtime Error Description:"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 88,
+      "reason": "A framework or runtime error page was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/runtime-error-description-/info",
+      "representation": "text",
+      "any": [
+        "Runtime Error Description:"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 80,
+      "reason": "The framework error page may disclose internal details.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/asp.net-is-configured",
+      "representation": "text",
+      "any": [
+        "ASP.NET is configured"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 88,
+      "reason": "A framework or runtime error page was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/asp.net-is-configured/info",
+      "representation": "text",
+      "any": [
+        "ASP.NET is configured"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 80,
+      "reason": "The framework error page may disclose internal details.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/django-version-",
+      "representation": "text",
+      "any": [
+        "Django Version:"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 88,
+      "reason": "A framework or runtime error page was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/django-version-/info",
+      "representation": "text",
+      "any": [
+        "Django Version:"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 80,
+      "reason": "The framework error page may disclose internal details.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/django_settings_module",
+      "representation": "text",
+      "any": [
+        "DJANGO_SETTINGS_MODULE"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 88,
+      "reason": "A framework or runtime error page was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/django_settings_module/info",
+      "representation": "text",
+      "any": [
+        "DJANGO_SETTINGS_MODULE"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 80,
+      "reason": "The framework error page may disclose internal details.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/using-the-urlconf-defined",
+      "representation": "text",
+      "any": [
+        "Using the URLconf defined"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 88,
+      "reason": "A framework or runtime error page was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/using-the-urlconf-defined/info",
+      "representation": "text",
+      "any": [
+        "Using the URLconf defined"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 80,
+      "reason": "The framework error page may disclose internal details.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/whitelabel-error-page",
+      "representation": "text",
+      "any": [
+        "Whitelabel Error Page"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 88,
+      "reason": "A framework or runtime error page was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/whitelabel-error-page/info",
+      "representation": "text",
+      "any": [
+        "Whitelabel Error Page"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 80,
+      "reason": "The framework error page may disclose internal details.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/this-application-has-no-explicit--error-mapping",
+      "representation": "text",
+      "any": [
+        "This application has no explicit /error mapping"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 88,
+      "reason": "A framework or runtime error page was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/this-application-has-no-explicit--error-mapping/info",
+      "representation": "text",
+      "any": [
+        "This application has no explicit /error mapping"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 80,
+      "reason": "The framework error page may disclose internal details.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/fatal-error-",
+      "representation": "text",
+      "any": [
+        "Fatal error:"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 88,
+      "reason": "A framework or runtime error page was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/fatal-error-/info",
+      "representation": "text",
+      "any": [
+        "Fatal error:"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 80,
+      "reason": "The framework error page may disclose internal details.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/php-warning-",
+      "representation": "text",
+      "any": [
+        "PHP Warning:"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 88,
+      "reason": "A framework or runtime error page was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/php-warning-/info",
+      "representation": "text",
+      "any": [
+        "PHP Warning:"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 80,
+      "reason": "The framework error page may disclose internal details.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/php-notice-",
+      "representation": "text",
+      "any": [
+        "PHP Notice:"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 88,
+      "reason": "A framework or runtime error page was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "framework/php-notice-/info",
+      "representation": "text",
+      "any": [
+        "PHP Notice:"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 80,
+      "reason": "The framework error page may disclose internal details.",
+      "minStatus": 400
+    },
+    {
+      "id": "database/you-have-an-error-in-your-sql-syntax",
+      "representation": "text",
+      "any": [
+        "You have an error in your SQL syntax"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 94,
+      "reason": "A database error message was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "database/you-have-an-error-in-your-sql-syntax/info",
+      "representation": "text",
+      "any": [
+        "You have an error in your SQL syntax"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 92,
+      "reason": "The database error message may disclose query or engine details.",
+      "minStatus": 400
+    },
+    {
+      "id": "database/you-have-an-error-in-your-sql-syntax/sqli",
+      "representation": "text",
+      "any": [
+        "You have an error in your SQL syntax"
+      ],
+      "claim": "sql_injection",
+      "state": "suspected",
+      "score": 88,
+      "reason": "A database error may indicate an injected SQL statement.",
+      "minStatus": 400,
+      "context": [
+        "payloadInText"
+      ]
+    },
+    {
+      "id": "database/mysqlsyntaxerrorexception",
+      "representation": "text",
+      "any": [
+        "MySQLSyntaxErrorException"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 94,
+      "reason": "A database error message was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "database/mysqlsyntaxerrorexception/info",
+      "representation": "text",
+      "any": [
+        "MySQLSyntaxErrorException"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 92,
+      "reason": "The database error message may disclose query or engine details.",
+      "minStatus": 400
+    },
+    {
+      "id": "database/mysqlsyntaxerrorexception/sqli",
+      "representation": "text",
+      "any": [
+        "MySQLSyntaxErrorException"
+      ],
+      "claim": "sql_injection",
+      "state": "suspected",
+      "score": 88,
+      "reason": "A database error may indicate an injected SQL statement.",
+      "minStatus": 400,
+      "context": [
+        "payloadInText"
+      ]
+    },
+    {
+      "id": "database/sqlexception",
+      "representation": "text",
+      "any": [
+        "SQLException"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 94,
+      "reason": "A database error message was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "database/sqlexception/info",
+      "representation": "text",
+      "any": [
+        "SQLException"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 92,
+      "reason": "The database error message may disclose query or engine details.",
+      "minStatus": 400
+    },
+    {
+      "id": "database/sqlexception/sqli",
+      "representation": "text",
+      "any": [
+        "SQLException"
+      ],
+      "claim": "sql_injection",
+      "state": "suspected",
+      "score": 88,
+      "reason": "A database error may indicate an injected SQL statement.",
+      "minStatus": 400,
+      "context": [
+        "payloadInText"
+      ]
+    },
+    {
+      "id": "database/postgresql-error-",
+      "representation": "text",
+      "any": [
+        "PostgreSQL ERROR:"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 94,
+      "reason": "A database error message was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "database/postgresql-error-/info",
+      "representation": "text",
+      "any": [
+        "PostgreSQL ERROR:"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 92,
+      "reason": "The database error message may disclose query or engine details.",
+      "minStatus": 400
+    },
+    {
+      "id": "database/postgresql-error-/sqli",
+      "representation": "text",
+      "any": [
+        "PostgreSQL ERROR:"
+      ],
+      "claim": "sql_injection",
+      "state": "suspected",
+      "score": 88,
+      "reason": "A database error may indicate an injected SQL statement.",
+      "minStatus": 400,
+      "context": [
+        "payloadInText"
+      ]
+    },
+    {
+      "id": "database/syntax-error-at-or-near",
+      "representation": "text",
+      "any": [
+        "syntax error at or near"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 94,
+      "reason": "A database error message was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "database/syntax-error-at-or-near/info",
+      "representation": "text",
+      "any": [
+        "syntax error at or near"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 92,
+      "reason": "The database error message may disclose query or engine details.",
+      "minStatus": 400
+    },
+    {
+      "id": "database/syntax-error-at-or-near/sqli",
+      "representation": "text",
+      "any": [
+        "syntax error at or near"
+      ],
+      "claim": "sql_injection",
+      "state": "suspected",
+      "score": 88,
+      "reason": "A database error may indicate an injected SQL statement.",
+      "minStatus": 400,
+      "context": [
+        "payloadInText"
+      ]
+    },
+    {
+      "id": "database/sqlite3--query",
+      "representation": "text",
+      "any": [
+        "SQLite3::query"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 94,
+      "reason": "A database error message was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "database/sqlite3--query/info",
+      "representation": "text",
+      "any": [
+        "SQLite3::query"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 92,
+      "reason": "The database error message may disclose query or engine details.",
+      "minStatus": 400
+    },
+    {
+      "id": "database/sqlite3--query/sqli",
+      "representation": "text",
+      "any": [
+        "SQLite3::query"
+      ],
+      "claim": "sql_injection",
+      "state": "suspected",
+      "score": 88,
+      "reason": "A database error may indicate an injected SQL statement.",
+      "minStatus": 400,
+      "context": [
+        "payloadInText"
+      ]
+    },
+    {
+      "id": "database/sqlite_error",
+      "representation": "text",
+      "any": [
+        "SQLITE_ERROR"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 94,
+      "reason": "A database error message was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "database/sqlite_error/info",
+      "representation": "text",
+      "any": [
+        "SQLITE_ERROR"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 92,
+      "reason": "The database error message may disclose query or engine details.",
+      "minStatus": 400
+    },
+    {
+      "id": "database/sqlite_error/sqli",
+      "representation": "text",
+      "any": [
+        "SQLITE_ERROR"
+      ],
+      "claim": "sql_injection",
+      "state": "suspected",
+      "score": 88,
+      "reason": "A database error may indicate an injected SQL statement.",
+      "minStatus": 400,
+      "context": [
+        "payloadInText"
+      ]
+    },
+    {
+      "id": "database/unclosed-quotation-mark-after-the-character-stri",
+      "representation": "text",
+      "any": [
+        "Unclosed quotation mark after the character string"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 94,
+      "reason": "A database error message was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "database/unclosed-quotation-mark-after-the-character-stri/info",
+      "representation": "text",
+      "any": [
+        "Unclosed quotation mark after the character string"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 92,
+      "reason": "The database error message may disclose query or engine details.",
+      "minStatus": 400
+    },
+    {
+      "id": "database/unclosed-quotation-mark-after-the-character-stri/sqli",
+      "representation": "text",
+      "any": [
+        "Unclosed quotation mark after the character string"
+      ],
+      "claim": "sql_injection",
+      "state": "suspected",
+      "score": 88,
+      "reason": "A database error may indicate an injected SQL statement.",
+      "minStatus": 400,
+      "context": [
+        "payloadInText"
+      ]
+    },
+    {
+      "id": "database/microsoft-sql-server",
+      "representation": "text",
+      "any": [
+        "Microsoft SQL Server"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 94,
+      "reason": "A database error message was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "database/microsoft-sql-server/info",
+      "representation": "text",
+      "any": [
+        "Microsoft SQL Server"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 92,
+      "reason": "The database error message may disclose query or engine details.",
+      "minStatus": 400
+    },
+    {
+      "id": "database/microsoft-sql-server/sqli",
+      "representation": "text",
+      "any": [
+        "Microsoft SQL Server"
+      ],
+      "claim": "sql_injection",
+      "state": "suspected",
+      "score": 88,
+      "reason": "A database error may indicate an injected SQL statement.",
+      "minStatus": 400,
+      "context": [
+        "payloadInText"
+      ]
+    },
+    {
+      "id": "database/ora-",
+      "representation": "text",
+      "any": [
+        "ORA-"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 94,
+      "reason": "A database error message was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "database/ora-/info",
+      "representation": "text",
+      "any": [
+        "ORA-"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 92,
+      "reason": "The database error message may disclose query or engine details.",
+      "minStatus": 400
+    },
+    {
+      "id": "database/ora-/sqli",
+      "representation": "text",
+      "any": [
+        "ORA-"
+      ],
+      "claim": "sql_injection",
+      "state": "suspected",
+      "score": 88,
+      "reason": "A database error may indicate an injected SQL statement.",
+      "minStatus": 400,
+      "context": [
+        "payloadInText"
+      ]
+    },
+    {
+      "id": "stack/traceback--most-recent-call-last-",
+      "representation": "text",
+      "any": [
+        "Traceback (most recent call last)"
+      ],
+      "claim": "stack_trace",
+      "state": "observed",
+      "score": 95,
+      "reason": "A stack trace was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "stack/traceback--most-recent-call-last-/info",
+      "representation": "text",
+      "any": [
+        "Traceback (most recent call last)"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 82,
+      "reason": "The stack trace may expose internal paths or components.",
+      "minStatus": 400
+    },
+    {
+      "id": "stack/exception-in-thread",
+      "representation": "text",
+      "any": [
+        "Exception in thread"
+      ],
+      "claim": "stack_trace",
+      "state": "observed",
+      "score": 95,
+      "reason": "A stack trace was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "stack/exception-in-thread/info",
+      "representation": "text",
+      "any": [
+        "Exception in thread"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 82,
+      "reason": "The stack trace may expose internal paths or components.",
+      "minStatus": 400
+    },
+    {
+      "id": "stack/at-java.",
+      "representation": "text",
+      "any": [
+        "at java."
+      ],
+      "claim": "stack_trace",
+      "state": "observed",
+      "score": 95,
+      "reason": "A stack trace was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "stack/at-java./info",
+      "representation": "text",
+      "any": [
+        "at java."
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 82,
+      "reason": "The stack trace may expose internal paths or components.",
+      "minStatus": 400
+    },
+    {
+      "id": "stack/stack-trace-",
+      "representation": "text",
+      "any": [
+        "Stack trace:"
+      ],
+      "claim": "stack_trace",
+      "state": "observed",
+      "score": 95,
+      "reason": "A stack trace was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "stack/stack-trace-/info",
+      "representation": "text",
+      "any": [
+        "Stack trace:"
+      ],
+      "claim": "information_disclosure",
+      "state": "observed",
+      "score": 82,
+      "reason": "The stack trace may expose internal paths or components.",
+      "minStatus": 400
+    },
+    {
+      "id": "file/failed-to-open-stream",
+      "representation": "text",
+      "any": [
+        "failed to open stream"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 90,
+      "reason": "A file or include error was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "lfi/failed-to-open-stream",
+      "representation": "text",
+      "any": [
+        "failed to open stream"
+      ],
+      "claim": "local_file_inclusion",
+      "state": "suspected",
+      "score": 86,
+      "reason": "A parameter value appeared in a file or include error.",
+      "context": [
+        "payloadInText",
+        "fileError"
+      ],
+      "minStatus": 400
+    },
+    {
+      "id": "rfi/failed-to-open-stream",
+      "representation": "text",
+      "any": [
+        "failed to open stream"
+      ],
+      "claim": "remote_file_inclusion",
+      "state": "suspected",
+      "score": 82,
+      "reason": "A URL-like parameter value appeared in an include error.",
+      "context": [
+        "payloadInText",
+        "payloadLooksUrl",
+        "fileError"
+      ],
+      "minStatus": 400
+    },
+    {
+      "id": "file/no-such-file-or-directory",
+      "representation": "text",
+      "any": [
+        "No such file or directory"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 90,
+      "reason": "A file or include error was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "lfi/no-such-file-or-directory",
+      "representation": "text",
+      "any": [
+        "No such file or directory"
+      ],
+      "claim": "local_file_inclusion",
+      "state": "suspected",
+      "score": 86,
+      "reason": "A parameter value appeared in a file or include error.",
+      "context": [
+        "payloadInText",
+        "fileError"
+      ],
+      "minStatus": 400
+    },
+    {
+      "id": "rfi/no-such-file-or-directory",
+      "representation": "text",
+      "any": [
+        "No such file or directory"
+      ],
+      "claim": "remote_file_inclusion",
+      "state": "suspected",
+      "score": 82,
+      "reason": "A URL-like parameter value appeared in an include error.",
+      "context": [
+        "payloadInText",
+        "payloadLooksUrl",
+        "fileError"
+      ],
+      "minStatus": 400
+    },
+    {
+      "id": "file/failed-opening-for-inclusion",
+      "representation": "text",
+      "any": [
+        "failed opening for inclusion"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 90,
+      "reason": "A file or include error was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "lfi/failed-opening-for-inclusion",
+      "representation": "text",
+      "any": [
+        "failed opening for inclusion"
+      ],
+      "claim": "local_file_inclusion",
+      "state": "suspected",
+      "score": 86,
+      "reason": "A parameter value appeared in a file or include error.",
+      "context": [
+        "payloadInText",
+        "fileError"
+      ],
+      "minStatus": 400
+    },
+    {
+      "id": "rfi/failed-opening-for-inclusion",
+      "representation": "text",
+      "any": [
+        "failed opening for inclusion"
+      ],
+      "claim": "remote_file_inclusion",
+      "state": "suspected",
+      "score": 82,
+      "reason": "A URL-like parameter value appeared in an include error.",
+      "context": [
+        "payloadInText",
+        "payloadLooksUrl",
+        "fileError"
+      ],
+      "minStatus": 400
+    },
+    {
+      "id": "file/open_basedir-restriction-in-effect",
+      "representation": "text",
+      "any": [
+        "open_basedir restriction in effect"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 90,
+      "reason": "A file or include error was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "lfi/open_basedir-restriction-in-effect",
+      "representation": "text",
+      "any": [
+        "open_basedir restriction in effect"
+      ],
+      "claim": "local_file_inclusion",
+      "state": "suspected",
+      "score": 86,
+      "reason": "A parameter value appeared in a file or include error.",
+      "context": [
+        "payloadInText",
+        "fileError"
+      ],
+      "minStatus": 400
+    },
+    {
+      "id": "rfi/open_basedir-restriction-in-effect",
+      "representation": "text",
+      "any": [
+        "open_basedir restriction in effect"
+      ],
+      "claim": "remote_file_inclusion",
+      "state": "suspected",
+      "score": 82,
+      "reason": "A URL-like parameter value appeared in an include error.",
+      "context": [
+        "payloadInText",
+        "payloadLooksUrl",
+        "fileError"
+      ],
+      "minStatus": 400
+    },
+    {
+      "id": "file/include----failed-opening",
+      "representation": "text",
+      "any": [
+        "include(): Failed opening"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 90,
+      "reason": "A file or include error was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "lfi/include----failed-opening",
+      "representation": "text",
+      "any": [
+        "include(): Failed opening"
+      ],
+      "claim": "local_file_inclusion",
+      "state": "suspected",
+      "score": 86,
+      "reason": "A parameter value appeared in a file or include error.",
+      "context": [
+        "payloadInText",
+        "fileError"
+      ],
+      "minStatus": 400
+    },
+    {
+      "id": "rfi/include----failed-opening",
+      "representation": "text",
+      "any": [
+        "include(): Failed opening"
+      ],
+      "claim": "remote_file_inclusion",
+      "state": "suspected",
+      "score": 82,
+      "reason": "A URL-like parameter value appeared in an include error.",
+      "context": [
+        "payloadInText",
+        "payloadLooksUrl",
+        "fileError"
+      ],
+      "minStatus": 400
+    },
+    {
+      "id": "file/require----failed-opening",
+      "representation": "text",
+      "any": [
+        "require(): Failed opening"
+      ],
+      "claim": "error_disclosure",
+      "state": "observed",
+      "score": 90,
+      "reason": "A file or include error was returned.",
+      "minStatus": 400
+    },
+    {
+      "id": "lfi/require----failed-opening",
+      "representation": "text",
+      "any": [
+        "require(): Failed opening"
+      ],
+      "claim": "local_file_inclusion",
+      "state": "suspected",
+      "score": 86,
+      "reason": "A parameter value appeared in a file or include error.",
+      "context": [
+        "payloadInText",
+        "fileError"
+      ],
+      "minStatus": 400
+    },
+    {
+      "id": "rfi/require----failed-opening",
+      "representation": "text",
+      "any": [
+        "require(): Failed opening"
+      ],
+      "claim": "remote_file_inclusion",
+      "state": "suspected",
+      "score": 82,
+      "reason": "A URL-like parameter value appeared in an include error.",
+      "context": [
+        "payloadInText",
+        "payloadLooksUrl",
+        "fileError"
+      ],
+      "minStatus": 400
+    },
+    {
+      "id": "file-content/root-x-0-0-",
+      "representation": "text",
+      "any": [
+        "root:x:0:0:"
+      ],
+      "claim": "local_file_inclusion",
+      "state": "observed",
+      "score": 94,
+      "reason": "Known local file content became visible.",
+      "minStatus": 200,
+      "context": [
+        "payloadPathLike"
+      ]
+    },
+    {
+      "id": "file-content/-extensions-",
+      "representation": "text",
+      "any": [
+        "[extensions]"
+      ],
+      "claim": "local_file_inclusion",
+      "state": "observed",
+      "score": 94,
+      "reason": "Known local file content became visible.",
+      "minStatus": 200,
+      "context": [
+        "payloadPathLike"
+      ]
+    },
+    {
+      "id": "file-content/begin-rsa-private-key",
+      "representation": "text",
+      "any": [
+        "BEGIN RSA PRIVATE KEY"
+      ],
+      "claim": "local_file_inclusion",
+      "state": "observed",
+      "score": 94,
+      "reason": "Known local file content became visible.",
+      "minStatus": 200,
+      "context": [
+        "payloadPathLike"
+      ]
+    },
+    {
+      "id": "file-content/begin-openssh-private-key",
+      "representation": "text",
+      "any": [
+        "BEGIN OPENSSH PRIVATE KEY"
+      ],
+      "claim": "local_file_inclusion",
+      "state": "observed",
+      "score": 94,
+      "reason": "Known local file content became visible.",
+      "minStatus": 200,
+      "context": [
+        "payloadPathLike"
+      ]
+    }
+  ]
+}

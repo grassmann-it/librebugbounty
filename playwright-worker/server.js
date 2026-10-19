@@ -23,6 +23,69 @@ const INTERACTIVE_SWEEP_MS = 30000;
 const INTERACTIVE_OPERATION_TIMEOUT_MS = 15000;
 const MAX_BODY_BYTES = 64 * 1024;
 const SESSION_ID_PATTERN = /^[a-f0-9]{48}$/;
+const OBSERVATION_SCHEMA = 1;
+const OBSERVATION_MAX_RAW_HTML_BYTES = 1024 * 1024;
+const OBSERVATION_MAX_DOM_TEXT_BYTES = 512 * 1024;
+// Persistence keeps the reported original size next to the stored, possibly
+// truncated text and accepts at most twice the transport limit for it.
+const OBSERVATION_MAX_REPORTED_RAW_BYTES = 2 * 1024 * 1024;
+const OBSERVATION_MAX_REPORTED_DOM_BYTES = 1024 * 1024;
+// Guard for response.text(): a body declared larger than the size persistence
+// can record a total for is skipped instead of pulled into worker memory only
+// to be truncated away again.
+const OBSERVATION_MAX_BODY_READ_BYTES = 2 * 1024 * 1024;
+const OBSERVATION_MAX_HEADER_VALUE_BYTES = 1024;
+const OBSERVATION_MAX_CONTENT_TYPE_BYTES = 255;
+const OBSERVATION_MAX_HEADERS = 24;
+const OBSERVATION_MAX_REDIRECTS = 32;
+const OBSERVATION_MAX_URL_BYTES = 8192;
+const OBSERVATION_MAX_ERROR_BYTES = 500;
+const OBSERVATION_READ_TIMEOUT_MS = 5000;
+// Header subset that helps classify a response. cookie, set-cookie and
+// authorization are deliberately absent: an observation is retained evidence
+// and must not carry session or credential material. Every name matches the
+// lowercase token pattern the persistence side validates.
+const OBSERVATION_HEADERS = new Set([
+  'cache-control',
+  'content-disposition',
+  'content-encoding',
+  'content-language',
+  'content-length',
+  'content-security-policy',
+  'content-type',
+  'date',
+  'etag',
+  'expires',
+  'last-modified',
+  'location',
+  'pragma',
+  'referrer-policy',
+  'server',
+  'transfer-encoding',
+  'vary',
+  'x-aspnet-version',
+  'x-aspnetmvc-version',
+  'x-content-type-options',
+  'x-drupal-cache',
+  'x-drupal-dynamic-cache',
+  'x-frame-options',
+  'x-generator',
+  'x-powered-by',
+  'x-runtime',
+  'x-ua-compatible',
+  'x-xss-protection',
+]);
+// Bodies that cannot carry a reflected marker.
+const OBSERVATION_BINARY_CONTENT_TYPE = /^(?:image|video|audio|font|model)\//i;
+const OBSERVATION_BINARY_CONTENT_TYPES = new Set([
+  'application/octet-stream',
+  'application/pdf',
+  'application/zip',
+  'application/gzip',
+  'application/x-tar',
+  'application/wasm',
+  'application/x-shockwave-flash',
+]);
 
 function challengeSnapshotIsActive(snapshot = {}) {
   if (snapshot.selectorMatched === true) {
@@ -312,28 +375,6 @@ function createInteractiveRuntime(dependencies = {}) {
 // Keep legacy/offline workers independent of the optional gateway dependency.
 function createGateway(server, options) {
   return require('./vnc-gateway').createGateway(server, options);
-}
-
-async function fetchHttpFallback(url, timeoutMs) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), Math.min(timeoutMs, 10000));
-
-  try {
-    const response = await fetch(url, {
-      method: 'GET',
-      signal: controller.signal,
-      redirect: 'follow',
-    });
-    const body = await response.text();
-
-    return {
-      status: response.status,
-      body,
-      matched: false,
-    };
-  } finally {
-    clearTimeout(timeout);
-  }
 }
 
 async function dismissCommonConsentOverlays(page) {
@@ -1477,16 +1518,261 @@ async function closeInteractiveSessionById(sessionId, dependencies = {}, payload
   });
 }
 
-async function runRetest(payload) {
+// ---- Cribrum observation transport --------------------------------------
+//
+// A screenshot or retest run already loads the target once. Cribrum classifies
+// that same main-document response, so an observation is assembled only from
+// data the browser already holds: the navigation response, its buffered body
+// and the rendered DOM text. Nothing here contacts the target again, and no
+// failure here may fail the run it belongs to. A representation that cannot be
+// read becomes a null field plus a short diagnostic token in `error`.
+
+// Cut on a character boundary: 0x80..0xBF is a UTF-8 continuation byte, so
+// backing up to the leading byte drops the split character instead of storing
+// a replacement character that would shift every later span offset.
+function truncateObservationText(text, maxBytes) {
+  const bytes = Buffer.byteLength(text, 'utf8');
+  if (bytes <= maxBytes) return { text, bytes, truncated: false };
+  const buffer = Buffer.from(text, 'utf8');
+  let end = maxBytes;
+  while (end > 0 && (buffer[end] & 0xc0) === 0x80) end -= 1;
+  return { text: buffer.subarray(0, end).toString('utf8'), bytes, truncated: true };
+}
+
+function observationDiagnostic(diagnostics, token) {
+  if (!diagnostics.includes(token)) diagnostics.push(token);
+}
+
+// Run one browser read under a deadline without leaving an unhandled rejection
+// behind: both outcomes are attached before the race starts.
+async function boundedAttempt(operation, timeoutMs) {
+  let started;
+  try {
+    started = Promise.resolve(operation());
+  } catch {
+    return { done: false };
+  }
+  const settled = started.then((value) => ({ done: true, value }), () => ({ done: false }));
+  let timer = null;
+  try {
+    return await Promise.race([
+      settled,
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve({ done: false, timedOut: true }), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer !== null) clearTimeout(timer);
+  }
+}
+
+function observationHeaders(response, diagnostics) {
+  const headers = {};
+  let raw = null;
+  try {
+    raw = typeof response.headers === 'function' ? response.headers() : null;
+  } catch {
+    raw = null;
+  }
+  if (raw === null || typeof raw !== 'object') {
+    observationDiagnostic(diagnostics, 'headers_unavailable');
+    return headers;
+  }
+  for (const required of ['content-type', 'content-length']) {
+    if (typeof raw[required] === 'string') {
+      headers[required] = truncateObservationText(raw[required], OBSERVATION_MAX_HEADER_VALUE_BYTES).text;
+    }
+  }
+  let eligible = 0;
+  for (const [name, value] of Object.entries(raw)) {
+    const key = String(name).toLowerCase();
+    if (!OBSERVATION_HEADERS.has(key) || typeof value !== 'string') continue;
+    eligible += 1;
+    if (Object.hasOwn(headers, key) || Object.keys(headers).length >= OBSERVATION_MAX_HEADERS) continue;
+    headers[key] = truncateObservationText(value, OBSERVATION_MAX_HEADER_VALUE_BYTES).text;
+  }
+  if (eligible > OBSERVATION_MAX_HEADERS) observationDiagnostic(diagnostics, 'headers_truncated');
+  return headers;
+}
+
+function observationRedirectChain(response, diagnostics) {
+  const chain = [];
+  try {
+    const request = typeof response.request === 'function' ? response.request() : null;
+    let previous = request && typeof request.redirectedFrom === 'function' ? request.redirectedFrom() : null;
+    while (previous !== null && previous !== undefined) {
+      if (chain.length >= OBSERVATION_MAX_REDIRECTS) {
+        observationDiagnostic(diagnostics, 'redirect_chain_truncated');
+        break;
+      }
+      const url = typeof previous.url === 'function' ? previous.url() : null;
+      if (typeof url === 'string' && url !== '') {
+        if (Buffer.byteLength(url, 'utf8') > OBSERVATION_MAX_URL_BYTES) {
+          observationDiagnostic(diagnostics, 'redirect_url_oversized');
+        } else {
+          chain.unshift(url);
+        }
+      }
+      previous = typeof previous.redirectedFrom === 'function' ? previous.redirectedFrom() : null;
+    }
+  } catch {
+    observationDiagnostic(diagnostics, 'redirect_chain_unavailable');
+  }
+  return chain;
+}
+
+function observationStatus(response, diagnostics = []) {
+  try {
+    const status = typeof response.status === 'function' ? response.status() : null;
+    const valid = Number.isInteger(status) && status >= 100 && status <= 599;
+    if (!valid) observationDiagnostic(diagnostics, 'http_status_unavailable');
+    return valid ? status : null;
+  } catch {
+    observationDiagnostic(diagnostics, 'http_status_unavailable');
+    return null;
+  }
+}
+
+function observationFinalUrl(response, page, diagnostics = []) {
+  let pageUrl = null;
+  let responseUrl = null;
+  for (const [source, target] of [[page, 'page'], [response, 'response']]) {
+    try {
+      const url = source !== null && typeof source.url === 'function' ? source.url() : null;
+      if (typeof url === 'string' && url !== '') {
+        if (target === 'page') pageUrl = url; else responseUrl = url;
+      }
+    } catch {
+      observationDiagnostic(diagnostics, 'final_url_unavailable');
+    }
+  }
+  const selected = pageUrl ?? responseUrl;
+  if (selected === null) observationDiagnostic(diagnostics, 'final_url_unavailable');
+  if (selected !== null && Buffer.byteLength(selected, 'utf8') > OBSERVATION_MAX_URL_BYTES) {
+    observationDiagnostic(diagnostics, 'final_url_oversized');
+    return null;
+  }
+  if (pageUrl !== null && responseUrl !== null && pageUrl !== responseUrl) {
+    observationDiagnostic(diagnostics, 'response_page_mismatch');
+  }
+  return selected;
+}
+
+async function observationRawHtml(response, headers, diagnostics, timeoutMs) {
+  const absent = { rawHtml: null, rawHtmlBytes: null, rawHtmlTruncated: false };
+  if (typeof response.text !== 'function') {
+    observationDiagnostic(diagnostics, 'raw_html_unavailable');
+    return absent;
+  }
+  const contentType = String(headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+  if (OBSERVATION_BINARY_CONTENT_TYPE.test(contentType) || OBSERVATION_BINARY_CONTENT_TYPES.has(contentType)) {
+    observationDiagnostic(diagnostics, 'raw_html_skipped_binary');
+    return absent;
+  }
+  const declared = Number.parseInt(headers['content-length'] ?? '', 10);
+  if (Number.isFinite(declared) && declared > OBSERVATION_MAX_BODY_READ_BYTES) {
+    observationDiagnostic(diagnostics, 'raw_html_skipped_oversize');
+    // The read was skipped, so the true total size stays unknown.
+    return { ...absent, rawHtmlTruncated: true };
+  }
+  // response.text() reads the body the browser already buffered for this
+  // navigation; it does not send another request to the target.
+  const read = await boundedAttempt(() => response.text(), timeoutMs);
+  if (!read.done) {
+    observationDiagnostic(diagnostics, read.timedOut === true ? 'raw_html_read_timeout' : 'raw_html_read_failed');
+    return absent;
+  }
+  if (typeof read.value !== 'string') {
+    observationDiagnostic(diagnostics, 'raw_html_not_text');
+    return absent;
+  }
+  const bounded = truncateObservationText(read.value, OBSERVATION_MAX_RAW_HTML_BYTES);
+  return {
+    rawHtml: bounded.text,
+    rawHtmlBytes: bounded.bytes <= OBSERVATION_MAX_REPORTED_RAW_BYTES ? bounded.bytes : null,
+    rawHtmlTruncated: bounded.truncated,
+  };
+}
+
+async function observationDomText(page, diagnostics, timeoutMs) {
+  if (page === null || typeof page.textContent !== 'function') {
+    observationDiagnostic(diagnostics, 'dom_text_unavailable');
+    return null;
+  }
+  const read = await boundedAttempt(() => page.textContent('body'), timeoutMs);
+  if (!read.done) {
+    observationDiagnostic(diagnostics, read.timedOut === true ? 'dom_text_read_timeout' : 'dom_text_unavailable');
+    return null;
+  }
+  return typeof read.value === 'string' && read.value !== '' ? read.value : null;
+}
+
+/**
+ * Assemble the Cribrum observation for one already completed navigation.
+ * `source.domText` lets a caller reuse DOM text it read anyway, which keeps the
+ * target at exactly one load; without it the text is read from the live page.
+ * Returns null when neither response nor DOM produced anything worth storing.
+ */
+async function buildHttpObservation(source = {}, dependencies = {}) {
+  const response = source.response ?? null;
+  const page = source.page ?? null;
+  const timeoutMs = Number.isFinite(dependencies.observationReadTimeoutMs)
+    ? Math.min(60000, Math.max(100, dependencies.observationReadTimeoutMs))
+    : OBSERVATION_READ_TIMEOUT_MS;
+  const diagnostics = [];
+  try {
+    if (response === null) observationDiagnostic(diagnostics, 'response_unavailable');
+    const headers = response === null ? {} : observationHeaders(response, diagnostics);
+    const domText = Object.hasOwn(source, 'domText')
+      ? (typeof source.domText === 'string' && source.domText !== '' ? source.domText : null)
+      : await observationDomText(page, diagnostics, timeoutMs);
+    if (domText === null) observationDiagnostic(diagnostics, 'dom_text_unavailable');
+    if (response === null && domText === null) return null;
+    const raw = response === null
+      ? { rawHtml: null, rawHtmlBytes: null, rawHtmlTruncated: false }
+      : await observationRawHtml(response, headers, diagnostics, timeoutMs);
+    const boundedDom = domText === null ? null : truncateObservationText(domText, OBSERVATION_MAX_DOM_TEXT_BYTES);
+    const rawContentType = headers['content-type'];
+    const observation = {
+      schema: OBSERVATION_SCHEMA,
+      contentType: typeof rawContentType === 'string' && rawContentType !== ''
+        ? truncateObservationText(rawContentType, OBSERVATION_MAX_CONTENT_TYPE_BYTES).text
+        : null,
+      httpStatus: response === null ? null : observationStatus(response, diagnostics),
+      finalUrl: observationFinalUrl(response, page, diagnostics),
+      redirectChain: response === null ? [] : observationRedirectChain(response, diagnostics),
+      headers,
+      rawHtml: raw.rawHtml,
+      rawHtmlBytes: raw.rawHtmlBytes,
+      rawHtmlTruncated: raw.rawHtmlTruncated,
+      domText: boundedDom === null ? null : boundedDom.text,
+      domTextBytes: boundedDom !== null && boundedDom.bytes <= OBSERVATION_MAX_REPORTED_DOM_BYTES
+        ? boundedDom.bytes
+        : null,
+      domTextTruncated: boundedDom === null ? false : boundedDom.truncated,
+    };
+    if (diagnostics.length > 0) {
+      observation.error = truncateObservationText(diagnostics.join('; '), OBSERVATION_MAX_ERROR_BYTES).text;
+    }
+    return observation;
+  } catch {
+    // Supporting evidence for the classifier never replaces the run's result.
+    return null;
+  }
+}
+
+async function runRetest(payload, dependencies = {}) {
   const url = payload.url;
   const expectedEvidence = payload.expectedEvidence || '';
   const timeoutMs = Math.min(120000, Math.max(1000, Number(payload.timeoutMs || 120000)));
   const screenshot = Boolean(payload.screenshot);
   const headless = payload.headless !== false;
   const browserName = normalizeBrowserName(payload.browser);
-  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const wait = dependencies.wait || ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+  const launch = dependencies.launchBrowser || launchBrowser;
+  const captureDesktop = dependencies.captureDesktopScreenshot || captureDesktopScreenshot;
 
-  const browser = await launchBrowser(browserName, headless);
+  const browser = await launch(browserName, headless);
   let context = null;
   try {
   context = await browser.newContext({
@@ -1494,6 +1780,19 @@ async function runRetest(payload) {
     viewport: { width: 1440, height: 900 },
   });
   const page = await context.newPage();
+  let mainDocumentResponse = null;
+  page.on('response', (candidate) => {
+    try {
+      const request = candidate.request();
+      const mainFrame = typeof page.mainFrame === 'function' ? page.mainFrame() : null;
+      const candidateFrame = typeof candidate.frame === 'function' ? candidate.frame() : null;
+      if (request.resourceType() === 'document' && (candidateFrame === null || mainFrame === null || candidateFrame === mainFrame)) {
+        mainDocumentResponse = candidate;
+      }
+    } catch {
+      // Keep the goto response fallback; never issue another request.
+    }
+  });
   const consoleLogs = [];
   const dialogEvents = [];
   const pageErrors = [];
@@ -1547,7 +1846,7 @@ async function runRetest(payload) {
       await wait(400);
 
       try {
-        screenshotBase64 = await captureDesktopScreenshot();
+        screenshotBase64 = await captureDesktop();
         screenshotCapturedFromDialog = screenshotBase64 !== null;
         screenshotCaptureMethod = screenshotCapturedFromDialog ? 'desktop-dialog' : null;
       } catch (error) {
@@ -1580,11 +1879,14 @@ async function runRetest(payload) {
   const hookedDialogEvents = await page.evaluate(() => window.__xssDialogs || []).catch(() => []);
   const hookedDialogText = hookedDialogEvents.map((item) => item.message).join('\n') || null;
   const pageText = (await page.textContent('body').catch(() => null)) || '';
-  const responseStatus = response ? response.status() : null;
+  const observationResponse = mainDocumentResponse ?? response;
+  const responseStatus = observationResponse ? observationResponse.status() : null;
   const finalUrl = page.url();
+  // Cribrum observation from this same run: the navigation response plus the
+  // DOM text already read above, so the target is still loaded exactly once.
+  const observation = await buildHttpObservation({ response: observationResponse, page, domText: pageText }, dependencies);
   let observedEvidence = null;
   let result = 'inconclusive';
-  let httpFallback = null;
 
   const allDialogText = dialogText || hookedDialogText;
 
@@ -1607,31 +1909,14 @@ async function runRetest(payload) {
     classificationReason = 'Loaded successfully, but no expected evidence marker was configured.';
   }
 
-  if (result === 'inconclusive' && expectedEvidence) {
-    try {
-      const fallback = await fetchHttpFallback(url, timeoutMs);
-      const matched = fallback.body.includes(expectedEvidence);
-      httpFallback = {
-        status: fallback.status,
-        matched,
-        excerpt: fallback.body.slice(0, 4096),
-      };
-
-      if (matched) {
-        classificationReason = 'HTTP fallback response contained expected evidence only; manual review required.';
-      } else if (classificationReason === null) {
-        classificationReason = 'HTTP fallback did not contain expected evidence.';
-      }
-    } catch (error) {
-      httpFallback = {
-        status: null,
-        matched: false,
-        excerpt: null,
-        error: error.message,
-      };
-      if (classificationReason === null) {
-        classificationReason = `HTTP fallback failed: ${error.message}`;
-      }
+  let httpFallback = null;
+  if (result === 'inconclusive' && expectedEvidence && observation?.rawHtml !== null) {
+    const matched = observation?.rawHtml?.includes(expectedEvidence) === true;
+    httpFallback = { source: 'observation', matched, excerpt: observation?.rawHtml?.slice(0, 4096) ?? null };
+    if (matched) {
+      classificationReason = 'Raw browser response contained expected evidence only; manual review required.';
+    } else if (classificationReason === null) {
+      classificationReason = 'Raw browser response did not contain expected evidence.';
     }
   }
 
@@ -1644,7 +1929,7 @@ async function runRetest(payload) {
 
   if (screenshot && screenshotBase64 === null && !headless && result === 'still_vulnerable') {
     try {
-      screenshotBase64 = await captureDesktopScreenshot();
+      screenshotBase64 = await captureDesktop();
       screenshotCaptureMethod = 'desktop';
     } catch (error) {
       screenshotCaptureError = screenshotCaptureError || error.message;
@@ -1662,6 +1947,7 @@ async function runRetest(payload) {
     dialogText,
     screenshotBase64,
     errorMessage,
+    observation,
     raw: {
       consoleLogs,
       dialogEvents,
@@ -1679,9 +1965,9 @@ async function runRetest(payload) {
   };
   } finally {
     if (context !== null) {
-      await context.close().catch(() => {});
+      await finishWithin(context.close(), dependencies.cleanupTimeoutMs ?? 2000);
     }
-    await browser.close().catch(() => {});
+    await finishWithin(browser.close(), dependencies.cleanupTimeoutMs ?? 2000);
   }
 }
 
@@ -1763,6 +2049,18 @@ async function runScreenshot(payload, dependencies = {}) {
       viewport: { width: 1440, height: 900 },
     });
     page = await context.newPage();
+    page.on('response', (candidate) => {
+      try {
+        const request = candidate.request();
+        const mainFrame = typeof page.mainFrame === 'function' ? page.mainFrame() : null;
+        const candidateFrame = typeof candidate.frame === 'function' ? candidate.frame() : null;
+        if (request.resourceType() === 'document' && (candidateFrame === null || mainFrame === null || candidateFrame === mainFrame)) {
+          mainDocumentResponse = candidate;
+        }
+      } catch {
+        // The goto response below remains the fallback.
+      }
+    });
     await page.addInitScript(() => {
       const nativeAlert = window.alert.bind(window);
       const nativeConfirm = window.confirm.bind(window);
@@ -1817,6 +2115,7 @@ async function runScreenshot(payload, dependencies = {}) {
     page.on('dialog', dialogHandler);
 
     let response = null;
+    let mainDocumentResponse = null;
     armBrowserWatchdog(timeoutMs + 2000);
     const navigationTask = (async () => {
       try {
@@ -1908,11 +2207,17 @@ async function runScreenshot(payload, dependencies = {}) {
       throw new Error('Screenshot capture completed without an image.');
     }
 
+    // The image is already stored, so a hanging body or DOM read can only cost
+    // the observation. Re-arm the watchdog to cover that bounded read.
+    armBrowserWatchdog((OBSERVATION_READ_TIMEOUT_MS * 2) + 2000);
+    const observation = await buildHttpObservation({ response: mainDocumentResponse ?? response, page }, dependencies);
+
     return {
       screenshotBase64,
       capturedAt,
       finalUrl: page.url(),
-      httpStatus: response ? response.status() : null,
+      httpStatus: (mainDocumentResponse ?? response)?.status?.() ?? null,
+      observation,
       dialogSeen: dialogInfo !== null,
       dialogType: dialogInfo?.type || null,
       dialogText: dialogInfo?.message || null,
@@ -2124,6 +2429,17 @@ module.exports = {
   captureInteractiveSession,
   closeInteractiveSessionById,
   runScreenshot,
+  runRetest,
+  buildHttpObservation,
+  truncateObservationText,
+  OBSERVATION_SCHEMA,
+  OBSERVATION_HEADERS,
+  OBSERVATION_READ_TIMEOUT_MS,
+  OBSERVATION_MAX_RAW_HTML_BYTES,
+  OBSERVATION_MAX_DOM_TEXT_BYTES,
+  OBSERVATION_MAX_BODY_READ_BYTES,
+  OBSERVATION_MAX_REPORTED_RAW_BYTES,
+  OBSERVATION_MAX_REPORTED_DOM_BYTES,
   interactiveSessions,
   withDisplayLease,
   createInteractiveRuntime,

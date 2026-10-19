@@ -4,6 +4,9 @@ namespace App\Service;
 
 use App\Dto\FindingCreateResult;
 use App\Entity\Evidence;
+use App\Entity\FindingClaim;
+use App\Entity\FindingClaimRevision;
+use App\Entity\HttpObservation;
 use App\Entity\Finding;
 use App\Entity\FindingAssessment;
 use App\Entity\FindingReviewAcknowledgement;
@@ -189,6 +192,18 @@ final class FindingService
             // newly committed finding without its durable screenshot work item.
             $this->entityManager->persist($finding);
             $this->entityManager->persist($initialScreenshotJob);
+            if (in_array($finding->getType(), ['reflected_xss', 'xss'], true)) {
+                $claim = new FindingClaim();
+                $claim->finding = $finding;
+                $claim->claim = 'xss';
+                $claim->state = 'observed';
+                $claim->reportSelected = true;
+                $claim->severity = $finding->getSeverity();
+                $claim->source = 'migration';
+                $claim->revision = 1;
+                $this->entityManager->persist($claim);
+                $this->entityManager->persist(new FindingClaimRevision($claim, null, [], 'Initial XSS claim from finding type'));
+            }
             $this->entityManager->flush();
 
             return new FindingCreateResult($finding, true);
@@ -253,7 +268,7 @@ final class FindingService
             // SQLite foreign-key enforcement is not guaranteed for every
             // existing Doctrine connection. Remove every dependent record
             // explicitly so deleting a finding cannot create new orphans.
-            $relatedClasses = [FindingAssessment::class, ScreenshotJob::class, Evidence::class, RetestRun::class];
+            $relatedClasses = [FindingClaimRevision::class, FindingClaim::class, HttpObservation::class, FindingAssessment::class, ScreenshotJob::class, Evidence::class, RetestRun::class];
             if ($this->entityManager->getConnection()->fetchOne("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'finding_poc_revision'")) {
                 array_unshift($relatedClasses, \App\Entity\FindingPocRevision::class);
             }

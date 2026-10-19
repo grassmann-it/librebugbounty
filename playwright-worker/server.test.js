@@ -25,7 +25,17 @@ const {
   runInteractiveInput,
   runInteractiveDialog,
   runScreenshot,
+  runRetest,
   withDisplayLease,
+  buildHttpObservation,
+  truncateObservationText,
+  OBSERVATION_SCHEMA,
+  OBSERVATION_HEADERS,
+  OBSERVATION_MAX_RAW_HTML_BYTES,
+  OBSERVATION_MAX_DOM_TEXT_BYTES,
+  OBSERVATION_MAX_BODY_READ_BYTES,
+  OBSERVATION_MAX_REPORTED_RAW_BYTES,
+  OBSERVATION_MAX_REPORTED_DOM_BYTES,
 } = require('./server');
 
 function createDialog(message = 'fixture dialog') {
@@ -46,6 +56,7 @@ function createScreenshotHarness(options = {}) {
   let captureCount = 0;
   let dialogListenersAtContextClose = null;
   let initScriptCount = 0;
+  const textContentCalls = [];
 
   page.url = () => options.finalUrl || 'https://fixture.test/final';
   page.frames = () => [];
@@ -55,12 +66,16 @@ function createScreenshotHarness(options = {}) {
   page.addInitScript = async () => {
     initScriptCount += 1;
   };
+  page.textContent = async (selector) => {
+    textContentCalls.push(selector);
+    return typeof options.domText === 'function' ? options.domText(selector) : options.domText ?? null;
+  };
   page.goto = async () => {
     options.onGoto?.(page);
     if (options.goto) {
       return options.goto(page);
     }
-    return { status: () => 200 };
+    return options.response ?? { status: () => 200 };
   };
 
   const context = {
@@ -90,8 +105,10 @@ function createScreenshotHarness(options = {}) {
       now: () => new Date('2026-10-02T12:00:00.000Z'),
       dialogRenderDelayMs: options.dialogRenderDelayMs ?? 0,
       postCaptureDialogGraceMs: options.postCaptureDialogGraceMs ?? 0,
+      observationReadTimeoutMs: options.observationReadTimeoutMs,
     },
     captureCount: () => captureCount,
+    textContentCalls: () => textContentCalls,
     initScriptCount: () => initScriptCount,
     dialogListenersAtContextClose: () => dialogListenersAtContextClose,
   };
@@ -2281,4 +2298,488 @@ test('a key abandoned behind a failed native dialog cannot send keyup after dism
       await closeInteractiveSessionById(view.id, harness.dependencies, { generation });
     });
   }
+});
+
+// ---- Cribrum observation transport (C2) ---------------------------------
+
+// A stand-in for the main-document response Playwright hands back from
+// page.goto(). `text` is only read through response.text(), which serves the
+// body the browser already buffered; nothing here may reach the target again.
+function createObservationResponse(options = {}) {
+  const calls = { text: 0 };
+  const chain = (options.redirects || []).map((redirectUrl) => ({
+    url: () => redirectUrl,
+    redirectedFrom: () => null,
+  }));
+  for (let index = chain.length - 1; index > 0; index -= 1) {
+    chain[index].redirectedFrom = () => chain[index - 1];
+  }
+  const request = { resourceType: () => 'document', redirectedFrom: () => (chain.length > 0 ? chain[chain.length - 1] : null) };
+  const response = {
+    status: () => options.status ?? 200,
+    headers: () => options.headers ?? {},
+    request: () => request,
+  };
+  if (options.url !== undefined) response.url = () => options.url;
+  if (options.text !== undefined) {
+    response.text = async () => {
+      calls.text += 1;
+      if (options.textDelayMs) {
+        await new Promise((resolve) => { setTimeout(resolve, options.textDelayMs); });
+      }
+      return typeof options.text === 'function' ? options.text() : options.text;
+    };
+  }
+  return { response, calls };
+}
+
+function createRetestHarness(options = {}) {
+  const page = new EventEmitter();
+  const calls = { textContent: 0, evaluate: 0, fallback: 0, capture: 0 };
+  page.url = () => options.finalUrl || 'https://fixture.test/final';
+  page.frames = () => [];
+  page.getByRole = () => ({ first: () => ({ isVisible: async () => false }) });
+  page.addInitScript = async () => {};
+  page.evaluate = async () => {
+    calls.evaluate += 1;
+    return options.hookedDialogs ?? [];
+  };
+  page.textContent = async () => {
+    calls.textContent += 1;
+    return options.domText ?? null;
+  };
+  page.goto = async () => {
+    if (options.dialog) page.emit('dialog', options.dialog);
+    if (options.goto) return options.goto(page);
+    return options.response ?? { status: () => 200, headers: () => ({}) };
+  };
+  const context = { newPage: async () => page, close: async () => {} };
+  const browser = { newContext: async () => context, close: async () => {} };
+
+  return {
+    page,
+    calls,
+    dependencies: {
+      launchBrowser: async () => browser,
+      captureDesktopScreenshot: async () => {
+        calls.capture += 1;
+        return 'retest-image';
+      },
+      wait: async () => {},
+      fetchHttpFallback: async () => {
+        calls.fallback += 1;
+        return { status: 200, body: '' };
+      },
+      observationReadTimeoutMs: options.observationReadTimeoutMs,
+    },
+  };
+}
+
+test('a screenshot reports the main-document observation without contacting the target again', async (t) => {
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = async () => {
+    fetchCalls += 1;
+    throw new Error('An observation must not add a target request.');
+  };
+  t.after(() => { globalThis.fetch = originalFetch; });
+
+  const html = '<html><body>SQLSTATE[42S22] &lt;script&gt;alert(1)&lt;/script&gt;</body></html>';
+  const domText = 'SQLSTATE[42S22] <script>alert(1)</script>';
+  const fixture = createObservationResponse({
+    status: 500,
+    url: 'https://fixture.test/error?q=1',
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      'x-powered-by': 'PHP/8.3.2',
+      server: 'nginx',
+      'set-cookie': 'session=retained-secret',
+      cookie: 'session=retained-secret',
+      authorization: 'Bearer retained-secret',
+    },
+    redirects: ['https://fixture.test/start', 'https://fixture.test/middle'],
+    text: html,
+  });
+  const harness = createScreenshotHarness({ response: fixture.response, domText, finalUrl: 'https://fixture.test/error?q=1' });
+
+  const result = await runScreenshot({ url: 'https://fixture.test/start' }, harness.dependencies);
+
+  assert.equal(result.captureMethod, 'desktop-page');
+  assert.equal(fetchCalls, 0);
+  assert.equal(fixture.calls.text, 1);
+  assert.equal(harness.textContentCalls().length, 1);
+
+  const observation = result.observation;
+  assert.equal(observation.schema, OBSERVATION_SCHEMA);
+  assert.equal(observation.httpStatus, 500);
+  assert.equal(observation.contentType, 'text/html; charset=utf-8');
+  assert.equal(observation.finalUrl, 'https://fixture.test/error?q=1');
+  assert.deepEqual(observation.redirectChain, ['https://fixture.test/start', 'https://fixture.test/middle']);
+  assert.deepEqual(observation.headers, {
+    'content-type': 'text/html; charset=utf-8',
+    'x-powered-by': 'PHP/8.3.2',
+    server: 'nginx',
+  });
+  assert.equal(observation.rawHtml, html);
+  assert.equal(observation.rawHtmlBytes, Buffer.byteLength(html, 'utf8'));
+  assert.equal(observation.rawHtmlTruncated, false);
+  assert.equal(observation.domText, domText);
+  assert.equal(observation.domTextBytes, Buffer.byteLength(domText, 'utf8'));
+  assert.equal(observation.domTextTruncated, false);
+  assert.equal(observation.error, undefined);
+});
+
+test('an inconclusive retest never repeats the target request', async () => {
+  const fixture = createObservationResponse({
+    status: 200,
+    headers: { 'content-type': 'text/html; charset=utf-8' },
+    text: '<html><body>clean response body</body></html>',
+  });
+  const harness = createRetestHarness({ response: fixture.response, domText: 'clean rendered body' });
+  harness.dependencies.fetchHttpFallback = async () => {
+    harness.calls.fallback += 1;
+    throw new Error('C2 retests must not repeat the target request.');
+  };
+
+  const result = await runRetest(
+    { url: 'https://fixture.test/target', expectedEvidence: 'marker', headless: true },
+    harness.dependencies,
+  );
+
+  assert.equal(harness.calls.fallback, 0);
+  assert.equal(result.observation.rawHtml, '<html><body>clean response body</body></html>');
+  assert.equal(result.raw.httpFallback.source, 'observation');
+  assert.equal(result.raw.httpFallback.matched, false);
+});
+
+test('an early dialog uses the tracked main response before goto resolves', async () => {
+  const navigation = deferred();
+  const fixture = createObservationResponse({
+    status: 500,
+    url: 'https://fixture.test/target',
+    headers: { 'content-type': 'text/html' },
+    text: '<html>server error</html>',
+  });
+  let domReadBeforeNavigationResolved = false;
+  const harness = createScreenshotHarness({
+    response: fixture.response,
+    finalUrl: 'https://fixture.test/target',
+    domText: () => {
+      domReadBeforeNavigationResolved = true;
+      return 'server error';
+    },
+    goto: async (page) => {
+      page.emit('response', fixture.response);
+      page.emit('dialog', createDialog('early marker'));
+      return navigation.promise;
+    },
+  });
+
+  const pending = runScreenshot({ url: 'https://fixture.test/target' }, harness.dependencies);
+  await new Promise((resolve) => setImmediate(resolve));
+  navigation.resolve(fixture.response);
+  const result = await pending;
+
+  assert.equal(domReadBeforeNavigationResolved, true);
+  assert.equal(result.observation.httpStatus, 500);
+  assert.equal(result.observation.rawHtml, '<html>server error</html>');
+});
+
+test('observation and screenshot result describe the same rendered document', async () => {
+  const fixture = createObservationResponse({
+    status: 200,
+    url: 'https://fixture.test/first-document',
+    headers: { 'content-type': 'text/html' },
+    text: '<html><body>first body</body></html>',
+  });
+  const harness = createScreenshotHarness({
+    response: fixture.response,
+    finalUrl: 'https://fixture.test/rendered-document',
+    domText: 'rendered body',
+  });
+
+  const result = await runScreenshot({ url: 'https://fixture.test/first-document' }, harness.dependencies);
+
+  assert.equal(result.finalUrl, 'https://fixture.test/rendered-document');
+  assert.equal(result.observation.finalUrl, result.finalUrl);
+  assert.match(result.observation.error, /response_page_mismatch/);
+});
+
+test('content-length remains available for the body-size guard', async () => {
+  const fillerNames = [...OBSERVATION_HEADERS]
+    .filter((name) => name !== 'content-type' && name !== 'content-length')
+    .slice(0, 24);
+  const headers = {};
+  for (const name of fillerNames) headers[name] = 'fixture';
+  headers['content-type'] = 'text/html';
+  headers['content-length'] = String(OBSERVATION_MAX_BODY_READ_BYTES + 1);
+  const fixture = createObservationResponse({ headers, text: 'must not be read' });
+  const harness = createScreenshotHarness({ response: fixture.response, domText: 'rendered' });
+
+  const result = await runScreenshot({ url: 'https://fixture.test/huge' }, harness.dependencies);
+
+  assert.equal(fixture.calls.text, 0);
+  assert.equal(result.observation.headers['content-length'], String(OBSERVATION_MAX_BODY_READ_BYTES + 1));
+  assert.match(result.observation.error, /raw_html_skipped_oversize/);
+});
+
+test('every observation header name satisfies the persistence contract', () => {
+  for (const name of OBSERVATION_HEADERS) {
+    assert.match(name, /^[a-z0-9-]{1,64}$/, `header name ${name} is not storable`);
+  }
+  for (const forbidden of ['cookie', 'set-cookie', 'authorization', 'proxy-authorization']) {
+    assert.equal(OBSERVATION_HEADERS.has(forbidden), false, `${forbidden} must never be retained`);
+  }
+});
+
+test('truncateObservationText keeps whole characters and reports the original size', () => {
+  assert.deepEqual(truncateObservationText('abc', 8), { text: 'abc', bytes: 3, truncated: false });
+  assert.deepEqual(truncateObservationText('a€', 4), { text: 'a€', bytes: 4, truncated: false });
+
+  const insideSequence = truncateObservationText('a€', 2);
+  assert.equal(insideSequence.text, 'a');
+  assert.equal(insideSequence.bytes, 4);
+  assert.equal(insideSequence.truncated, true);
+
+  const secondCharacter = truncateObservationText('€€', 4);
+  assert.equal(secondCharacter.text, '€');
+  assert.equal(secondCharacter.bytes, 6);
+  assert.equal(secondCharacter.truncated, true);
+});
+
+test('observation raw HTML is cut on a character boundary at its transport limit', async () => {
+  const html = `${'a'.repeat(OBSERVATION_MAX_RAW_HTML_BYTES - 1)}€tail`;
+  const fixture = createObservationResponse({ headers: { 'content-type': 'text/html' }, text: html });
+  const harness = createScreenshotHarness({ response: fixture.response, domText: 'marker' });
+
+  const { observation } = await runScreenshot({ url: 'https://fixture.test' }, harness.dependencies);
+
+  assert.equal(observation.rawHtmlTruncated, true);
+  assert.equal(observation.rawHtmlBytes, Buffer.byteLength(html, 'utf8'));
+  assert.equal(Buffer.byteLength(observation.rawHtml, 'utf8'), OBSERVATION_MAX_RAW_HTML_BYTES - 1);
+  assert.equal(observation.rawHtml.includes('\uFFFD'), false);
+  assert.equal(observation.rawHtml.endsWith('a'), true);
+});
+
+test('observation DOM text has its own smaller transport limit', async () => {
+  const domText = `${'b'.repeat(OBSERVATION_MAX_DOM_TEXT_BYTES)}overflow`;
+  const fixture = createObservationResponse({ headers: { 'content-type': 'text/html' }, text: '<p>b</p>' });
+  const harness = createScreenshotHarness({ response: fixture.response, domText });
+
+  const { observation } = await runScreenshot({ url: 'https://fixture.test' }, harness.dependencies);
+
+  assert.equal(observation.domTextTruncated, true);
+  assert.equal(Buffer.byteLength(observation.domText, 'utf8'), OBSERVATION_MAX_DOM_TEXT_BYTES);
+  assert.equal(observation.domTextBytes, Buffer.byteLength(domText, 'utf8'));
+});
+
+test('an observation size beyond the persistence record limit is reported as unknown', async () => {
+  const rawHtml = 'c'.repeat(OBSERVATION_MAX_REPORTED_RAW_BYTES + 1);
+  const domText = 'd'.repeat(OBSERVATION_MAX_REPORTED_DOM_BYTES + 1);
+  const fixture = createObservationResponse({ headers: { 'content-type': 'text/html' }, text: rawHtml });
+  const harness = createScreenshotHarness({ response: fixture.response, domText });
+
+  const { observation } = await runScreenshot({ url: 'https://fixture.test' }, harness.dependencies);
+
+  assert.equal(observation.rawHtmlBytes, null);
+  assert.equal(observation.domTextBytes, null);
+  assert.equal(observation.rawHtmlTruncated, true);
+  assert.equal(observation.domTextTruncated, true);
+  assert.equal(Buffer.byteLength(observation.rawHtml, 'utf8'), OBSERVATION_MAX_RAW_HTML_BYTES);
+  assert.equal(Buffer.byteLength(observation.domText, 'utf8'), OBSERVATION_MAX_DOM_TEXT_BYTES);
+});
+
+test('binary and oversized bodies are skipped instead of read', async () => {
+  const binary = createObservationResponse({ headers: { 'content-type': 'image/png' }, text: 'never-read' });
+  const binaryHarness = createScreenshotHarness({ response: binary.response, domText: 'rendered text' });
+
+  const binaryResult = await runScreenshot({ url: 'https://fixture.test/logo' }, binaryHarness.dependencies);
+
+  assert.equal(binary.calls.text, 0);
+  assert.equal(binaryResult.observation.rawHtml, null);
+  assert.equal(binaryResult.observation.rawHtmlTruncated, false);
+  assert.equal(binaryResult.observation.domText, 'rendered text');
+  assert.match(binaryResult.observation.error, /raw_html_skipped_binary/);
+
+  const oversize = createObservationResponse({
+    headers: {
+      'content-type': 'text/html',
+      'content-length': String(OBSERVATION_MAX_BODY_READ_BYTES + 1),
+    },
+    text: 'never-read',
+  });
+  const oversizeHarness = createScreenshotHarness({ response: oversize.response, domText: null });
+
+  const oversizeResult = await runScreenshot({ url: 'https://fixture.test/huge' }, oversizeHarness.dependencies);
+
+  assert.equal(oversize.calls.text, 0);
+  assert.equal(oversizeResult.observation.rawHtml, null);
+  assert.equal(oversizeResult.observation.rawHtmlBytes, null);
+  assert.equal(oversizeResult.observation.rawHtmlTruncated, true);
+  assert.match(oversizeResult.observation.error, /raw_html_skipped_oversize/);
+});
+
+test('a failing or hanging body read costs only the observation', async () => {
+  const failing = createObservationResponse({
+    headers: { 'content-type': 'text/html' },
+    text: () => { throw new Error('body is no longer available'); },
+  });
+  const failingHarness = createScreenshotHarness({ response: failing.response, domText: 'kept' });
+
+  const failingResult = await runScreenshot({ url: 'https://fixture.test' }, failingHarness.dependencies);
+
+  assert.equal(failingResult.captureMethod, 'desktop-page');
+  assert.equal(failingResult.screenshotBase64, 'page-image');
+  assert.equal(failingResult.observation.rawHtml, null);
+  assert.equal(failingResult.observation.domText, 'kept');
+  assert.match(failingResult.observation.error, /raw_html_read_failed/);
+
+  const hanging = createObservationResponse({
+    headers: { 'content-type': 'text/html' },
+    text: 'never-returned',
+    textDelayMs: 2000,
+  });
+  const hangingHarness = createScreenshotHarness({
+    response: hanging.response,
+    domText: 'kept',
+    observationReadTimeoutMs: 20,
+  });
+
+  const hangingResult = await runScreenshot({ url: 'https://fixture.test' }, hangingHarness.dependencies);
+
+  assert.equal(hangingResult.captureMethod, 'desktop-page');
+  assert.equal(hangingResult.screenshotBase64, 'page-image');
+  assert.equal(hangingResult.observation.rawHtml, null);
+  assert.match(hangingResult.observation.error, /raw_html_read_timeout/);
+});
+
+test('a response without readable DOM text still yields an observation', async () => {
+  const harness = createScreenshotHarness({
+    response: { status: () => 204, headers: () => ({ server: 'nginx' }) },
+    domText: null,
+  });
+
+  const { observation } = await runScreenshot({ url: 'https://fixture.test' }, harness.dependencies);
+
+  assert.equal(observation.schema, OBSERVATION_SCHEMA);
+  assert.equal(observation.httpStatus, 204);
+  assert.equal(observation.contentType, null);
+  assert.equal(observation.finalUrl, 'https://fixture.test/final');
+  assert.deepEqual(observation.redirectChain, []);
+  assert.deepEqual(observation.headers, { server: 'nginx' });
+  assert.equal(observation.rawHtml, null);
+  assert.equal(observation.domText, null);
+  assert.equal(observation.domTextBytes, null);
+  assert.equal(observation.domTextTruncated, false);
+  assert.match(observation.error, /dom_text_unavailable/);
+  assert.match(observation.error, /raw_html_unavailable/);
+});
+
+test('a run without a response and without DOM text reports no observation', async () => {
+  const harness = createScreenshotHarness({
+    finalUrl: 'https://fixture.test/blocked',
+    goto: async () => { throw new Error('fixture navigation timeout'); },
+    domText: null,
+  });
+
+  const result = await runScreenshot({ url: 'https://fixture.test/blocked' }, harness.dependencies);
+
+  assert.equal(result.observation, null);
+  assert.equal(result.screenshotBase64, 'page-image');
+  assert.equal(result.metadata.navigationError, 'fixture navigation timeout');
+});
+
+test('a retest reports its observation and reuses the DOM text it already read', async () => {
+  const html = '<html><body>marker</body></html>';
+  const fixture = createObservationResponse({
+    status: 200,
+    url: 'https://fixture.test/target',
+    headers: { 'content-type': 'text/html; charset=utf-8' },
+    text: html,
+  });
+  const harness = createRetestHarness({
+    response: fixture.response,
+    finalUrl: 'https://fixture.test/target',
+    domText: 'marker',
+    dialog: createDialog('marker'),
+  });
+
+  const result = await runRetest(
+    { url: 'https://fixture.test/target', expectedEvidence: 'marker', headless: true },
+    harness.dependencies,
+  );
+
+  assert.equal(result.result, 'still_vulnerable');
+  assert.equal(harness.calls.textContent, 1);
+  assert.equal(fixture.calls.text, 1);
+  assert.equal(harness.calls.fallback, 0);
+  assert.equal(result.observation.schema, OBSERVATION_SCHEMA);
+  assert.equal(result.observation.httpStatus, 200);
+  assert.equal(result.observation.finalUrl, 'https://fixture.test/target');
+  assert.equal(result.observation.rawHtml, html);
+  assert.equal(result.observation.domText, 'marker');
+  assert.equal(result.observation.error, undefined);
+});
+
+test('a retest keeps its verdict when the observation body cannot be read', async () => {
+  const fixture = createObservationResponse({
+    headers: { 'content-type': 'text/html' },
+    text: () => { throw new Error('body is gone'); },
+  });
+  const harness = createRetestHarness({
+    response: fixture.response,
+    domText: 'marker',
+    dialog: createDialog('marker'),
+  });
+
+  const result = await runRetest(
+    { url: 'https://fixture.test/target', expectedEvidence: 'marker', headless: true },
+    harness.dependencies,
+  );
+
+  assert.equal(result.result, 'still_vulnerable');
+  assert.equal(result.observedEvidence, 'marker');
+  assert.equal(result.observation.rawHtml, null);
+  assert.equal(result.observation.domText, 'marker');
+  assert.match(result.observation.error, /raw_html_read_failed/);
+});
+
+test('a retest without a response and without DOM text reports no observation', async () => {
+  const harness = createRetestHarness({
+    domText: null,
+    goto: async () => { throw new Error('fixture navigation timeout'); },
+  });
+
+  const result = await runRetest(
+    { url: 'https://fixture.test/target', expectedEvidence: 'marker', headless: true },
+    harness.dependencies,
+  );
+
+  assert.equal(result.result, 'error');
+  assert.equal(result.observation, null);
+});
+
+test('buildHttpObservation clamps an injected read timeout and never throws', async () => {
+  const throwing = {
+    status: () => { throw new Error('status exploded'); },
+    headers: () => { throw new Error('headers exploded'); },
+    url: () => { throw new Error('url exploded'); },
+    request: () => { throw new Error('request exploded'); },
+    text: async () => 'body',
+  };
+
+  const observation = await buildHttpObservation(
+    { response: throwing, page: null, domText: 'text' },
+    { observationReadTimeoutMs: 'not-a-number' },
+  );
+
+  assert.equal(observation.schema, OBSERVATION_SCHEMA);
+  assert.equal(observation.httpStatus, null);
+  assert.equal(observation.finalUrl, null);
+  assert.deepEqual(observation.redirectChain, []);
+  assert.deepEqual(observation.headers, {});
+  assert.equal(observation.rawHtml, 'body');
+  assert.equal(observation.domText, 'text');
+  assert.match(observation.error, /headers_unavailable/);
+  assert.match(observation.error, /response_unavailable|redirect_chain_unavailable/);
 });

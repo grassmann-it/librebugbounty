@@ -23,6 +23,7 @@ final class RetestService
         private readonly ValidationService $validation,
         private readonly EvidenceStorageInterface $storage,
         private readonly RecheckPolicy $recheckPolicy,
+        private readonly ?CribrumProcessingService $cribrum = null,
     ) {
     }
 
@@ -60,6 +61,8 @@ final class RetestService
             return $run;
         }
 
+        $capturedPayload = $finding->getPayload();
+        $capturedEvidence = $finding->getExpectedEvidence();
         $context = $this->captureContext($finding);
         $result = $this->browserRetestClient->retest(new BrowserRetestRequest(
             url: $finding->getPocUrl(),
@@ -71,6 +74,7 @@ final class RetestService
         ));
 
         $this->applyResult($run, $finding, $result, $screenshot, $noStatusUpdate, $context['active_poc_url'], $context['poc_revision'], $context);
+        $this->processCribrum($finding, $result, $run, $context['active_poc_url'], $context['poc_revision'], $capturedPayload, $capturedEvidence);
 
         return $run;
     }
@@ -94,8 +98,38 @@ final class RetestService
         $this->applyResult($run, $finding, $result, $screenshot, $noStatusUpdate,
             $expectedPocUrl ?? $finding->getPocUrl(), $expectedPocRevision ?? $finding->getPocRevision(),
             $expectedFindingContext, $recovery);
+        $this->processCribrum(
+            $finding,
+            $result,
+            $run,
+            $expectedPocUrl ?? $finding->getPocUrl(),
+            $expectedPocRevision ?? $finding->getPocRevision(),
+            $finding->getPayload(),
+            $finding->getExpectedEvidence(),
+        );
 
         return $run;
+    }
+
+
+    private function processCribrum(Finding $finding, RetestResultData $result, RetestRun $run, string $expectedPocUrl, int $expectedPocRevision, ?string $payload = null, ?string $expectedEvidence = null): void
+    {
+        $raw = $run->getRawResult();
+        if (($raw['stalePoc'] ?? true) || ($raw['staleFindingContext'] ?? true)) {
+            return;
+        }
+        $this->cribrum?->process(
+            $finding,
+            $result->observation,
+            null,
+            $run->getId(),
+            $expectedPocRevision,
+            $expectedPocUrl,
+            $payload,
+            $expectedEvidence,
+            $result->dialogText !== null && $result->dialogText !== '',
+            $result->dialogText,
+        );
     }
 
     /** The browser result is valid only for this exact URL, marker and assessment. */
