@@ -218,6 +218,11 @@ final class StatisticsService
             unset($row['_from'], $row['_until']);
         }
         unset($row);
+        $claimCounts = $this->statistics->claimCounts($filters['tld']);
+        foreach ($claimCounts as &$row) {
+            $row['url'] = $this->listUrl(['scope' => 'active', 'claim' => $row['claim'], 'claim_state' => $row['state']], $filters['tld']);
+        }
+        unset($row);
         return [
             'period' => [
                 'kind' => $period->kind, 'anchor' => $period->anchor->format('Y-m-d'),
@@ -229,7 +234,7 @@ final class StatisticsService
             'filters' => $filters, 'tldOptions' => $tldOptions,
             'kpis' => $kpis, 'series' => $series, 'calendarYear' => $calendarYear, 'calendar' => array_values($calendar),
             'tlds' => ['cases' => $this->tldSegments($tldCases, 'cases', $from, $to), 'hosts' => $this->tldSegments(array_map('count', $tldHosts), 'hosts', $from, $to), 'caseTotal' => $counts['reported'], 'hostTotal' => count($hosts)],
-            'snapshot' => $snapshot, 'snapshotCounts' => $snapshotCounts, 'aging' => $aging, 'totals' => $totals, 'coverage' => $coverage, 'history' => $history, 'notes' => $notes,
+            'claims' => $claimCounts, 'snapshot' => $snapshot, 'snapshotCounts' => $snapshotCounts, 'aging' => $aging, 'totals' => $totals, 'coverage' => $coverage, 'history' => $history, 'notes' => $notes,
         ];
     }
 

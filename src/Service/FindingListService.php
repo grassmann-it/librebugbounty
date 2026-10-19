@@ -14,7 +14,7 @@ final class FindingListService
         'q', 'domain', 'assessment', 'observation', 'contact', 'scope',
         'legacy_status', 'legacyStatus', 'legacy_bucket', 'legacyBucket',
         'status', 'bucket', 'type', 'severity', 'exact_domain', 'exactDomain',
-        'page', 'pageSize', 'event', 'from', 'to', 'tld', 'sent', 'legacy_review', 'pursuit', 'closure_reason', 'contact_work', 'reminder', 'view', 'review',
+        'page', 'pageSize', 'event', 'from', 'to', 'tld', 'sent', 'legacy_review', 'pursuit', 'closure_reason', 'contact_work', 'reminder', 'view', 'review', 'claim', 'claim_state',
     ];
 
     public function __construct(
@@ -56,6 +56,14 @@ final class FindingListService
                 'label' => $stat['label'],
                 'count' => $statCounts[$name],
                 'url' => $path.'?'.http_build_query($this->filterQuery($stat['filter']) + ['pageSize' => $pageSizeSelection]),
+            ];
+        }
+
+        foreach ($this->findings->claimCounts() as $claim => $count) {
+            $statViews['claim_'.$claim] = [
+                'label' => \App\Value\ClaimLabels::CLAIMS[$claim],
+                'count' => $count,
+                'url' => $path.'?'.http_build_query($this->filterQuery(new FindingReadFilter(claim: $claim)) + ['pageSize' => $pageSizeSelection]),
             ];
         }
 
@@ -101,6 +109,8 @@ final class FindingListService
             'contact_work' => $filter->contactWork,
             'reminder' => $filter->reminder,
             'view' => $filter->view,
+            'claim' => $filter->claim,
+            'claim_state' => $filter->claimState,
             'review' => $filter->review === 'all' ? '' : $filter->review,
         ], static fn (string $value): bool => $value !== '');
     }
@@ -199,6 +209,8 @@ final class FindingListService
             reminder: $get('reminder') === '' && $get('view') === 'workbasket' ? 'open' : $get('reminder'),
             view: $get('view'),
             review: $get('review'),
+            claim: $get('claim'),
+            claimState: $get('claim_state'),
         );
 
         return [$filter, $page, $pageSize];

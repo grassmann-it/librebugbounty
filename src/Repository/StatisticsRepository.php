@@ -36,6 +36,32 @@ final class StatisticsRepository
         ];
     }
 
+    /** Current active cases by claim and state; a case can occur in several claim groups. */
+    public function claimCounts(string $tld = ''): array
+    {
+        if (!\App\Service\CribrumClaimService::available($this->connection)) {
+            return [];
+        }
+        $counts = [];
+        foreach ($this->connection->iterateAssociative(
+            'SELECT fc.claim, fc.state, d.hostname FROM finding_claim fc INNER JOIN finding f ON f.id = fc.finding_id '
+            .'INNER JOIN domain d ON d.id = f.domain_id WHERE '.FindingReadRepository::ACTIVE,
+        ) as $row) {
+            if ($tld !== '' && \App\Value\HostnameTld::key($row['hostname']) !== $tld) continue;
+            $counts[$row['claim']][$row['state']] = ($counts[$row['claim']][$row['state']] ?? 0) + 1;
+        }
+        $result = [];
+        foreach (\App\Entity\FindingClaim::CLAIMS as $claim) {
+            foreach (\App\Entity\FindingClaim::STATES as $state) {
+                if (isset($counts[$claim][$state])) {
+                    $result[] = ['claim' => $claim, 'state' => $state, 'count' => $counts[$claim][$state]];
+                }
+            }
+        }
+
+        return $result;
+    }
+
     /** @return iterable<array<string, mixed>> */
     public function caseFacts(): iterable
     {

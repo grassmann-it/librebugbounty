@@ -103,6 +103,26 @@ final class FindingReadRepository
         return array_map('intval', $this->connection->fetchAssociative('SELECT '.implode(', ', $columns).$this->from()));
     }
 
+    /** @return array<string, int> Active cases per current claim, independent of the inventory search. */
+    public function claimCounts(): array
+    {
+        if (!\App\Service\CribrumClaimService::available($this->connection)) {
+            return [];
+        }
+        $rows = $this->connection->fetchAllKeyValue(
+            'SELECT fc.claim, COUNT(DISTINCT f.id) FROM finding_claim fc INNER JOIN finding f ON f.id = fc.finding_id '
+            ."INNER JOIN domain d ON d.id = f.domain_id WHERE ".self::ACTIVE.' GROUP BY fc.claim',
+        );
+        $counts = [];
+        foreach (\App\Entity\FindingClaim::CLAIMS as $claim) {
+            if (($rows[$claim] ?? 0) > 0) {
+                $counts[$claim] = (int) $rows[$claim];
+            }
+        }
+
+        return $counts;
+    }
+
     private function from(): string
     {
         return str_replace('WHERE latest.finding_id = f.id', 'WHERE latest.finding_id = f.id AND '.PocObservation::currentSql($this->connection), self::FROM);
@@ -128,6 +148,22 @@ final class FindingReadRepository
                 $due = match ($filter->reminder) { 'today' => ' AND dr.due_on = :reminder_today', 'overdue' => ' AND dr.due_on < :reminder_today', default => '' };
                 $conditions[] = 'EXISTS (SELECT 1 FROM disclosure_reminder dr WHERE dr.finding_id = f.id AND dr.completed_at IS NULL'.$due.')';
                 if ($due !== '') $parameters['reminder_today'] = \App\Service\DisclosureRecordService::today();
+            }
+        }
+        if ($filter->claim !== '' || $filter->claimState !== '') {
+            if (!\App\Service\CribrumClaimService::available($this->connection)) {
+                $conditions[] = '1 = 0';
+            } else {
+                $claimSql = 'EXISTS (SELECT 1 FROM finding_claim fc WHERE fc.finding_id = f.id';
+                if ($filter->claim !== '') {
+                    $claimSql .= ' AND fc.claim = :claim';
+                    $parameters['claim'] = $filter->claim;
+                }
+                if ($filter->claimState !== '') {
+                    $claimSql .= ' AND fc.state = :claim_state';
+                    $parameters['claim_state'] = $filter->claimState;
+                }
+                $conditions[] = $claimSql.')';
             }
         }
         if ($filter->contactWork !== '') $conditions[] = ($filter->contactWork === 'blocked' ? 'NOT (' : '(').\App\Service\FindingWorkPolicy::contactAllowedSql($this->connection).')';

@@ -234,6 +234,13 @@ $isEmpty = array_sum(array_map(static fn (string $metric): int => $view['kpis'][
             <p class="stat-card-note" data-tld-note><?= $escape($t($measure === 'hosts' ? 'Jeder vollständige Hostname zählt einmal. Mehrere Fälle auf demselben Host erhöhen die Hostzahl nicht.' : 'Ein Fall zählt einmal. Die fünf häufigsten TLDs werden einzeln gezeigt; IP-Adressen und lokale Hosts stehen separat.')) ?></p>
           </section>
 
+          <?php if (($view['claims'] ?? []) !== []): ?>
+          <section class="stat-card" aria-labelledby="statistics-claims-title">
+            <div class="stat-card-heading"><div><h2 id="statistics-claims-title"><?= $escape($t('Cribrum-Claims')) ?></h2><p><?= $escape($t('Aktiver Bestand · unabhängig vom Zeitraum')) ?></p></div></div>
+            <p><?= $escape($t('Ein Fall kann mehrere Claims haben. Die Gruppen werden nicht summiert.')) ?></p>
+            <ul class="stat-snapshot-list"><?php foreach ($view['claims'] as $row): ?><li><a data-claim="<?= $escape($row['claim']) ?>" data-state="<?= $escape($row['state']) ?>" data-count="<?= $escape($row['count']) ?>" href="<?= $escape($row['url']) ?>"><span class="stat-row-label"><?= $escape($t(\App\Value\ClaimLabels::CLAIMS[$row['claim']])) ?> · <?= $escape($t(\App\Value\ClaimLabels::STATES[$row['state']])) ?></span><strong class="stat-row-count"><?= $escape($formatNumber($row['count'])) ?></strong></a></li><?php endforeach; ?></ul>
+          </section>
+          <?php endif; ?>
           <section class="stat-card" aria-labelledby="statistics-snapshot-title">
             <div class="stat-card-heading"><div><p class="stat-card-eyebrow"><?= $escape($t('Aktueller Stand')) ?></p><h2 id="statistics-snapshot-title"><?= $escape($t('Manuelle Bewertungen')) ?></h2><p><?= $escape($t('Aktiver Bestand · unabhängig vom Zeitraum')) ?></p></div></div>
             <ul class="stat-snapshot-list"><?php foreach ($view['snapshot'] as $row): ?><li><a data-snapshot="<?= $escape($row['key']) ?>" data-count="<?= $escape($row['count']) ?>" href="<?= $escape($row['url']) ?>" style="--metric-color: <?= $escape($metricColors[$row['key']] ?? '#8d9eb6') ?>"><span class="stat-row-label"><?= $escape($t($row['label'])) ?></span><strong class="stat-row-count"><?= $escape($formatNumber($row['count'])) ?></strong><span class="stat-snapshot-track" aria-hidden="true"><span class="stat-snapshot-fill" style="width: <?= $escape($snapshotTotal > 0 ? round(100 * $row['count'] / $snapshotTotal, 2) : 0) ?>%"></span></span></a></li><?php endforeach; ?></ul>

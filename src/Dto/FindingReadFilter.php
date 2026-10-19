@@ -33,7 +33,11 @@ final readonly class FindingReadFilter
         public string $reminder = '',
         public string $view = '',
         public string $review = '',
+        public string $claim = '',
+        public string $claimState = '',
     ) {
+        self::validate('claim', $claim, ['', ...\App\Entity\FindingClaim::CLAIMS]);
+        self::validate('claim state', $claimState, ['', ...\App\Entity\FindingClaim::STATES]);
         self::validate('review', $review, ['', 'all', 'open', 'deferred']);
         self::validate('view', $view, ['', 'workbasket']);
         self::validate('reminder', $reminder, ['', 'today', 'overdue', 'open']);
