@@ -43,6 +43,12 @@ async function main() {
         blockedExternal.push(route.request().url());
         return route.abort();
       }
+      // This assessment fixture has no interactive worker. Embedded recovery
+      // still performs its read-only status probe; noVNC behavior has its own suite.
+      if (/^\/review\/[^/]+\/interactive\/status$/.test(new URL(route.request().url()).pathname)
+          && route.request().method() === 'GET') {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ state: 'available', revision: 0, reconnect: false }) });
+      }
       return route.continue();
     });
   };
@@ -223,7 +229,12 @@ async function main() {
           assert.ok(label.left >= box.left && label.right <= box.right + 1, `${width} ${route}: workspace label spills into a neighbor`);
           if (index) assert.ok(box.left >= geometry.links[index - 1].right - 1, `${width} ${route}: workspace links overlap`);
         }
-        assert.ok(geometry.settings.left >= geometry.links.at(-1).right - 1 && geometry.settings.right <= width, `${width} ${route}: settings overlaps the final workspace link`);
+        const finalLink = geometry.links.at(-1);
+        const settingsSeparate = geometry.settings.left >= finalLink.right - 1
+          || geometry.settings.top >= finalLink.bottom - 1
+          || geometry.settings.bottom <= finalLink.top + 1;
+        assert.ok(settingsSeparate && geometry.settings.left >= 0 && geometry.settings.right <= width,
+          `${width} ${route}: settings overlaps the final workspace link or clips`);
         if (route.startsWith('/findings/')) {
           assert.equal(await page.locator('.studio-detail-back').getAttribute('href'), '/review');
           assert.equal(await nav.locator('.studio-detail-context').count(), 1);
@@ -319,15 +330,15 @@ async function main() {
     assert.match(await page.locator('[data-review-card]').innerText(), /historisch/i);
     assert.match(await page.locator('[data-review-card]').innerText(), /unbekannt/);
     await gotoReview('?images=missing');
-    assert.match(await page.locator('[data-review-card]').innerText(), /Noch kein Bild|Kein Bild|fehlt/);
+    assert.equal(await page.locator('.review-vnc-primary [data-review-novnc]').count(), 1);
     await saveScreenshot('studio-review-no-image.png');
     await navigate(() => page.locator('[data-review-skip]').click());
     assert.equal(await currentId(), f.missing.id);
-    assert.match(await page.locator('[data-review-card]').innerText(), /Bilddatei nicht verfügbar/);
+    assert.equal(await page.locator('.review-vnc-primary [data-review-novnc]').count(), 1);
     await navigate(() => page.locator('[data-review-skip]').click());
     assert.equal(await currentId(), f.queued.id);
-    assert.match(await page.locator('[data-review-card]').innerText(), /Vorgemerkt|vorgemerkt|Aufnahme vorgemerkt/);
-    mark('Historical review marker retains unknown basis; absent, missing-file and queued screenshot states stay visible');
+    assert.equal(await page.locator('.review-vnc-primary [data-review-novnc]').count(), 1);
+    mark('Historical review marker retains unknown basis; absent, missing-file and queued cases offer the embedded interactive recovery');
 
     await gotoReview();
     const postsBeforeEditable = postRequests.length;

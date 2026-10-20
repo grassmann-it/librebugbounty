@@ -25,7 +25,7 @@ async function main() {
     const state = async () => {
       const response = await control.request.get(base + '/__studio_acceptance_diagnostics_state');
       assert.equal(response.status(), 200);
-      return (await response.json()).result.fingerprint;
+      return (await response.json()).result;
     };
     const before = await state();
     const goto = async (page, url) => assert.equal((await page.goto(base + url)).status(), 200);
@@ -108,7 +108,7 @@ async function main() {
       mark(`${locale}: comparison and error filters work without JavaScript`);
       await context.close();
     }
-    assert.equal(await state(), before, 'Views must preserve all retained records, notes, assessments, files and queue state');
+    assert.deepEqual((await state()).snapshot, before.snapshot, 'Views must preserve all retained records, notes, assessments, files and queue state');
     assert.deepEqual(errors, []);
     assert.deepEqual(failures, []);
     assert.deepEqual(external, []);

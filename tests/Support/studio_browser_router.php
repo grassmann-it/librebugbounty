@@ -150,11 +150,11 @@ if (in_array($path, ['/__studio_acceptance_diagnostics', '/__studio_acceptance_d
     } else {
         if ($_SERVER['REQUEST_METHOD'] !== 'GET') { http_response_code(405); exit; }
         $rows = [];
-        foreach (['finding', 'finding_assessment', 'finding_review_acknowledgement', 'finding_assessment_reset', 'screenshot_job', 'retest_run', 'evidence', 'setting', 'interactive_browser_lease'] as $table) {
+        foreach (['finding', 'finding_assessment', 'finding_review_acknowledgement', 'finding_assessment_reset', 'screenshot_job', 'retest_run', 'evidence', 'finding_claim', 'finding_claim_revision', 'http_observation', 'setting', 'interactive_browser_lease'] as $table) {
             $rows[$table] = $manager->getConnection()->fetchAllAssociative('SELECT * FROM '.$table.' ORDER BY rowid');
         }
         foreach ($storage->listPaths() as $file) $rows['files'][$file] = hash('sha256', $storage->read($file));
-        $result = ['fingerprint' => hash('sha256', json_encode($rows, JSON_THROW_ON_ERROR))];
+        $result = ['fingerprint' => hash('sha256', json_encode($rows, JSON_THROW_ON_ERROR)), 'snapshot' => $rows];
     }
     header('Content-Type: application/json');
     header('Cache-Control: no-store');
