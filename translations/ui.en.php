@@ -1517,4 +1517,13 @@ return [
     // C9 upgrade provenance (isolated from C7 status/settings copy).
     'Die Versionsnummer entspricht dem zuletzt geprüften stabilen Release.' => 'The version number matches the last checked stable release.',
     'Installationsherkunft nicht verifiziert. Die Versionsnummer belegt keinen unveränderten Releasecheckout; lokale Änderungen wurden nicht geprüft.' => 'Installation origin is unverified. The version number does not prove an unchanged release checkout; local changes have not been checked.',
+    // Missing-image recovery.
+    'Ein lesbares Bild zur aktiven PoC erledigt das Bildproblem. Historische Dateien und Bewertungen bleiben erhalten. Zurückgestellte, verworfene oder gesperrte Fälle werden übersprungen.' => 'A readable image for the active PoC resolves the image issue. Historical files and assessments are preserved. Deferred, discarded or blocked cases are skipped.',
+    'Fehlende Bilder der gefilterten Fälle neu aufnehmen' => 'Capture new images for filtered cases with missing images',
+    'Fehlendes Bild neu aufnehmen' => 'Capture a new image',
+    'Gilt für alle Ergebnisse des aktuellen Filters, über alle Seiten. Die Aufnahme erfolgt über die vorhandene Queue.' => 'Applies to all results of the current filter across all pages. Captures use the existing queue.',
+    'Neu eingereiht: {queued}. Bereits aktiv: {active}. Übersprungen: {skipped}. Ein Auftrag ist noch kein wiederhergestelltes Bild.' => 'Newly queued: {queued}. Already active: {active}. Skipped: {skipped}. A queued job is not yet an available image.',
+    'Für die aktive PoC liegt kein lesbares Bild vor.' => 'No readable image is available for the active PoC.',
+    'Aufnahme gesperrt oder zurückgestellt.' => 'Capture is blocked or deferred.',
+    'Aufnahme bereits eingereiht.' => 'Capture is already queued.',
 ];

@@ -3,6 +3,12 @@
 $labels = ['all' => 'Alle Fehler', 'screenshot' => 'Aufnahmefehler', 'missing' => 'Bilddateien', 'technical' => 'Technische Fehler'];
 $listQuery = array_intersect_key($problems, array_flip(['kind', 'q', 'page', 'pageSize']));
 $returnPath = '/errors?'.http_build_query($listQuery, '', '&', PHP_QUERY_RFC3986);
+$csrfToken = $this->csrf->getToken('missing_image_recovery')->getValue();
+$recoveryFields = static function () use ($listQuery, $csrfToken, $escape): void {
+    foreach ($listQuery + ['_token' => $csrfToken] as $name => $value) {
+        echo '<input type="hidden" name="'.$escape($name).'" value="'.$escape($value).'">';
+    }
+};
 $pageUrl = static fn (int $page): string => '/errors?'.http_build_query(array_replace($listQuery, ['page' => $page]), '', '&', PHP_QUERY_RFC3986);
 ?>
 <!doctype html>
@@ -27,6 +33,10 @@ $pageUrl = static fn (int $page): string => '/errors?'.http_build_query(array_re
       <p class="studio-list-hint"><?= $escape($t('Ein Eintrag pro Fall, einschließlich Archiv. Aufnahme- und technische Fehler betreffen jeweils den neuesten Auftrag oder Lauf; ältere Fehler bleiben im Verlauf.')) ?></p>
       <p class="studio-list-hint"><?= $escape($t('Bilddateien werden beim Öffnen dieser Übersicht auf Lesbarkeit und unterstützte Bildheader geprüft, nicht vollständig dekodiert. Es werden keine Aufträge eingereiht oder Zielseiten aufgerufen.')) ?></p>
       <p class="studio-list-hint"><?= $escape($t('Stand: {date}', ['date' => $formatTime($problems['checkedAt'], true)])) ?></p>
+      <p class="studio-list-hint"><?= $escape($t('Ein lesbares Bild zur aktiven PoC erledigt das Bildproblem. Historische Dateien und Bewertungen bleiben erhalten. Zurückgestellte, verworfene oder gesperrte Fälle werden übersprungen.')) ?></p>
+      <?php foreach ($request->getSession()->getFlashBag()->get('missing_image_recovery') as $result): ?>
+      <p role="status" data-recovery-result><?= $escape($t('Neu eingereiht: {queued}. Bereits aktiv: {active}. Übersprungen: {skipped}. Ein Auftrag ist noch kein wiederhergestelltes Bild.', ['queued' => $formatNumber($result['queued']), 'active' => $formatNumber($result['alreadyActive']), 'skipped' => $formatNumber($result['skipped'])])) ?></p>
+      <?php endforeach; ?>
       <section class="studio-list-tools" aria-label="<?= $escape($t('Suche und Filter')) ?>">
         <nav class="studio-list-scopes" aria-label="<?= $escape($t('Fehlerarten')) ?>">
           <?php foreach ($labels as $kind => $label): ?>
@@ -43,6 +53,13 @@ $pageUrl = static fn (int $page): string => '/errors?'.http_build_query(array_re
       </section>
       <section class="studio-error-results" aria-label="<?= $escape($t('Betroffene Fälle')) ?>">
         <p class="studio-list-hint" data-error-total><?= $escape($t('{count} betroffene Fälle', ['count' => $formatNumber($problems['total'])])) ?></p>
+        <?php if ($problems['missingTotal'] > 0): ?>
+        <form method="post" action="/errors/missing-images/recover" data-recovery-filtered>
+          <?php $recoveryFields(); ?>
+          <button class="studio-list-button" type="submit"><?= $escape($t('Fehlende Bilder der gefilterten Fälle neu aufnehmen')) ?></button>
+          <p class="studio-list-hint"><?= $escape($t('Gilt für alle Ergebnisse des aktuellen Filters, über alle Seiten. Die Aufnahme erfolgt über die vorhandene Queue.')) ?></p>
+        </form>
+        <?php endif; ?>
         <?php if ($problems['rows'] === []): ?><p class="studio-list-hint" data-error-empty><?= $escape($t('Keine betroffenen Fälle für diese Auswahl.')) ?></p><?php endif; ?>
         <?php foreach ($problems['rows'] as $row): $detailPath = '/findings/'.$row['id'].'?'.http_build_query(['return_to' => $returnPath], '', '&', PHP_QUERY_RFC3986); ?>
         <article class="studio-error-case" data-error-case="<?= $escape($row['id']) ?>">
@@ -52,8 +69,15 @@ $pageUrl = static fn (int $page): string => '/errors?'.http_build_query(array_re
             <?php foreach ($row['problems'] as $kind => $problem): ?>
             <li data-problem-kind="<?= $escape($kind) ?>"><strong><?= $escape($t($labels[$kind])) ?></strong> · <?= $escape($kind === 'missing' ? $t('Ablage') : $t('Zeitpunkt')) ?>: <?= $escape($formatTime($problem['at'] !== null ? new \DateTimeImmutable($problem['at']) : null)) ?>
               <?php if ($kind === 'missing'): ?>
-              <p><?= $escape($t(['missing' => 'Bilddatei fehlt oder ist nicht lesbar.', 'unreadable' => 'Bilddatei ist nicht lesbar.', 'invalid' => 'Bilddatei hat keinen unterstützten Bildheader.', 'too_large' => 'Bilddatei zu groß für diese Prüfung (maximal 25 MiB).'][$problem['reason']])) ?> <?= $escape($t('{count} betroffene Bildbelege', ['count' => $formatNumber($problem['count'])])) ?></p>
-              <a href="<?= $escape($detailPath.'#bild-'.$problem['evidenceId']) ?>"><?= $escape($t('Betroffenen Beleg öffnen')) ?></a>
+              <p><?= $escape($t('Für die aktive PoC liegt kein lesbares Bild vor.')) ?> <?php if ($problem['count'] > 0): ?><?= $escape($t(['missing' => 'Bilddatei fehlt oder ist nicht lesbar.', 'unreadable' => 'Bilddatei ist nicht lesbar.', 'invalid' => 'Bilddatei hat keinen unterstützten Bildheader.', 'too_large' => 'Bilddatei zu groß für diese Prüfung (maximal 25 MiB).'][$problem['reason']])) ?> <?= $escape($t('{count} betroffene Bildbelege', ['count' => $formatNumber($problem['count'])])) ?><?php endif; ?></p>
+              <?php if ($problem['evidenceId'] !== null): ?><a href="<?= $escape($detailPath.'#bild-'.$problem['evidenceId']) ?>"><?= $escape($t('Betroffenen Beleg öffnen')) ?></a><?php endif; ?>
+              <form method="post" action="/errors/missing-images/recover" data-recovery-one>
+                <?php $recoveryFields(); ?>
+                <input type="hidden" name="finding" value="<?= $escape($row['id']) ?>">
+                <input type="hidden" name="pocUrl" value="<?= $escape($row['url']) ?>">
+                <input type="hidden" name="pocRevision" value="<?= $escape($row['poc_revision']) ?>">
+                <button class="studio-list-button" type="submit"<?= !$row['recovery_allowed'] || in_array($row['job_status'], ['queued', 'running'], true) ? ' disabled' : '' ?>><?= $escape($t(!$row['recovery_allowed'] ? 'Aufnahme gesperrt oder zurückgestellt.' : (in_array($row['job_status'], ['queued', 'running'], true) ? 'Aufnahme bereits eingereiht.' : 'Fehlendes Bild neu aufnehmen'))) ?></button>
+              </form>
               <?php else: ?><p><?= $escape($problem['message'] ?: $t('Keine Fehlermeldung aufgezeichnet.')) ?></p><a href="<?= $escape($detailPath.'#verlauf') ?>"><?= $escape($t('Verlauf öffnen')) ?></a><?php endif; ?>
             </li>
             <?php endforeach; ?>

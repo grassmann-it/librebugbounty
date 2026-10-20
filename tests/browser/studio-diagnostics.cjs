@@ -47,7 +47,7 @@ async function main() {
         await Promise.all([page.waitForNavigation(), page.locator('[data-health-errors=screenshot]').click()]);
         assert.equal(await page.locator('[data-error-case]').count(), 1);
         assert.equal(await page.locator('[data-error-case]').getAttribute('data-error-case'), fixture.affected);
-        assert.equal(await page.locator('[data-error-count=all]').textContent(), '3');
+        assert.equal(await page.locator('[data-error-count=all]').textContent(), '4');
         assert.equal(await page.locator('[data-error-count=missing]').textContent(), '2');
         assert.equal(await page.locator('#untrusted, #error-markup').count(), 0);
         await Promise.all([page.waitForNavigation(), page.locator('[data-error-detail]').click()]);
@@ -79,9 +79,9 @@ async function main() {
         assert.equal(await page.locator('[data-comparison-side=after] [data-comparison-missing]').isVisible(), true);
         await goto(page, '/errors');
         const ids = await page.locator('[data-error-case]').evaluateAll(nodes => nodes.map(n => n.dataset.errorCase));
-        assert.equal(new Set(ids).size, 3);
-        assert.ok(!ids.includes(fixture.recovered));
-        await page.locator('[name=q]').fill('Technical only');
+        assert.equal(new Set(ids).size, 4);
+        assert.ok(ids.includes(fixture.recovered), 'DB availability without a readable image still needs recovery');
+        await page.locator('.studio-error-filters [name=q]').fill('Technical only');
         await Promise.all([page.waitForNavigation(), page.locator('.studio-error-filters button').click()]);
         assert.equal(await page.locator('[data-error-case]').count(), 1);
         assert.equal(await page.locator('[data-error-case]').getAttribute('data-error-case'), fixture.technical);

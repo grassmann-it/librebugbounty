@@ -53,11 +53,13 @@ final class FindingProblemService
     }
 
     /** @param array<string, mixed> $query @return array<string, mixed> */
-    public function get(array $query): array
+    public function get(array $query, bool $paginate = true): array
     {
         $filter = $this->parse($query);
+        $allowed = FindingWorkPolicy::checksAllowedSql($this->connection).' AND '.ReviewDispositionService::activeSql($this->connection)
+            ." AND f.status NOT IN ('discarded', 'duplicate') AND (f.manual_assessment IS NULL OR f.manual_assessment <> 'discarded')";
         $rows = $this->connection->fetchAllAssociative(
-            'SELECT f.id, COALESCE(f.poc_url, f.url) AS url, f.url AS original_url, f.title, f.manual_assessment, f.status, d.hostname, j.status AS job_status, j.error_message AS job_error, COALESCE(j.finished_at, j.started_at, j.requested_at) AS job_at, r.result AS run_result, r.error_message AS run_error, COALESCE(r.finished_at, r.started_at) AS run_at FROM finding f INNER JOIN domain d ON d.id = f.domain_id'.$this->latestJoins()
+            'SELECT CASE WHEN '.$allowed.' THEN 1 ELSE 0 END AS recovery_allowed, f.id, f.poc_revision, COALESCE(f.poc_url, f.url) AS url, f.url AS original_url, f.title, f.manual_assessment, f.status, d.hostname, j.status AS job_status, j.error_message AS job_error, COALESCE(j.finished_at, j.started_at, j.requested_at) AS job_at, r.result AS run_result, r.error_message AS run_error, COALESCE(r.finished_at, r.started_at) AS run_at FROM finding f INNER JOIN domain d ON d.id = f.domain_id'.$this->latestJoins()
         );
         $byId = [];
         foreach ($rows as $row) {
@@ -70,15 +72,8 @@ final class FindingProblemService
             }
             $byId[$row['id']] = $row;
         }
-        // Only this explicitly opened diagnostic page inspects stored image files.
-        // Keep the newest affected evidence as the example, not one row per file.
-        foreach ($this->connection->executeQuery("SELECT id, finding_id, file_path, created_at FROM evidence WHERE kind = 'screenshot' ORDER BY created_at DESC, rowid DESC")->iterateAssociative() as $evidence) {
-            if (!isset($byId[$evidence['finding_id']])) continue;
-            $problem = $this->images->problem($evidence['file_path']);
-            if ($problem !== null) {
-                $byId[$evidence['finding_id']]['problems']['missing'] ??= ['message' => null, 'at' => $evidence['created_at'], 'reason' => $problem, 'evidenceId' => $evidence['id'], 'count' => 0];
-                ++$byId[$evidence['finding_id']]['problems']['missing']['count'];
-            }
+        foreach ((new CurrentPocImageService($this->connection, $this->images))->missing() as $id => $problem) {
+            if (isset($byId[$id])) $byId[$id]['problems']['missing'] = $problem;
         }
         $counts = array_fill_keys(self::KINDS, 0);
         $selected = [];
@@ -95,6 +90,6 @@ final class FindingProblemService
         $total = count($selected);
         $pages = max(1, (int) ceil($total / $filter['pageSize']));
         $filter['page'] = min($filter['page'], $pages);
-        return $filter + ['rows' => array_slice($selected, ($filter['page'] - 1) * $filter['pageSize'], $filter['pageSize']), 'counts' => $counts, 'total' => $total, 'pages' => $pages, 'checkedAt' => new \DateTimeImmutable()];
+        return $filter + ['rows' => $paginate ? array_slice($selected, ($filter['page'] - 1) * $filter['pageSize'], $filter['pageSize']) : $selected, 'missingTotal' => count(array_filter($selected, static fn (array $row): bool => isset($row['problems']['missing']))), 'counts' => $counts, 'total' => $total, 'pages' => $pages, 'checkedAt' => new \DateTimeImmutable()];
     }
 }

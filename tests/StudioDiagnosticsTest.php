@@ -129,26 +129,26 @@ final class StudioDiagnosticsTest extends DatabaseTestCase
         self::assertNull(self::getContainer()->get(ScreenshotComparisonService::class)->get($cancelled, [])->basisId());
     }
 
-    public function testOverviewDeduplicatesCasesAndOmitsRecoveredHistoricalFailures(): void
+    public function testOverviewUsesReadableCurrentImagesRatherThanHistoricalDamageOrJobStatus(): void
     {
         $before = $this->snapshot();
         $view = self::getContainer()->get(FindingProblemService::class)->get([]);
-        self::assertSame(['all' => 3, 'screenshot' => 1, 'missing' => 2, 'technical' => 2], $view['counts']);
-        self::assertSame(3, $view['total']);
-        self::assertCount(3, array_unique(array_column($view['rows'], 'id')));
-        self::assertNotContains($this->fixture['recovered'], array_column($view['rows'], 'id'));
+        self::assertSame(['all' => 4, 'screenshot' => 1, 'missing' => 2, 'technical' => 2], $view['counts']);
+        self::assertSame(4, $view['total']);
+        self::assertCount(4, array_unique(array_column($view['rows'], 'id')));
+        self::assertContains($this->fixture['recovered'], array_column($view['rows'], 'id'));
         $affected = array_values(array_filter($view['rows'], fn (array $r): bool => $r['id'] === $this->fixture['affected']))[0];
         self::assertStringContainsString('failure 3', $affected['problems']['screenshot']['message']);
         self::assertStringContainsString('failure 2', $affected['problems']['technical']['message']);
-        self::assertSame(2, $affected['problems']['missing']['count']);
-        self::assertSame('invalid', $affected['problems']['missing']['reason']);
+        self::assertArrayNotHasKey('missing', $affected['problems']);
         $response = $this->request('/errors');
         self::assertSame(200, $response->getStatusCode());
         self::assertStringContainsString('no-store', $response->headers->get('Cache-Control'));
         $xpath = $this->xpath($response);
-        self::assertSame(3, $xpath->query('//*[@data-error-case]')->length);
+        self::assertSame(4, $xpath->query('//*[@data-error-case]')->length);
         self::assertSame(0, $xpath->query('//*[@id="error-markup" or @id="untrusted"]')->length);
-        self::assertSame(0, $xpath->query('//form[@method="post"] | //img')->length);
+        self::assertSame(3, $xpath->query('//form[@method="post"]')->length);
+        self::assertSame(0, $xpath->query('//img')->length);
         self::assertSame($before, $this->snapshot());
     }
 
@@ -170,9 +170,9 @@ final class StudioDiagnosticsTest extends DatabaseTestCase
         $this->entityManager->flush();
         $first = $service->get(['pageSize' => '10']);
         $second = $service->get(['pageSize' => '10', 'page' => '2']);
-        self::assertSame(15, $first['total']);
+        self::assertSame(16, $first['total']);
         self::assertCount(10, $first['rows']);
-        self::assertCount(5, $second['rows']);
+        self::assertCount(6, $second['rows']);
         self::assertSame([], array_values(array_intersect(array_column($first['rows'], 'id'), array_column($second['rows'], 'id'))));
         self::assertSame(2, $service->get(['page' => '999'])['page']);
     }
