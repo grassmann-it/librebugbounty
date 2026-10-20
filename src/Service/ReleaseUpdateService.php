@@ -26,7 +26,8 @@ final class ReleaseUpdateService
     /**
      * No HTTP, directory creation, repair writes, or locks on the read path.
      *
-     * @return array{state: string, latestVersion: ?string, latestTag: ?string, releaseUrl: ?string, checkedAt: ?\DateTimeImmutable, attemptedAt: ?\DateTimeImmutable, available: bool, stale: bool}
+     * State describes version comparison/freshness only, never checkout integrity.
+     * @return array{state: string, installOrigin: string, localChanges: ?bool, latestVersion: ?string, latestTag: ?string, releaseUrl: ?string, checkedAt: ?\DateTimeImmutable, attemptedAt: ?\DateTimeImmutable, available: bool, stale: bool}
      */
     public function snapshot(?\DateTimeImmutable $now = null): array
     {
@@ -219,6 +220,10 @@ final class ReleaseUpdateService
 
         return [
             'state' => $state,
+            // Neither the application version nor remote release metadata proves
+            // the installed source. Do not infer a clean checkout or run Git.
+            'installOrigin' => 'unknown',
+            'localChanges' => null,
             'latestVersion' => $latestVersion,
             'latestTag' => $cache['latestTag'],
             'releaseUrl' => $cache['latestTag'] === null ? null : AppInfo::REPOSITORY.'/releases/tag/'.$cache['latestTag'],

@@ -1514,4 +1514,7 @@ return [
     'Während manueller Prüfung oder einer Prüfsperre pausieren Rechecks. Behobene und verworfene Fälle sind ausgeschlossen.' => 'Rechecks pause during manual checking or while checking is blocked. Fixed and discarded cases are excluded.',
     'Intervalle in den Einstellungen ändern' => 'Change intervals in Settings',
     'Zurück zur URL-Erfassung' => 'Back to URL intake',
+    // C9 upgrade provenance (isolated from C7 status/settings copy).
+    'Die Versionsnummer entspricht dem zuletzt geprüften stabilen Release.' => 'The version number matches the last checked stable release.',
+    'Installationsherkunft nicht verifiziert. Die Versionsnummer belegt keinen unveränderten Releasecheckout; lokale Änderungen wurden nicht geprüft.' => 'Installation origin is unverified. The version number does not prove an unchanged release checkout; local changes have not been checked.',
 ];

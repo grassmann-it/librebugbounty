@@ -27,10 +27,11 @@
     <?php elseif ($releaseUpdate['state'] === 'stale'): ?>
       <p><?= $escape($t('Der gespeicherte Releasestand ist veraltet. Eine neue Prüfung steht aus.')) ?></p>
     <?php elseif ($releaseUpdate['state'] === 'current'): ?>
-      <p><?= $escape($t('Du verwendest den aktuellen stabilen Release.')) ?></p>
+      <p><?= $escape($t('Die Versionsnummer entspricht dem zuletzt geprüften stabilen Release.')) ?></p>
     <?php elseif ($releaseUpdate['state'] === 'ahead'): ?>
       <p><?= $escape($t('Deine Version ist neuer als der zuletzt veröffentlichte stabile Release.')) ?></p>
     <?php endif; ?>
+    <p data-install-origin="<?= $escape($releaseUpdate['installOrigin']) ?>"><?= $escape($t('Installationsherkunft nicht verifiziert. Die Versionsnummer belegt keinen unveränderten Releasecheckout; lokale Änderungen wurden nicht geprüft.')) ?></p>
     <?php if ($releaseUpdate['available']): ?>
       <p class="studio-about-update-available"><a href="<?= $escape($releaseUpdate['releaseUrl']) ?>" target="_blank" rel="noopener noreferrer"><?= $escape($t('Version {version} ist verfügbar', ['version' => $releaseUpdate['latestVersion']])) ?> <span aria-hidden="true">↗</span></a></p>
       <details class="studio-about-update-instructions">

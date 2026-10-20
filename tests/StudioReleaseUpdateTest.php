@@ -56,6 +56,7 @@ final class StudioReleaseUpdateTest extends DatabaseTestCase
             self::assertStringContainsString('no-store', $response->headers->get('Cache-Control'));
             $xpath = $this->xpath($response->getContent());
             self::assertSame(1, $xpath->query('//*[@data-release-update="unknown"]')->length);
+            self::assertSame(1, $xpath->query('//*[@data-install-origin="unknown"]')->length);
             self::assertSame('/about/check-update', $xpath->evaluate('string(//form[@data-release-check-form]/@action)'));
             self::assertSame('post', $xpath->evaluate('string(//form[@data-release-check-form]/@method)'));
             self::assertNotSame('', $xpath->evaluate('string(//form[@data-release-check-form]//input[@name="_token"]/@value)'));
@@ -146,6 +147,13 @@ final class StudioReleaseUpdateTest extends DatabaseTestCase
             self::assertSame(200, $response->getStatusCode());
             self::assertSame($state, $this->xpath($response->getContent())->evaluate('string(//*[@data-release-update]/@data-release-update)'));
             self::assertStringContainsString($locale === 'de' ? 'Jetzt prüfen' : 'Check now', $response->getContent());
+            $xpath = $this->xpath($response->getContent());
+            self::assertSame(1, $xpath->query('//*[@data-install-origin="unknown"]')->length);
+            self::assertStringContainsString($locale === 'de' ? 'lokale Änderungen wurden nicht geprüft' : 'local changes have not been checked', $response->getContent());
+            if ($state === 'current') {
+                self::assertStringContainsString($locale === 'de' ? 'Die Versionsnummer entspricht' : 'The version number matches', $response->getContent());
+                self::assertStringNotContainsString($locale === 'de' ? 'Du verwendest den aktuellen stabilen Release' : 'You are running the current stable release', $xpath->evaluate('string(//*[@data-release-update])'));
+            }
         }
         self::assertSame(1, $this->client->getRequestsCount());
         self::assertSame($cacheBefore, file_get_contents($this->releaseCache.'/release.json'), 'Reading stale data must never refresh it.');

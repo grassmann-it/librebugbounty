@@ -109,6 +109,29 @@ final class ReleaseUpdateServiceTest extends TestCase
         self::assertGreaterThan(0, $compare->invoke($service, '2.10.0', '2.9.99'));
     }
 
+    public function testMatchingVersionAndForgedCacheProvenanceNeverProveInstallationOrigin(): void
+    {
+        $client = new MockHttpClient($this->release('v'.AppInfo::VERSION));
+        $service = new ReleaseUpdateService($client, $this->directory);
+        $checked = $service->check(now: $this->now);
+        self::assertSame('current', $checked['state']);
+        self::assertSame('unknown', $checked['installOrigin']);
+        self::assertNull($checked['localChanges']);
+
+        $path = $this->directory.'/release.json';
+        $cache = json_decode(file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
+        $cache['installOrigin'] = 'verified-release';
+        $cache['localChanges'] = false;
+        file_put_contents($path, json_encode($cache, JSON_THROW_ON_ERROR));
+        $before = file_get_contents($path);
+        $snapshot = $service->snapshot($this->now);
+        self::assertSame('current', $snapshot['state']);
+        self::assertSame('unknown', $snapshot['installOrigin']);
+        self::assertNull($snapshot['localChanges']);
+        self::assertSame($before, file_get_contents($path));
+        self::assertSame(1, $client->getRequestsCount());
+    }
+
     #[DataProvider('invalidReleases')]
     public function testUntrustedReleaseDataCannotBecomeAnUpdate(mixed $release): void
     {

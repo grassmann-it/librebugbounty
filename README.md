@@ -224,6 +224,52 @@ supervisor. The shared cache enforces the daily interval and a one-minute
 minimum between manual checks. Failed lookups retain the last verified release
 and are shown as errors. No GitHub token or additional package is required.
 
+### Upgrade preflight
+
+Before changing the checkout, run the bounded permission diagnosis as the normal
+workspace user (not root):
+
+```bash
+php bin/upgrade-preflight.php
+```
+
+For runtime access, also run `ddev exec php bin/upgrade-preflight.php`
+while the existing environment is running, or use the equivalent application
+user in a custom deployment. Host and container users can have different access.
+The standalone entry point does not boot Symfony's kernel or create its cache,
+so it also works when `var` is unwritable. The same command is registered as
+`php bin/console app:upgrade:preflight` for an already bootable application.
+The preflight performs no repair, dependency installation, Git command, network
+request or write probe. It checks at most 2,000 worker dependency entries without
+following symlinks, and checks `var` plus existing `var/cache` and `var/log` for directory write
+and search access by the current process. It does not recursively certify the
+runtime tree or test ACLs for a different user. Exit status is 0 only when all
+checks are `ok`; a known blocker or an incomplete/unknown check returns 1.
+Missing dependencies and absent optional cache/log directories are normal;
+a missing `var` directory, symbolic runtime
+paths, unreadable dependencies or a scan limit require manual verification.
+
+If root-owned `playwright-worker/node_modules` is reported, stop DDEV/workers,
+verify that you are in this workspace and follow step 5 above to remove **only
+that generated dependency directory**. Do not delete worker source, lockfiles,
+storage or the workspace. Ask the administrator for help if ordinary removal
+fails; the preflight never invokes privileged commands.
+
+If a `var` path is not writable/searchable, ask the administrator to verify the
+actual application UID/GID, ownership, group access and ACLs for that path only.
+For missing runtime directories, have the deployment create them with access for
+the application user, then rerun the check under that user. Do not apply recursive
+`chmod 777`, change ownership of the whole checkout, or remove runtime data as a
+generic fix. A successful diagnosis is a permission check, not a complete upgrade
+or backup verification; continue with the upgrade steps above.
+
+About's update result compares the version declared by the running build with
+the last validated stable release metadata. A matching version does **not** prove
+an unchanged published checkout. Installation origin and local modifications
+remain unverified: neither the release cache nor a release lookup supplies that
+evidence. The checker runs no Git commands. Git instructions displayed on About
+are manual instructions, not commands executed by the checker.
+
 ## Backup
 
 Create and validate a private local snapshot with Python 3.11 or newer:
