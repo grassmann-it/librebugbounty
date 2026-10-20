@@ -120,6 +120,30 @@
       </section>
       <p class="studio-settings-field-hint"><?= $escape($t('HTTP-Antworten bestätigen die Dienste. Chromium, Bildschirmübertragung und WSS-Verbindung werden hier nicht geprüft.')) ?></p>
     </article>
+    <article class="studio-settings-health-card" data-cribrum-status data-health-state="<?= $cribrum['available'] && $cribrum['packDiagnostics'] === [] && ($cribrum['observations']['attention'] ?? 0) === 0 ? 'ok' : 'degraded' ?>">
+      <header>
+        <span class="studio-settings-health-dot" data-state="<?= $cribrum['available'] && $cribrum['packDiagnostics'] === [] && ($cribrum['observations']['attention'] ?? 0) === 0 ? 'ok' : 'degraded' ?>" aria-hidden="true"></span>
+        <h3>Cribrum</h3>
+        <span class="studio-health-group-state"><?= $escape($t($cribrum['available'] ? 'Klassifikation aktiv' : 'Noch nicht eingerichtet')) ?></span>
+      </header>
+      <section class="studio-health-context" aria-labelledby="health-cribrum-packs">
+        <h4 id="health-cribrum-packs"><?= $escape($t('Aktive Regelpakete')) ?></h4>
+        <ul class="studio-health-workers">
+          <?php foreach ($cribrum['packs'] as $pack): ?>
+          <li data-cribrum-pack="<?= $escape($pack['id']) ?>"><div class="studio-health-worker-identity"><strong><?= $escape($pack['id']) ?></strong><span class="studio-health-worker-seen"><?= $escape($t('Version {version} · {rules} Regeln', ['version' => $pack['version'], 'rules' => $pack['rules']])) ?></span></div></li>
+          <?php endforeach; ?>
+        </ul>
+        <?php foreach ($cribrum['packDiagnostics'] as $diagnostic): ?><p class="studio-settings-field-hint" data-cribrum-diagnostic><?= $escape($diagnostic) ?></p><?php endforeach; ?>
+      </section>
+      <?php if ($cribrum['observations'] !== null): ?>
+      <dl class="studio-health-metrics">
+        <div><dt><?= $escape($t('Gespeicherte Observations')) ?></dt><dd data-cribrum-observations="<?= $escape($cribrum['observations']['total']) ?>"><?= $escape($formatNumber($cribrum['observations']['total'])) ?></dd></div>
+        <div><dt><?= $escape($t('Davon mit Artefakt')) ?></dt><dd><?= $escape($formatNumber($cribrum['observations']['withArtifact'])) ?></dd></div>
+        <div data-tone="<?= $cribrum['observations']['attention'] > 0 ? 'work' : 'neutral' ?>"><dt><?= $escape($t('Klassifikation mit Fehler oder veralteter PoC')) ?></dt><dd data-cribrum-attention="<?= $escape($cribrum['observations']['attention']) ?>"><?= $escape($formatNumber($cribrum['observations']['attention'])) ?></dd></div>
+        <?php if ($cribrum['observations']['lastClassifiedAt'] !== null): ?><div><dt><?= $escape($t('Letzte Klassifikation')) ?></dt><dd><?= $escape($formatTime($cribrum['observations']['lastClassifiedAt'], true)) ?></dd></div><?php endif; ?>
+      </dl>
+      <?php endif; ?>
+    </article>
   </div>
   <div class="studio-health-explainer">
     <p><?= $escape($t('Grün bedeutet: alle erwarteten automatischen Worker senden aktuelle Signale; ihre Browserdienste sowie interaktiver Worker und Gateway antworten. Die Dienstprüfung startet keine Browseraufnahme.')) ?></p>

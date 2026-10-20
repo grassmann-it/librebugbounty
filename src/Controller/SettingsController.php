@@ -23,6 +23,7 @@ final class SettingsController
         private readonly \App\Service\FollowUpService $followUp,
         private readonly \Symfony\Component\Security\Csrf\CsrfTokenManagerInterface $csrf,
         private readonly ReleaseUpdateService $updates,
+        private readonly \App\Service\CribrumStatusService $cribrumStatus,
     ) {
     }
 
@@ -199,6 +200,7 @@ final class SettingsController
         $formatNumber = fn (int|float $value, int $decimals = 0): string => $this->i18n->formatNumber($value, $decimals);
         $i18nJson = $this->i18n->browserCatalogJson();
         if ($utility === 'status') {
+            $cribrum = $this->cribrumStatus->snapshot();
             $health = $this->health->snapshot();
             $utilityWarning = $health['recheck']['state'] !== 'ok' || $health['screenshot']['state'] !== 'ok' || $health['interactive']['state'] !== 'ok';
         } else {
@@ -242,6 +244,7 @@ final class SettingsController
         $formatTime = fn (?\DateTimeInterface $at, bool $withSeconds = false): string => $this->i18n->formatDateTime($at, $withSeconds);
         $formatNumber = fn (int|float $value, int $decimals = 0): string => $this->i18n->formatNumber($value, $decimals);
         $i18nJson = $this->i18n->browserCatalogJson();
+        $cribrum = $this->cribrumStatus->snapshot();
         $restrictions = $this->followUp->restrictions();
         $csrfField = fn (string $tokenId): string => '<input type="hidden" name="_token" value="'.$escape($this->csrf->getToken($tokenId)->getValue()).'">';
         $query = $request->query->all();

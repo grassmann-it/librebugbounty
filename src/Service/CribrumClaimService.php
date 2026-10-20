@@ -62,7 +62,7 @@ final class CribrumClaimService
             if ($expectedRevision !== null && $expectedRevision !== $actual) {
                 throw new \UnexpectedValueException('Cribrum claim revision changed.');
             }
-            if ($current !== null && $current->source === 'manual' && $source === 'classifier' && ($current->state !== $state || $current->reportSelected !== $reportSelected || $current->severity !== $severity)) {
+            if ($current !== null && $current->source === 'manual' && $source === 'classifier') {
                 return $current;
             }
             if ($current !== null && $current->state === $state && $current->reportSelected === $reportSelected && $current->severity === $severity && $current->observationId === $observationId) {

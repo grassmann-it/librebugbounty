@@ -143,6 +143,24 @@
 
           </section>
 
+          <section class="studio-settings-panel" aria-labelledby="settings-cribrum-title">
+            <div class="studio-settings-panel-heading">
+              <div><h2 id="settings-cribrum-title">Cribrum</h2></div>
+            </div>
+            <p class="studio-settings-field-hint"><?= $escape($t('Lokale, versionierte Klassifikation der gespeicherten Browser-Observations. Vorschläge ersetzen keine manuelle Bewertung; private Pakete liegen unter {directory}.', ['directory' => $cribrum['privateDirectory']])) ?></p>
+            <dl class="studio-health-metrics">
+              <div><dt><?= $escape($t('Speicherlimit je Observation')) ?></dt><dd><?= $escape($formatNumber($cribrum['limits']['compressedBytes'] / 1048576, 0)) ?> MiB</dd></div>
+              <div><dt><?= $escape($t('Aufbewahrte Ausschnitte bei Überschreitung')) ?></dt><dd><?= $escape($formatNumber($cribrum['limits']['retainedRawBytes'] / 1024, 0)) ?> / <?= $escape($formatNumber($cribrum['limits']['retainedDomBytes'] / 1024, 0)) ?> KiB</dd></div>
+            </dl>
+            <ul class="studio-health-workers">
+              <?php foreach ($cribrum['packs'] as $pack): ?>
+              <li data-cribrum-pack="<?= $escape($pack['id']) ?>"><div class="studio-health-worker-identity"><strong><?= $escape($pack['id']) ?></strong><span class="studio-health-worker-seen"><?= $escape($t('Version {version} · {rules} Regeln', ['version' => $pack['version'], 'rules' => $pack['rules']])) ?></span></div></li>
+              <?php endforeach; ?>
+            </ul>
+            <?php foreach ($cribrum['packDiagnostics'] as $diagnostic): ?><p class="studio-settings-field-hint" data-cribrum-diagnostic><?= $escape($diagnostic) ?></p><?php endforeach; ?>
+            <p class="studio-settings-field-hint"><?= $escape($t('Neubewertung gespeicherter Observations nach Paketänderungen: php bin/console app:cribrum:reclassify (--dry-run zur Vorschau). Manuelle Claim-Entscheidungen bleiben erhalten.')) ?></p>
+          </section>
+
           <?php require __DIR__.'/restrictions.php'; ?>
 
         </div>

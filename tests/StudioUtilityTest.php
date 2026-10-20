@@ -49,6 +49,10 @@ final class StudioUtilityTest extends DatabaseTestCase
             self::assertSame($status, $this->request('/settings', 'POST', $parameters)->getStatusCode());
         }
         self::assertSame(0, $client->getRequestsCount());
+        $settings = $this->request('/settings')->getContent();
+        self::assertStringContainsString('settings-cribrum-title', $settings);
+        self::assertStringContainsString('data-cribrum-pack="core"', $settings);
+        self::assertStringContainsString('app:cribrum:reclassify', $settings);
     }
 
     public static function utilityLocales(): iterable
@@ -101,6 +105,8 @@ final class StudioUtilityTest extends DatabaseTestCase
             self::assertSame(0, $client->getRequestsCount());
         } else {
             self::assertSame(3, $xpath->query('//*[@data-health-kind]')->length);
+            self::assertStringContainsString('data-cribrum-status', $response->getContent());
+            self::assertStringContainsString('2026.10.19', $response->getContent());
             self::assertSame(2, $xpath->query('//*[@data-health-interactive-service]')->length);
             self::assertSame('/status', $xpath->evaluate('string(//a[contains(@class,"studio-health-refresh")]/@href)'));
             self::assertSame(0, $xpath->query('//*[@data-health-kind]//details')->length);

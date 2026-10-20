@@ -42,7 +42,13 @@ final class CribrumProcessingService
         }
 
         try {
-            $entity = $this->observations->store($finding, $observation, $screenshotJobId, $retestRunId, $pocRevision ?? $finding->getPocRevision(), $contextUrl ?? $finding->getPocUrl());
+            $entity = $this->observations->store($finding, $observation, $screenshotJobId, $retestRunId, $pocRevision ?? $finding->getPocRevision(), $contextUrl ?? $finding->getPocUrl(), [
+                'url' => $contextUrl ?? $finding->getPocUrl(),
+                'payload' => $payload ?? $finding->getPayload(),
+                'expectedEvidence' => $expectedEvidence ?? $finding->getExpectedEvidence(),
+                'dialogSeen' => $dialogSeen,
+                'dialogText' => $dialogText === null ? null : mb_strcut($dialogText, 0, 8192, 'UTF-8'),
+            ]);
         } catch (\Throwable $error) {
             $this->logger?->error('Cribrum observation could not be stored.', ['exception' => $error, 'finding' => $finding->getId()]);
             return null;

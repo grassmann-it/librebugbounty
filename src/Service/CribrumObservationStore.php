@@ -10,9 +10,9 @@ use Doctrine\ORM\EntityManagerInterface;
 /** Persists bounded, eligible response evidence produced by an existing browser run. */
 final class CribrumObservationStore
 {
-    private const MAX_COMPRESSED_BYTES = 2097152;
-    private const RETAINED_RAW_BYTES = 65536;
-    private const RETAINED_DOM_BYTES = 32768;
+    public const MAX_COMPRESSED_BYTES = 2097152;
+    public const RETAINED_RAW_BYTES = 65536;
+    public const RETAINED_DOM_BYTES = 32768;
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -27,6 +27,7 @@ final class CribrumObservationStore
         ?string $retestRunId = null,
         ?int $pocRevision = null,
         ?string $contextUrl = null,
+        ?array $classificationContext = null,
     ): HttpObservation {
         if ($screenshotJobId !== null) {
             $existing = $this->entityManager->getRepository(HttpObservation::class)->findOneBy(['screenshotJobId' => $screenshotJobId]);
@@ -44,6 +45,7 @@ final class CribrumObservationStore
         $raw = $trusted['rawHtml'];
         $dom = $trusted['domText'];
         $metadata = [
+            'classificationContext' => $classificationContext,
             'redirectChain' => $trusted['redirectChain'],
             'headers' => $trusted['headers'],
             'manifest' => [
