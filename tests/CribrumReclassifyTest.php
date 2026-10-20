@@ -100,7 +100,7 @@ final class CribrumReclassifyTest extends DatabaseTestCase
         $this->entityManager->flush();
         $processor = new CribrumProcessingService($this->entityManager, new CribrumClassifier($this->packs), $this->store, $this->claims);
         $processor->process($finding, $this->transport('You have an error in your SQL syntax CRIBRUM'));
-        $processor->process($finding, $this->transport(), dialogSeen: true, dialogText: 'CRIBRUM');
+        $processor->process($finding, $this->transport(), dialogSeen: true, dialogText: str_repeat('x', 9000).'CRIBRUM');
         $this->pack('v1');
         self::assertSame(1, $this->service()->reclassify($finding->getId())['processed']);
         $states = $this->entityManager->getConnection()->fetchAllKeyValue('SELECT claim, state FROM finding_claim');
@@ -109,6 +109,42 @@ final class CribrumReclassifyTest extends DatabaseTestCase
         $history = $this->rowCount('finding_claim_revision');
         $this->service()->reclassify($finding->getId());
         self::assertSame($history, $this->rowCount('finding_claim_revision'));
+    }
+
+    public function testLateObsoleteCaptureDoesNotHideActiveCapture(): void
+    {
+        $finding = self::getContainer()->get(FindingService::class)->createFinding('https://fixture.test/late');
+        $finding->setPocUrl($finding->getPocUrl(), 1);
+        $this->entityManager->flush();
+        $current = $this->store->store($finding, $this->transport());
+        $this->store->store($finding, $this->transport('Old error'), pocRevision: 0);
+        $this->pack('v1');
+        $summary = $this->service()->reclassify($finding->getId());
+        self::assertSame(1, $summary['processed']);
+        self::assertSame([], $summary['errors']);
+        $latest = $this->entityManager->getConnection()->fetchAssociative('SELECT metadata FROM http_observation ORDER BY created_at DESC, id DESC LIMIT 1');
+        self::assertSame($current->getId(), json_decode($latest['metadata'], true)['reclassifiedFrom']);
+        $history = $this->rowCount('finding_claim_revision');
+        $this->service()->reclassify($finding->getId());
+        self::assertSame($history, $this->rowCount('finding_claim_revision'));
+    }
+
+    public function testCompetingManualRevisionIsRefreshedUnderWriteLock(): void
+    {
+        $finding = self::getContainer()->get(FindingService::class)->createFinding('https://fixture.test/race');
+        $claim = $this->claims->apply($finding, 'sql_injection', 'suspected', false, 'classifier');
+        $connection = $this->entityManager->getConnection();
+        // Represents a competing commit after this EntityManager cached revision 1.
+        $connection->executeStatement("UPDATE finding_claim SET revision = 2, source = 'manual', state = 'rejected' WHERE finding_id = ? AND claim = 'sql_injection'", [$finding->getId()]);
+        try {
+            $this->claims->apply($finding, 'sql_injection', 'suspected', false, 'classifier', expectedRevision: 1);
+            self::fail('A stale managed claim must not overwrite the committed manual decision.');
+        } catch (\UnexpectedValueException) {
+            self::assertSame('manual', $claim->source);
+            self::assertSame('rejected', $claim->state);
+            self::assertSame(2, $claim->revision);
+            self::assertSame('rejected', $connection->fetchOne("SELECT state FROM finding_claim WHERE finding_id = ? AND claim = 'sql_injection'", [$finding->getId()]));
+        }
     }
 
     public function testStatusWorksWithoutCribrumSchema(): void

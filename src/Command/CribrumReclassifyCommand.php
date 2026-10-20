@@ -43,7 +43,7 @@ final class CribrumReclassifyCommand extends Command
             return Command::INVALID;
         }
         $io->text(($dryRun ? 'Dry run: nothing was written. ' : '').sprintf(
-            'Reclassified %d observations (%d suggestions, %d skipped without artifact).',
+            'Reclassified %d observations (%d suggestions, %d skipped without artifact or current-PoC capture).',
             $summary['processed'],
             $summary['suggestions'],
             $summary['skipped'],

@@ -41,13 +41,18 @@ final class CribrumProcessingService
             return null;
         }
 
+        $marker = trim((string) ($expectedEvidence ?? $finding->getExpectedEvidence()));
+        $dialogMarkerMatched = $dialogSeen && $dialogText !== null && $marker !== '' && mb_stripos($dialogText, $marker) !== false;
         try {
             $entity = $this->observations->store($finding, $observation, $screenshotJobId, $retestRunId, $pocRevision ?? $finding->getPocRevision(), $contextUrl ?? $finding->getPocUrl(), [
                 'url' => $contextUrl ?? $finding->getPocUrl(),
                 'payload' => $payload ?? $finding->getPayload(),
                 'expectedEvidence' => $expectedEvidence ?? $finding->getExpectedEvidence(),
                 'dialogSeen' => $dialogSeen,
-                'dialogText' => $dialogText === null ? null : mb_strcut($dialogText, 0, 8192, 'UTF-8'),
+                // Retain a matched marker rather than losing its proof behind
+                // the excerpt limit. Replay gets the same execution distinction.
+                'dialogText' => $dialogMarkerMatched ? $marker : ($dialogText === null ? null : mb_strcut($dialogText, 0, 8192, 'UTF-8')),
+                'dialogTextRetainedAsMarker' => $dialogMarkerMatched,
             ]);
         } catch (\Throwable $error) {
             $this->logger?->error('Cribrum observation could not be stored.', ['exception' => $error, 'finding' => $finding->getId()]);

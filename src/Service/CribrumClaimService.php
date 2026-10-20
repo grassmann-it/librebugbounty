@@ -58,6 +58,7 @@ final class CribrumClaimService
         return $this->entityManager->getConnection()->transactional(function () use ($finding, $claim, $state, $reportSelected, $source, $ruleIds, $reason, $observationId, $severity, $expectedRevision): FindingClaim {
             $this->entityManager->getConnection()->executeStatement('UPDATE finding SET id = id WHERE id = ?', [$finding->getId()]);
             $current = $this->entityManager->find(FindingClaim::class, ['finding' => $finding, 'claim' => $claim]);
+            if ($current !== null) $this->entityManager->refresh($current);
             $actual = $current?->revision ?? 0;
             if ($expectedRevision !== null && $expectedRevision !== $actual) {
                 throw new \UnexpectedValueException('Cribrum claim revision changed.');

@@ -33,10 +33,16 @@ final class CribrumReclassifyService
         // Snapshot the newest capture per case. Replaying historical captures would
         // oscillate current claims on every run and could revive obsolete evidence.
         $ids = $connection->fetchFirstColumn(
-            'SELECT o.id FROM http_observation o WHERE '
+            'SELECT o.id FROM http_observation o JOIN finding f ON f.id = o.finding_id WHERE o.poc_revision = f.poc_revision AND '
             .($findingId === null ? '' : 'o.finding_id = ? AND ')
-            .'NOT EXISTS (SELECT 1 FROM http_observation newer WHERE newer.finding_id = o.finding_id '
+            .'NOT EXISTS (SELECT 1 FROM http_observation newer WHERE newer.finding_id = o.finding_id AND newer.poc_revision = o.poc_revision '
             .'AND (newer.created_at > o.created_at OR (newer.created_at = o.created_at AND newer.id > o.id))) ORDER BY o.id',
+            $findingId === null ? [] : [$findingId],
+        );
+        $summary['skipped'] = (int) $connection->fetchOne(
+            'SELECT COUNT(DISTINCT o.finding_id) FROM http_observation o JOIN finding f ON f.id = o.finding_id WHERE '
+            .($findingId === null ? '' : 'o.finding_id = ? AND ')
+            .'NOT EXISTS (SELECT 1 FROM http_observation active WHERE active.finding_id = f.id AND active.poc_revision = f.poc_revision)',
             $findingId === null ? [] : [$findingId],
         );
         foreach ($ids as $index => $id) {
@@ -77,7 +83,7 @@ final class CribrumReclassifyService
                 $connection->transactional(function () use ($finding, $observation, $result, $connection): void {
                     $connection->executeStatement('UPDATE finding SET id = id WHERE id = ?', [$finding->getId()]);
                     $this->entityManager->refresh($finding);
-                    $latest = $connection->fetchOne('SELECT id FROM http_observation WHERE finding_id = ? ORDER BY created_at DESC, id DESC LIMIT 1', [$finding->getId()]);
+                    $latest = $connection->fetchOne('SELECT id FROM http_observation WHERE finding_id = ? AND poc_revision = ? ORDER BY created_at DESC, id DESC LIMIT 1', [$finding->getId(), $finding->getPocRevision()]);
                     if ($finding->getPocRevision() !== $observation->getPocRevision() || $latest !== $observation->getId()) {
                         throw new \UnexpectedValueException('PoC changed during reclassification.');
                     }
