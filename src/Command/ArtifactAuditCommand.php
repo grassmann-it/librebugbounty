@@ -28,21 +28,49 @@ final class ArtifactAuditCommand extends Command
         foreach ($references as $reference) {
             $reference = str_replace('\\', '/', $reference);
             $logical = str_starts_with($reference, 'storage/artifacts/') ? $reference : 'storage/artifacts/'.$reference;
+            if (isset($known[$logical])) {
+                continue;
+            }
             $known[$logical] = true;
             if (!$this->storage->exists($reference)) {
                 $rows[] = ['Missing or unavailable', $reference];
             }
         }
-        foreach ($this->storage->listPaths() as $path) {
+        $missing = count($rows);
+        $paths = $this->storage->listPaths();
+        $bytes = $orphanBytes = $orphans = $unavailableSizes = 0;
+        foreach ($paths as $path) {
+            $size = $this->storage->size($path);
+            if ($size === null) {
+                ++$unavailableSizes;
+            } else {
+                $bytes += $size;
+            }
             if (!isset($known[$path])) {
+                ++$orphans;
+                $orphanBytes += $size ?? 0;
                 $rows[] = ['Unreferenced file', $path];
             }
         }
 
         $io = new SymfonyStyle($input, $output);
         $io->text('Read-only audit. No files or database records were changed.');
+        $io->table(['Metric', 'Count / bytes'], [
+            ['Stored files', count($paths)],
+            ['Stored bytes (readable files)', $bytes],
+            ['Files with unavailable size', $unavailableSizes],
+            ['Unique referenced paths', count($known)],
+            ['Missing or unavailable referenced files', $missing],
+            ['Possible orphan files', $orphans],
+            ['Possible orphan bytes (readable files)', $orphanBytes],
+        ]);
+        $io->text('Includes evidence, retest screenshots, screenshot jobs and HTTP observations. Possible orphans require review; this report is not permission to delete them.');
         if ($rows !== []) {
             $io->table(['State', 'Artifact path'], $rows);
+            return Command::FAILURE;
+        }
+        if ($unavailableSizes > 0) {
+            $io->warning('Some file sizes are unavailable; byte totals are incomplete.');
             return Command::FAILURE;
         }
         $io->success('All artifact references are available; no unreferenced files found.');

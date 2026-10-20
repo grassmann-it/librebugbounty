@@ -6,6 +6,7 @@ import contextlib
 import hashlib
 import json
 import os
+import re
 from pathlib import Path, PurePosixPath
 import shutil
 import signal
@@ -22,8 +23,9 @@ def digest(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def open_readonly(path):
-    return sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True, timeout=5)
+def open_readonly(path, immutable=False):
+    suffix = "?mode=ro" + ("&immutable=1" if immutable else "")
+    return sqlite3.connect(path.resolve().as_uri() + suffix, uri=True, timeout=5)
 
 
 def traversal_error(error):
@@ -61,8 +63,8 @@ def copy_artifacts(source, target):
             (destination / name).chmod(0o600)
 
 
-def database_summary(path):
-    with contextlib.closing(open_readonly(path)) as connection:
+def database_summary(path, immutable=False):
+    with contextlib.closing(open_readonly(path, immutable)) as connection:
         if connection.execute("PRAGMA integrity_check").fetchall() != [("ok",)]:
             raise RuntimeError("SQLite integrity check failed.")
         schema = connection.execute(
@@ -92,12 +94,13 @@ def database_summary(path):
 
 def reference_summary(database, artifact_manifest):
     result = {"available": 0, "missing": 0, "unsupported_path": 0}
-    with contextlib.closing(open_readonly(database)) as connection:
+    with contextlib.closing(open_readonly(database, immutable=True)) as connection:
         tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         for table, column in (
             ("evidence", "file_path"),
             ("retest_run", "screenshot_path"),
             ("screenshot_job", "screenshot_path"),
+            ("http_observation", "artifact_path"),
         ):
             if table not in tables:
                 continue
@@ -177,33 +180,44 @@ def online_backup(database, destination):
 
 def validate(snapshot):
     manifest = json.loads((snapshot / "manifest.json").read_text())
-    if not (snapshot / "artifacts").is_dir():
+    if (snapshot / "artifacts").is_symlink() or not (snapshot / "artifacts").is_dir():
         raise RuntimeError("Artifact directory is missing from the snapshot.")
     if digest(snapshot / "database.sqlite") != manifest["database_sha256"]:
         raise RuntimeError("Database checksum differs from the manifest.")
     if tree_manifest(snapshot / "artifacts") != manifest["artifacts"]:
         raise RuntimeError("Artifact files differ from the manifest.")
-    if database_summary(snapshot / "database.sqlite") != manifest["database"]:
+    if "rulepacks" in manifest:
+        packs = snapshot / "rulepacks"
+        if packs.is_symlink() or not packs.is_dir() or tree_manifest(packs) != manifest["rulepacks"]:
+            raise RuntimeError("Rulepack files differ from the manifest or the directory is missing.")
+    if database_summary(snapshot / "database.sqlite", immutable=True) != manifest["database"]:
         raise RuntimeError("Restored table contents differ from the source snapshot.")
     return manifest
 
 
 def restore(snapshot, destination):
-    validate(snapshot)
+    manifest = validate(snapshot)
     destination.mkdir(mode=0o700)  # Explicitly fails if any target already exists.
     shutil.copyfile(snapshot / "database.sqlite", destination / "database.sqlite")
     (destination / "database.sqlite").chmod(0o600)
     copy_artifacts(snapshot / "artifacts", destination / "artifacts")
+    if "rulepacks" in manifest:
+        copy_artifacts(snapshot / "rulepacks", destination / "rulepacks")
     shutil.copyfile(snapshot / "manifest.json", destination / "manifest.json")
     (destination / "manifest.json").chmod(0o600)
     return validate(destination)
 
 
-def create_snapshot(database, artifacts, destination, project, offline=False):
+def create_snapshot(database, artifacts, destination, project, offline=False, rulepacks=None):
     if database.is_symlink() or artifacts.is_symlink() or not database.is_file() or not artifacts.is_dir():
         raise RuntimeError("Database and artifacts must exist and must not be symlinks.")
     if destination.resolve().is_relative_to(artifacts.resolve()):
         raise RuntimeError("Backup destination must be outside the artifact directory.")
+    if rulepacks is not None:
+        if rulepacks.is_symlink() or not rulepacks.is_dir():
+            raise RuntimeError("Rulepack directory must exist and must not be a symlink.")
+        if destination.resolve().is_relative_to(rulepacks.resolve()):
+            raise RuntimeError("Backup destination must be outside the rulepack directory.")
     destination.mkdir(parents=True, exist_ok=True, mode=0o700)
     if destination.is_symlink() or destination.stat().st_mode & 0o077:
         raise RuntimeError("Choose a private backup directory (mode 0700), without a symlink.")
@@ -212,12 +226,17 @@ def create_snapshot(database, artifacts, destination, project, offline=False):
     staging.mkdir(mode=0o700)
     with paused_project(project, offline):
         files_before = tree_manifest(artifacts)
+        packs_before = tree_manifest(rulepacks) if rulepacks is not None else None
         source_summary = database_summary(database)
         online_backup(database, staging / "database.sqlite")
         copy_artifacts(artifacts, staging / "artifacts")
+        if rulepacks is not None:
+            copy_artifacts(rulepacks, staging / "rulepacks")
+            if tree_manifest(rulepacks) != packs_before or tree_manifest(staging / "rulepacks") != packs_before:
+                raise RuntimeError("Rulepacks changed during backup; incomplete snapshot retained for diagnosis.")
         if tree_manifest(artifacts) != files_before or tree_manifest(staging / "artifacts") != files_before:
             raise RuntimeError("Artifacts changed during backup; incomplete snapshot retained for diagnosis.")
-        if database_summary(staging / "database.sqlite") != source_summary:
+        if database_summary(staging / "database.sqlite", immutable=True) != source_summary:
             raise RuntimeError("Database changed during backup; retry without concurrent writers.")
     manifest = {
         "format": 1,
@@ -227,6 +246,8 @@ def create_snapshot(database, artifacts, destination, project, offline=False):
         "artifacts": files_before,
         "references": reference_summary(staging / "database.sqlite", files_before),
     }
+    if packs_before is not None:
+        manifest["rulepacks"] = packs_before
     (staging / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     (staging / "manifest.json").chmod(0o600)
     # Exercise restoration into a second, independent directory before publishing.
@@ -235,6 +256,79 @@ def create_snapshot(database, artifacts, destination, project, offline=False):
     completed = destination / name
     staging.rename(completed)
     return completed, manifest
+
+
+def snapshot_inventory(destination):
+    """Only completed, verified snapshots are eligible for explicit retention."""
+    if destination.is_symlink() or not destination.is_dir():
+        raise RuntimeError("Backup destination must be an existing directory without a symlink.")
+    snapshots, skipped = [], []
+    for path in sorted(destination.iterdir(), reverse=True):
+        try:
+            if not re.fullmatch(r"\d{8}T\d{6}Z-[0-9a-f]{8}", path.name):
+                raise RuntimeError("not a completed snapshot name")
+            manifest = retention_manifest(path)
+            snapshots.append({"path": path, "created_at": manifest["created_at"],
+                              "artifact_files": len(manifest["artifacts"]),
+                              "rulepack_files": len(manifest.get("rulepacks", {})),
+                              "bytes": sum(entry.stat().st_size for entry in path.iterdir() if entry.is_file())
+                              + sum(entry["size"] for entry in manifest["artifacts"].values())
+                              + sum(entry["size"] for entry in manifest.get("rulepacks", {}).values())})
+        except (RuntimeError, OSError, ValueError, KeyError, TypeError, sqlite3.Error) as error:
+            skipped.append({"path": str(path), "reason": str(error)})
+    snapshots.sort(key=lambda entry: (snapshot_created_at(entry["created_at"]), str(entry["path"])), reverse=True)
+    return snapshots, skipped
+
+
+def snapshot_created_at(value):
+    try:
+        timestamp = datetime.fromisoformat(value)
+        if timestamp.tzinfo is None or timestamp.utcoffset() is None:
+            raise ValueError("timezone is required")
+        return timestamp.astimezone(timezone.utc)
+    except (TypeError, ValueError, OverflowError) as error:
+        raise RuntimeError("invalid snapshot created_at timestamp; an ISO timestamp with timezone is required") from error
+
+
+def retention_manifest(path):
+    if path.is_symlink() or not path.is_dir():
+        raise RuntimeError("snapshot must be a directory without a symlink")
+    names = {entry.name for entry in path.iterdir()}
+    required = {"database.sqlite", "artifacts", "manifest.json"}
+    # Older verify runs may have created SQLite sidecars. Never discard a WAL
+    # containing data; immutable validation intentionally reads the main DB only.
+    if not required <= names or names - required - {"database.sqlite-wal", "database.sqlite-shm", "rulepacks"}:
+        raise RuntimeError("unexpected or missing snapshot entries; retained for manual inspection")
+    if any(entry.is_symlink() for entry in path.iterdir()):
+        raise RuntimeError("snapshot symlinks are not supported")
+    for name in names - required - {"rulepacks"}:
+        if not (path / name).is_file() or (name.endswith("-wal") and (path / name).stat().st_size != 0):
+            raise RuntimeError("unexpected SQLite sidecar contents; retained for manual inspection")
+    manifest = validate(path)
+    if ("rulepacks" in manifest) != ("rulepacks" in names):
+        raise RuntimeError("unexpected rulepack directory; retained for manual inspection")
+    if manifest.get("format") != 1 or not isinstance(manifest.get("created_at"), str):
+        raise RuntimeError("unsupported snapshot manifest")
+    snapshot_created_at(manifest["created_at"])
+    return manifest
+
+
+def prune_snapshots(destination, keep, dry_run=False):
+    if keep < 0:
+        raise RuntimeError("--keep must be a non-negative integer.")
+    snapshots, skipped = snapshot_inventory(destination)
+    selected = snapshots[keep:]
+    # Validate the whole plan again before the first deletion. Unknown files,
+    # symlinks and damaged snapshots must never be swept up by retention.
+    if not dry_run:
+        for entry in selected:
+            retention_manifest(entry["path"])
+        for entry in selected:
+            shutil.rmtree(entry["path"])
+    return {"dry_run": dry_run, "keep": keep,
+            "retained": [str(entry["path"]) for entry in snapshots[:keep]],
+            "selected": [str(entry["path"]) for entry in selected],
+            "bytes": sum(entry["bytes"] for entry in selected), "skipped": skipped}
 
 
 def main():
@@ -251,6 +345,7 @@ def main():
     create.add_argument("--project", default="librebugbounty")
     create.add_argument("--database", type=Path, default=project_root / "storage/database/app.sqlite")
     create.add_argument("--artifacts", type=Path, default=project_root / "storage/artifacts")
+    create.add_argument("--rulepacks", type=Path, help="Also snapshot private Cribrum packs, e.g. var/cribrum/packs")
     create.add_argument("--destination", type=Path, default=Path.home() / ".local/share/librebugbounty/backups")
     create.add_argument("--offline", action="store_true", help="Assert all host writers are stopped; DDEV must be stopped")
     check = commands.add_parser("verify", help="Validate a previously created snapshot")
@@ -258,10 +353,28 @@ def main():
     recover = commands.add_parser("restore", help="Restore into a NEW directory only; never replaces live data")
     recover.add_argument("snapshot", type=Path)
     recover.add_argument("destination", type=Path)
+    default_backups = Path.home() / ".local/share/librebugbounty/backups"
+    listing = commands.add_parser("list", help="List verified snapshots newest first, and retained unrecognized entries")
+    listing.add_argument("--destination", type=Path, default=default_backups)
+    prune = commands.add_parser("prune", help="Explicitly delete older verified snapshots; preview with --dry-run")
+    prune.add_argument("--destination", type=Path, default=default_backups)
+    prune.add_argument("--keep", type=int, required=True, help="Keep N newest verified snapshots (0 selects all)")
+    prune.add_argument("--dry-run", action="store_true", help="Show selection without deleting anything")
     args = parser.parse_args()
+    if args.action == "prune" and args.keep < 0:
+        parser.error("--keep must be a non-negative integer")
     try:
+        if args.action == "list":
+            snapshots, skipped = snapshot_inventory(args.destination)
+            print(json.dumps({"snapshots": [{**entry, "path": str(entry["path"])} for entry in snapshots],
+                              "skipped": skipped}, indent=2))
+            return 0
+        if args.action == "prune":
+            print(json.dumps(prune_snapshots(args.destination, args.keep, args.dry_run), indent=2))
+            return 0
         if args.action == "create":
-            snapshot, manifest = create_snapshot(args.database, args.artifacts, args.destination, args.project, args.offline)
+            snapshot, manifest = create_snapshot(args.database, args.artifacts, args.destination, args.project,
+                                                 args.offline, args.rulepacks)
             print(f"Backup and restore validation succeeded: {snapshot}")
         elif args.action == "verify":
             manifest = validate(args.snapshot)
@@ -270,9 +383,10 @@ def main():
             manifest = restore(args.snapshot, args.destination)
             print(f"Restored and verified separate copy: {args.destination}")
         print(json.dumps({"tables": {name: entry["rows"] for name, entry in manifest["database"]["tables"].items()},
-                          "artifact_files": len(manifest["artifacts"]), "references": manifest["references"]}))
+                          "artifact_files": len(manifest["artifacts"]),
+                          "rulepack_files": len(manifest.get("rulepacks", {})), "references": manifest["references"]}))
         return 0
-    except (RuntimeError, OSError, sqlite3.Error, subprocess.SubprocessError, KeyboardInterrupt) as error:
+    except (RuntimeError, OSError, ValueError, KeyError, TypeError, sqlite3.Error, subprocess.SubprocessError, KeyboardInterrupt) as error:
         print(f"Backup operation failed: {error}", file=__import__("sys").stderr)
         return 1
 
