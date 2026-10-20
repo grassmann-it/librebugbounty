@@ -1,15 +1,18 @@
 # Publishing LibreBugBounty releases
 
 Release notes are stored here so the published GitHub text can be reviewed
-alongside the code. For this release, use tag `v2.1.1`, title
-`Moneta (Conatus) - v2.1.1`, and the body in `v2.1.1.md`. Publication requires
-explicit approval and passing release checks.
+alongside the code. For this release, use tag `v2.2.0`, title
+`Cribrum - v2.2.0`, and the body in `v2.2.0.md`. Publication requires
+explicit approval and passing release checks. Current authorization permits only
+local commits and acceptance: do not push, tag, create a draft or publish.
+C10, private-corpus acceptance and representative backup measurements must have
+an explicit release disposition before calling 2.2.0 final.
 
 From 2026-10-12 onward, GitHub release titles always use
-`<Release-Name> - v<Version>`, for example **Moneta (Conatus) - v2.1.1**.
-Keep the release name first. The 2.x family is Moneta; feature releases may add
-a parenthesized name, as 2.1.0 does with Conatus. Do not rename historical
-releases as part of an ordinary publication.
+`<Release-Name> - v<Version>`, for example **Cribrum - v2.2.0**.
+Keep the release name first. Version 2.2.0 uses Cribrum; historical Moneta and
+Conatus names remain unchanged. Do not rename historical releases as part of
+an ordinary publication.
 
 ## Before publication
 
@@ -33,8 +36,8 @@ python3 -B -m unittest discover -s tests -p 'backup_local_test.py' -v
 ```
 
 Review the successful browser acceptance for changed workflows, a fresh
-DDEV installation and an isolated upgrade from v2.1.0. The 2.1.1 release includes
-intake-session, active-PoC and review-deferral migrations; confirm that existing
+DDEV installation and an isolated upgrade from v2.1.1. The 2.2.0 release adds the claim ledger, immutable claim history
+and HTTP/DOM observations; confirm that existing
 case URLs, assessments and artifact references survive the upgrade. Restart PHP
 and the Playwright workers together and reload old browser tabs before checking
 interactive saves. Application tests use isolated storage; never point them
@@ -45,7 +48,7 @@ unchanged image source and exact-URL intake deduplication. For deferred review,
 verify one due attempt against the active PoC, matching native-dialog image
 evidence before resumption, and failure/interruption remaining deferred without
 changing the assessment. HTTP 200 or an observed dialog alone is insufficient.
-Remove the preparation notice in `v2.1.1.md` only after those checks and the fresh
+Remove the preparation notice in `v2.2.0.md` only after those checks and the fresh
 installation/upgrade acceptance are complete; record the actual evidence rather
 than implying that publication alone proves compatibility.
 
@@ -56,11 +59,11 @@ targeting its exact commit. Check for an existing draft first; edit it rather th
 creating duplicate release records. Do not create or push the tag at this stage.
 
 ```bash
-gh release create v2.1.1 \
+gh release create v2.2.0 \
   --draft \
   --target "$(git rev-parse HEAD)" \
-  --title 'Moneta (Conatus) - v2.1.1' \
-  --notes-file .github/releases/v2.1.1.md
+  --title 'Cribrum - v2.2.0' \
+  --notes-file .github/releases/v2.2.0.md
 ```
 
 Use an `(unreleased)` changelog marker during preparation. At final
@@ -77,15 +80,15 @@ the tag and GitHub release publishes that commit. Use the reviewed notes file
 rather than automatically generated commit messages.
 
 ```bash
-git tag -a v2.1.1 -m 'Moneta (Conatus) - v2.1.1'
-git push origin v2.1.1
-gh release edit v2.1.1 \
+git tag -a v2.2.0 -m 'Cribrum - v2.2.0'
+git push origin v2.2.0
+gh release edit v2.2.0 \
   --draft=false \
   --verify-tag \
   --latest \
   --target "$(git rev-parse HEAD)" \
-  --title 'Moneta (Conatus) - v2.1.1' \
-  --notes-file .github/releases/v2.1.1.md
+  --title 'Cribrum - v2.2.0' \
+  --notes-file .github/releases/v2.2.0.md
 ```
 
 Once published, check the release title, notes, source archives, and links to

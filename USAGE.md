@@ -1,10 +1,45 @@
 # LibreBugBounty user guide
 
-This guide describes LibreBugBounty 2.1.1 “Moneta (Conatus)”. Start with the
+This guide describes LibreBugBounty 2.2.0 “Cribrum” (candidate). Start with the
 [installation instructions](README.md#quick-start) if the application is not
 running yet. The workspace is intended for local, single-user use.
 Page and control names below use the default English UI; German is available
 through the header's **DE** switch.
+
+## Cribrum claims and local observations
+
+A case can carry several claims, each with its own state and report selection.
+Classifier suggestions come from the response already captured by a browser run;
+they do not trigger another target request. SQLi, LFI and RFI start as suspicion.
+Review remains a manual decision. A reported case is resolved only when every
+selected claim is fixed or rejected. Old cases without claims keep working.
+
+Inventory filters and saved views can select a claim and state. Statistics count
+cases independently of the current search; one case may appear under several
+claims, so claim totals must not be added together. Exports retain claim metadata;
+reports separate observation, suspicion and manual confirmation. HTTP artifacts
+are private and excluded by default. Inspect selected excerpts before sharing.
+
+**Observation diagnostics** on the case detail reads local artifacts and captured
+context. It shows stored and current pack versions, hits, exclusions, spans and
+errors without changing claims or fetching the target. Legacy captures without
+context show their stored result and a warning. Settings shows limits and active
+packs; Status shows observation counts and classification errors.
+
+After changing local declarative packs under `var/cribrum/packs`, preview a local
+reclassification, optionally restricted to one case:
+
+```bash
+php bin/console app:cribrum:reclassify --finding CASE_ID --dry-run
+php bin/console app:cribrum:reclassify --finding CASE_ID
+```
+
+Omit `--finding` to process the latest capture of each case. Obsolete PoC revisions
+are skipped. Changed results get an immutable revision reusing the verified
+artifact; earlier results and manual claim decisions remain intact. Repeating
+unchanged input and packs makes no new revision. Missing/corrupt artifacts are
+reported per case while other cases continue. Back up private rulepacks with the
+workspace using the [backup guide](BACKUP.md).
 
 ## First run
 

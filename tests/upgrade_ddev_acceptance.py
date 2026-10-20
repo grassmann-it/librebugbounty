@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prove a real 2.1.0 -> exact candidate upgrade without touching live DDEV.
+"""Prove a real 2.1.1 -> exact candidate upgrade without touching live DDEV.
 
 Clone the repository (including the candidate commit), check out --base-commit,
 and add only .ddev/config.local.yaml with the unique --project-name. Reports
@@ -34,14 +34,14 @@ class UpgradeAcceptance(Acceptance):
         _, response = self.request(base + "/findings/" + finding_id)
         form = re.search(r'<form\b[^>]*action="/findings/' + re.escape(finding_id)
                          + '/' + re.escape(action) + r'"[^>]*>(.*?)</form>', response.decode(), re.S)
-        self.check(form is not None, f"2.1.0 detail provides a real {action} form")
+        self.check(form is not None, f"2.1.1 detail provides a real {action} form")
         token = re.search(r'name="_token" value="([^"]+)"', form.group(1))
-        self.check(token is not None, f"2.1.0 {action} form has a session-bound CSRF token")
+        self.check(token is not None, f"2.1.1 {action} form has a session-bound CSRF token")
         payload = urllib.parse.urlencode({"_token": html.unescape(token.group(1)), **fields}).encode()
         request = urllib.request.Request(base + "/findings/" + finding_id + "/" + action,
                                          payload, {"Content-Type": "application/x-www-form-urlencoded"})
         with self.opener.open(request, timeout=20) as response:
-            self.check(response.status == 200, f"2.1.0 stores {action} through its normal form flow")
+            self.check(response.status == 200, f"2.1.1 stores {action} through its normal form flow")
 
     def artifact_hashes(self):
         root = self.checkout / "storage/artifacts"
@@ -51,7 +51,7 @@ class UpgradeAcceptance(Acceptance):
     def remove_worker_dependencies(self):
         modules = self.checkout / "playwright-worker/node_modules"
         if modules.exists():
-            # Published 2.1.0 installs these as container root. Recreate the
+            # Published 2.1.1 installs these as container root. Recreate the
             # generated tree through an equally privileged, networkless helper
             # mounted ONLY to this guarded disposable checkout.
             self.run("docker", "run", "--rm", "--network", "none", "--mount",
@@ -75,25 +75,25 @@ class UpgradeAcceptance(Acceptance):
         try:
             if self.historical_var_workaround:
                 (self.checkout / "var").mkdir(mode=0o755)
-                self.report["historicalWorkaround"] = "Precreate empty var as normal host/web UID solely for the published 2.1.0 cold-install ownership race; sources remain byte-identical."
+                self.report["historicalWorkaround"] = "Precreate empty var as normal host/web UID solely for the published 2.1.1 cold-install ownership race; sources remain byte-identical."
             self.started = True
             self.ddev("start")
             self.runtime()
-            self.check(self.report["applicationVersions"][-1] == "2.1.0", "Upgrade begins on the real running 2.1.0 application")
-            self.check(not self.rows("SELECT * FROM finding"), "2.1.0 starts with an empty isolated database")
+            self.check(self.report["applicationVersions"][-1] == "2.1.1", "Upgrade begins on the real running 2.1.1 application")
+            self.check(not self.rows("SELECT * FROM finding"), "2.1.1 starts with an empty isolated database")
             address = self.ip()
             self.fixture_start(address)
-            ids = self.capture_round(address, "legacy-2.1.0")
+            ids = self.capture_round(address, "legacy-2.1.1")
             note = "Upgrade acceptance: private note with umlaut ä and <literal> markup."
             self.form(address, ids[0], "notes", {"notes": note})
             evidence_id = self.rows("SELECT id FROM evidence WHERE finding_id=?", (ids[0],))[0]["id"]
             self.form(address, ids[0], "assessment", {"assessment": "confirmed", "evidence_id": evidence_id})
             self.check(self.rows("SELECT private_notes FROM finding WHERE id=?", (ids[0],))[0]["private_notes"] == note,
-                       "2.1.0 persisted the synthetic private note exactly")
+                       "2.1.1 persisted the synthetic private note exactly")
             assessment = self.rows("SELECT * FROM finding_assessment WHERE finding_id=?", (ids[0],))
             self.check(len(assessment) == 1 and assessment[0]["assessment"] == "confirmed"
                        and assessment[0]["evidence_id"] == evidence_id,
-                       "2.1.0 persisted a real manual assessment linked to actual screenshot evidence")
+                       "2.1.1 persisted a real manual assessment linked to actual screenshot evidence")
             self.fixture_stop()
             self.ddev("stop")
             running = self.run("docker", "ps", "--quiet", "--filter", "label=com.ddev.site-name=" + self.name)
@@ -113,7 +113,7 @@ class UpgradeAcceptance(Acceptance):
                                     for path in self.report["locks"]}
             self.ddev("start")
             self.runtime()
-            self.check(self.report["applicationVersions"][-1] == "2.1.1", "Upgrade runs the prepared 2.1.1 candidate")
+            self.check(self.report["applicationVersions"][-1] == "2.2.0", "Upgrade runs the prepared 2.2.0 candidate")
             self.preserves_legacy(before)
             self.check(self.artifact_hashes() == hashes, "Upgrade preserves every legacy artifact filename and byte")
             self.report["upgradedMigrations"] = self.rows("SELECT * FROM doctrine_migration_versions ORDER BY version")
@@ -126,7 +126,7 @@ class UpgradeAcceptance(Acceptance):
             # Also prove fresh work on the migrated database while retaining the
             # existing historical assessment and its evidence reference.
             self.fixture_start(address)
-            candidate_ids = self.capture_round(address, "candidate-2.1.1")
+            candidate_ids = self.capture_round(address, "candidate-2.2.0")
             self.recovery_round(address, candidate_ids[1])
             self.fixture_stop()
             before_restart = self.snapshot()
@@ -135,6 +135,7 @@ class UpgradeAcceptance(Acceptance):
             self.runtime()
             self.check(self.snapshot() == before_restart, "Candidate restart preserves the upgraded database exactly")
             self.check(self.artifact_hashes() == final_hashes, "Candidate restart preserves upgraded and new artifact bytes")
+            self.backup_round()
             self.run("git", "diff", "--quiet", "HEAD")
             self.check(True, "Upgrade leaves all versioned candidate source unchanged")
             self.report["result"] = "passed"
@@ -163,5 +164,5 @@ if __name__ == "__main__":
     parser.add_argument("--expected-commit", required=True)
     parser.add_argument("--report-dir", required=True)
     parser.add_argument("--historical-var-workaround", action="store_true",
-                        help="Precreate empty user-owned var only for genuine published 2.1.0 (never a candidate install)")
+                        help="Precreate empty user-owned var only for genuine published 2.1.1 (never a candidate install)")
     UpgradeAcceptance(parser.parse_args()).execute()

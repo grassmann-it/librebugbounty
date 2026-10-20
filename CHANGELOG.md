@@ -3,6 +3,35 @@
 The release history of LibreBugBounty. Historical dates below follow the
 repository's tagged commits.
 
+## 2.2.0 — Cribrum (unreleased)
+
+### Added
+
+- Multiple claims per case with immutable decision history, claim-aware Review,
+  inventory filters, statistics, saved views and report exports. Legacy cases and
+  reflected-XSS exports remain compatible.
+- Bounded, private HTTP/DOM observations from existing browser runs, hash-verified
+  artifacts and a deterministic local classifier with versioned declarative
+  rulepacks. SQLi/LFI/RFI stay suspected until manually reviewed. Classification
+  never replaces assessment or sends additional target requests.
+- Observation diagnostics, active pack versions and storage policy in Settings
+  and Status. Local `app:cribrum:reclassify` supports finding selection and dry
+  runs, preserves manual decisions and historical results, and reuses artifacts.
+- Backup listing and explicit retention previews, observation-aware storage
+  auditing, permission preflight and update information separating release
+  comparison from installation provenance.
+
+### Changed
+
+- Reports distinguish observations, suspicion and manual confirmation. Private
+  HTTP artifacts require explicit report selection; default exports omit them.
+- A case remains open while any reported claim is unresolved. Old cases without
+  claims retain their existing behavior.
+
+### Fixed
+
+- Cover the observation-based HTTP fallback path in worker retest regressions.
+
 ## 2.1.1 — Moneta (Conatus) (2026-10-19)
 
 ### Added

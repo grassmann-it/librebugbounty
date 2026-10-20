@@ -1,4 +1,4 @@
-# LibreBugBounty 2.1.1 “Moneta (Conatus)”
+# LibreBugBounty 2.2.0 “Cribrum”
 
 **A self-hosted bug bounty workspace for reflected XSS research — an
 open-source, local-first OpenBugBounty alternative.**
@@ -197,7 +197,15 @@ also available offline under **About LibreBugBounty → Documentation**.
    browser controls use the same release. Check that your existing cases, notes,
    assessments, and images are available.
 
-The 2.1.1 upgrade adds intake-session tracking (`Version20261018000000`), active
+The 2.2.0 upgrade adds the claim ledger, immutable claim revisions and private
+HTTP/DOM observations (`Version20261019000000`). Existing reflected-XSS cases
+receive a compatible initial claim without rewriting their assessments or images.
+Classifier suggestions remain separate from manual decisions. SQLi, LFI and RFI
+heuristics start as suspicion. Private observation artifacts are excluded from
+reports unless explicitly selected. Keep private rulepacks with the workspace;
+see [backup instructions](BACKUP.md).
+
+The earlier 2.1.1 upgrade adds intake-session tracking (`Version20261018000000`), active
 PoC history (`Version20261018010000`), and review deferral
 (`Version20261018020000`). These migrations are additive: existing import URLs,
 assessments and image sources remain intact. Customized deployments must migrate

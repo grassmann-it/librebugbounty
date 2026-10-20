@@ -5,8 +5,8 @@ namespace App;
 final class AppInfo
 {
     public const NAME = 'LibreBugBounty';
-    public const VERSION = '2.1.1';
-    public const RELEASE_NAME = 'Moneta (Conatus)';
+    public const VERSION = '2.2.0';
+    public const RELEASE_NAME = 'Cribrum';
     public const AUTHOR = 'Tom Graßmann IT+Media';
     public const HOMEPAGE = 'https://grassmann-it.de/';
     public const FLICKR_URL = 'https://flickr.com/photos/tkoschka/';

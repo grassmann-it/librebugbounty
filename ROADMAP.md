@@ -1,39 +1,36 @@
 # Roadmap
 
-These are future directions beyond LibreBugBounty 2.1.1 “Moneta (Conatus)”. They are not
-features available in the current release or commitments to a delivery date.
+This tracks the 2.2.0 “Cribrum” candidate and future directions. Candidate work
+is still subject to release acceptance; future items have no delivery date.
 Scope and order will develop through use and feedback.
 
 The current application uses SQLite, records completed contacts, and exports
 reports for manual sharing. It has no integrated email delivery or AI provider.
 See the [user guide](USAGE.md) for the current workflow.
 
-## Planned 2.2.0 — Cribrum
+## 2.2.0 — Cribrum candidate
 
-Cribrum is under development. Its planned scope combines:
+Implemented in the candidate:
 
-- Multiple claims per case, bounded HTTP/DOM evidence from existing browser
-  runs, and a local, versioned classifier with reviewable suggestions.
-- Claim-aware review, inventory filters, statistics, and report exports, with
-  compatible upgrades and backups for existing cases and evidence.
-- Backup listing and explicit retention tools, a read-only evidence/storage
-  audit, upgrade preflight diagnostics, clearer release-version information,
-  and targeted dependency/security fixes where needed.
-- Configurable shortcuts, measured inventory/statistics performance work, and
-  corrections supported by findings from everyday use.
+- Multiple claims per case, private bounded HTTP/DOM observations from existing
+  browser runs, versioned local rulepacks and a synthetic regression corpus.
+- Claim-aware Review, inventory/state filters, saved views, statistics and exports
+  separating observation, suspicion and manual confirmation. Default reports
+  exclude private HTTP artifacts; selected inclusion is explicit.
+- Read-only observation diagnostics and pack/storage status, immutable local
+  reclassification preserving manual decisions, backup listing and explicit
+  retention previews, observation-aware evidence audits, upgrade permission
+  preflight and honest installation-origin information.
+- Additive migration and release/upgrade/backup acceptance from published 2.1.1.
 
-The maintenance and workflow items previously considered for separate 2.1.x
-patches are now part of the 2.2.0 plan. Performance changes depend on measured
-benefit. Cribrum does not add automatic disclosure delivery or external AI calls.
+C7–C9 and C4 acceptance are the current finalization scope. Configurable shortcuts
+and measured performance/all-day-use work (C10) remain outside this implementation
+pass. The candidate must not be treated as fully release-approved while required
+acceptance or agreed release scope remains open. A private real corpus and backup
+measurements on a representative private workspace are still needed.
 
-C6 now adds claim/state filters to inventory and export, saved-view vocabulary,
-and current active-case claim counts with matching inventory links. A case may
-appear under several claims; claim groups are not summed as case totals.
-URL and state exports retain claim metadata; report packages include only selected
-claims and distinguish observation, suspicion, and manual confirmation. Existing
-cases without claims retain their export shape. Private HTTP/DOM artifacts require
-an explicit report-only selection, are integrity-checked and bounded, and are
-excluded by default along with private claim decision reasons.
+Cribrum does not add automatic disclosure delivery or external AI calls. SQLi,
+LFI and RFI heuristics remain suspicion; classification never replaces assessment.
 
 ## Configurable shortcuts
 

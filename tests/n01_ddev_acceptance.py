@@ -254,6 +254,20 @@ class Acceptance:
         self.check(self.rows("SELECT * FROM retest_run ORDER BY rowid") == prior_runs
                    and self.rows("SELECT * FROM finding_assessment ORDER BY rowid") == prior_assessments,
                    f"{round_name}: neutral capture creates no retest and preserves all existing manual assessments")
+        if self.report["applicationVersions"][-1] == "2.2.0":
+            for finding_id in ids:
+                observations = self.rows("SELECT * FROM http_observation WHERE finding_id=?", (finding_id,))
+                self.check(bool(observations), f"{round_name}: existing browser run stores a Cribrum observation")
+                for observation in observations:
+                    artifact = self.checkout / observation["artifact_path"]
+                    if not artifact.exists():
+                        artifact = self.checkout / "storage/artifacts" / observation["artifact_path"]
+                    self.check(artifact.is_file() and self.sha(artifact) == observation["artifact_sha256"],
+                               f"{round_name}: observation artifact matches its private SHA256")
+                    self.check(json.loads(observation["classification"])["classifierVersion"] == "cribrum-1.0.0",
+                               f"{round_name}: observation retains a completed local classification")
+                self.check(bool(self.rows("SELECT * FROM finding_claim WHERE finding_id=?", (finding_id,))),
+                           f"{round_name}: existing case has its compatible claim ledger")
         before_display = self.snapshot()
         in_container = "/var/www/html/storage/test/n01-report/browser"
         self.ddev("exec", "--service", "playwright", "node", "/var/www/html/tests/browser/n01-ddev.cjs", base, in_container, round_name, *ids)
@@ -348,6 +362,27 @@ class Acceptance:
             self.check(self.rows("SELECT * FROM retest_run WHERE finding_id=?", (finding_id,)) == runs[finding_id], "A completed scheduled attempt is never automatically repeated")
         self.report["recovery"] = {"dispositions": dispositions, "runs": runs}
 
+    def backup_round(self):
+        """Exercise the shipped backup tool against this disposable workspace."""
+        destination = self.output / "backups"
+        started = time.monotonic()
+        self.run("python3", "bin/backup-local.py", "create", "--project", self.name,
+                 "--destination", str(destination))
+        snapshots = [path for path in destination.iterdir() if not path.name.endswith(".incomplete")]
+        self.check(len(snapshots) == 1, "Isolated workspace produces one verified backup")
+        snapshot = snapshots[0]
+        self.run("python3", "bin/backup-local.py", "verify", str(snapshot))
+        restored = self.output / "restored"
+        self.run("python3", "bin/backup-local.py", "restore", str(snapshot), str(restored))
+        manifest = json.loads((restored / "manifest.json").read_text())
+        self.check(manifest["database"]["tables"]["http_observation"]["rows"] > 0,
+                   "Backup/restore retains Cribrum observation rows")
+        self.check(any(path.endswith("observation.json.gz") for path in manifest["artifacts"]),
+                   "Backup/restore retains hash-verified private observation artifacts")
+        self.check(manifest["references"]["missing"] == 0, "Restored workspace has no missing artifact references")
+        self.report["syntheticBackup"] = {"seconds": time.monotonic() - started,
+                                          "artifactBytes": sum(item["size"] for item in manifest["artifacts"].values())}
+
     def execute(self):
         self.guard()
         try:
@@ -387,6 +422,7 @@ class Acceptance:
             self.capture_round(address, "after-restart")
             self.ddev("exec", "php", "bin/console", "app:artifacts:audit")
             self.check(True, "Real capture artifacts pass the read-only consistency audit")
+            self.backup_round()
             self.run("git", "diff", "--quiet", "HEAD")
             self.check(True, "Versioned source remains equal to the tested commit after setup and restart")
             self.report["result"] = "passed"
