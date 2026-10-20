@@ -53,6 +53,7 @@ final class StudioController
         $message = is_string($query['message'] ?? null) ? $query['message'] : null;
         $error = is_string($query['error'] ?? null) ? $query['error'] : null;
         $defaultPayload = $this->settings->getDefaultPayload();
+        $pasteSubmitEnabled = $this->settings->isPasteSubmitEnabled();
         $recheckIntervalDays = $this->settings->getRecheckIntervalDays();
         $recheckErrorBackoffDays = $this->settings->getRecheckErrorBackoffDays();
         $helpDialogExample = $this->intakeHelpDialogExample($defaultPayload);

@@ -96,8 +96,10 @@
       modeToggle.hidden = false;
       modeToggle.setAttribute('aria-pressed', String(preferences.active));
       modeToggle.querySelector('[data-review-focus-label]').textContent = preferences.active ? t('Fokusmodus verlassen') : t('Fokusmodus');
-      modeToggle.setAttribute('aria-label', `${modeToggle.querySelector('[data-review-focus-label]').textContent} (F)`);
-      modeToggle.title = `${modeToggle.querySelector('[data-review-focus-label]').textContent} (F)`;
+      const focusKey = window.LibreBugBountyShortcuts?.label('review.focus') ?? 'F';
+      const focusTitle = modeToggle.querySelector('[data-review-focus-label]').textContent + (focusKey ? ` (${focusKey})` : '');
+      modeToggle.setAttribute('aria-label', focusTitle);
+      modeToggle.title = focusTitle;
       applyPreferences();
       viewer.setActive(preferences.active);
     };
@@ -255,6 +257,7 @@
       lifecycle.abort();
       root.querySelector('.studio-review-shell').replaceWith(nextShell);
       ['reviewTrail', 'reviewDecisionDelay', 'total', 'remaining', 'currentId'].forEach((key) => { root.dataset[key] = nextRoot.dataset[key] || ''; });
+      window.LibreBugBountyShortcuts?.update(page);
       document.title = page.title;
       if (url) window.history.pushState(null, '', url);
       initialize();
@@ -458,7 +461,7 @@
     }
 
     const hasSelection = () => Boolean(window.getSelection()?.toString());
-    const editable = (target) => target instanceof Element && Boolean(target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"]'));
+    const editable = (target) => target instanceof Element && Boolean(target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"], [role="slider"], [role="grid"]'));
     const interactive = (target) => target instanceof Element && Boolean(target.closest('a, button, input, textarea, select, summary, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"]'));
     const submitAction = (actionForm, button) => {
       if (!submitting && actionForm && button && !button.disabled && typeof actionForm.requestSubmit === 'function') actionForm.requestSubmit(button);
@@ -471,29 +474,37 @@
         if (!submitting && event.detail > 0 && !hasSelection()) focusCard();
       });
     });
+    const defaultKeys = { fixed: 'ArrowLeft', confirmed: 'ArrowRight', skip: 'Enter', back: 'ArrowDown', poc: 'ArrowUp', focus: 'f' };
+    const matchesShortcut = (event, action) => window.LibreBugBountyShortcuts
+      ? window.LibreBugBountyShortcuts.matches(event, `review.${action}`)
+      : !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && event.key === defaultKeys[action];
+    window.LibreBugBountyShortcuts?.refresh(root);
     on(document, 'keydown', (event) => {
       if (document.querySelector('dialog[open]')) return;
-      if (event.key.toLowerCase() === 'f' && !event.defaultPrevented && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && !event.isComposing && !editable(event.target) && !hasSelection()) {
+      if (event.target instanceof Element && event.target.closest('[data-review-novnc]')) return;
+      const nativeActivation = ['Enter', ' '].includes(event.key) && interactive(event.target);
+      if (matchesShortcut(event, 'focus') && !event.defaultPrevented && !event.isComposing && !editable(event.target) && !nativeActivation && !hasSelection()) {
         event.preventDefault();
         if (!event.repeat) toggleMode();
         return;
       }
-      // Native Enter still activates a focused action once. Holding it must not
-      // open more PoC tabs or submit successive actions after a navigation.
+      // Native Enter still activates a focused action once, regardless of its
+      // configured global shortcut. A held key must not submit a series.
       if (event.repeat && event.key === 'Enter' && event.target instanceof Element
         && event.target.closest('[data-review-poc-open], [data-review-fixed], [data-review-confirm], [data-review-back], [data-review-skip], [data-review-keep], [data-review-form] button[type="submit"]')) {
         event.preventDefault();
         return;
       }
-      if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.isComposing || interactive(event.target) || hasSelection()) return;
-      if (!['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) return;
+      if (event.defaultPrevented || event.isComposing || interactive(event.target) || hasSelection()) return;
+      const action = Object.keys(defaultKeys).find(action => action !== 'focus' && matchesShortcut(event, action));
+      if (!action) return;
       event.preventDefault();
       if (event.repeat || submitting || root.dataset.reviewArriving === 'true') return;
-      if (event.key === 'ArrowRight') confirmFinding();
-      else if (event.key === 'ArrowLeft') markNotVulnerable();
-      else if (event.key === 'ArrowDown') submitAction(backForm, back);
-      else if (event.key === 'Enter') submitAction(skipForm, skip);
-      else if (event.key === 'ArrowUp' && poc) poc.click();
+      if (action === 'confirmed') confirmFinding();
+      else if (action === 'fixed') markNotVulnerable();
+      else if (action === 'back') submitAction(backForm, back);
+      else if (action === 'skip') submitAction(skipForm, skip);
+      else if (action === 'poc' && poc) poc.click();
     });
     startDecisionDelay();
 

@@ -57,6 +57,7 @@
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 3-1 3-3 1-2 3 2 2v3l3 1 1 3h4l1-3 3-1v-3l2-2-2-3-3-1-1-3H9Z" transform="translate(1 1)" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.4"/></svg>
             </div>
             <form method="post" action="/settings" class="studio-settings-form">
+              <?= $csrfField('settings_preferences') ?>
               <p class="studio-settings-field-hint"><?= $escape($t('Diese Vorgaben gelten für die lokale Installation. Deine Auswahl auf den Seiten hat Vorrang.')) ?></p>
               <fieldset class="studio-settings-group">
               <legend><?= $escape($t('Allgemein')) ?></legend>
@@ -65,6 +66,10 @@
               </label>
               <input id="settings-default-payload" name="default_payload" value="<?= $escape($defaultPayload) ?>" autocomplete="off" spellcheck="false"<?= isset($errors['default_payload']) ? ' aria-invalid="true" aria-describedby="settings-default-payload-error"' : '' ?>>
               <?php if (isset($errors['default_payload'])): ?><p class="studio-settings-field-error" id="settings-default-payload-error"><?= $escape($errors['default_payload']) ?></p><?php endif; ?>
+
+              <input type="hidden" name="paste_submit_present" value="1">
+              <label class="studio-paste-setting"><input type="checkbox" name="paste_submit" value="1"<?= $pasteSubmitEnabled ? ' checked' : '' ?>> <?= $escape($t('Eingefügte URL sofort erfassen')) ?></label>
+              <p class="studio-settings-field-hint"><?= $escape($t('Nur im Eingang: URL-ähnlicher Text im URL-Feld oder außerhalb anderer Eingabefelder wird direkt erfasst.')) ?></p>
 
               <label for="settings-review-timeout"><?= $escape($t('Browser-Zeitlimit')) ?>
                 <span><?= $escape($t('Gilt pro Screenshot-Aufnahme oder technischer Browserprüfung. Zulässig sind 1000 bis 120000 Millisekunden.')) ?></span>
@@ -134,6 +139,20 @@
               <p class="studio-settings-field-hint" id="settings-export-screenshots-hint"><?= $escape($t('Startwert nur für ZIP-Pakete. Der neueste Screenshot ist nicht automatisch der Beleg deiner Bewertung.')) ?></p>
               <?php if (isset($errors['export_screenshot_mode'])): ?><p class="studio-settings-field-error" id="settings-export-screenshots-error"><?= $escape($errors['export_screenshot_mode']) ?></p><?php endif; ?>
               </fieldset>
+
+              <details class="studio-shortcut-editor"<?= isset($errors['shortcut_bindings']) ? ' open' : '' ?>>
+                <summary><?= $escape($t('Tastenkürzel konfigurieren')) ?></summary>
+                <p class="studio-settings-field-hint"><?= $escape($t('Bildbewertung und Seitenwechsel. Leer lassen deaktiviert ein Kürzel. Seitenwechsel brauchen Ctrl, Alt oder Meta; bekannte Browserkombinationen und AltGr bleiben reserviert.')) ?></p>
+                <p class="studio-settings-field-hint"><?= $escape($t('Beispiel: Alt+Shift+B. Die bisherige Reviewbelegung bleibt der Standard; Seitenwechsel sind zunächst unbelegt.')) ?></p>
+                <?php if (isset($errors['shortcut_bindings'])): ?><p class="studio-settings-field-error" id="settings-shortcut-error" role="alert"><?= $escape($errors['shortcut_bindings']) ?></p><?php endif; ?>
+                <?php foreach (\App\Service\ShortcutSettings::LABELS as $action => $label): $shortcutId = 'shortcut-'.str_replace('.', '-', $action); ?>
+                  <div class="studio-shortcut-row">
+                    <label for="<?= $escape($shortcutId) ?>"><?= $escape($t($label)) ?></label>
+                    <div><input id="<?= $escape($shortcutId) ?>" name="shortcut_bindings[<?= $escape($action) ?>]" value="<?= $escape($shortcutBindings[$action]) ?>" data-shortcut-default="<?= $escape(\App\Service\ShortcutSettings::DEFAULTS[$action]) ?>" autocomplete="off" spellcheck="false"<?= isset($errors['shortcut_bindings']) ? ' aria-invalid="true" aria-describedby="settings-shortcut-error"' : '' ?>><button type="button" hidden data-shortcut-record="<?= $escape($shortcutId) ?>"><?= $escape($t('Taste aufnehmen')) ?></button></div>
+                  </div>
+                <?php endforeach; ?>
+                <button type="button" hidden data-shortcut-reset><?= $escape($t('Standardbelegung wiederherstellen')) ?></button>
+              </details>
 
               <div class="studio-settings-actions">
                 <button type="submit"><?= $escape($t('Einstellungen speichern')) ?></button>

@@ -14,9 +14,10 @@ $workspaceItems = [
 ?>
 <nav class="studio-workspace-nav" aria-label="<?= $escape($t('Arbeitsbereiche')) ?>">
   <?php foreach ($workspaceItems as [$workspaceKey, $workspacePath, $workspaceLabel, $workspaceIcon]): ?>
-    <a class="studio-workspace-link<?= $activeWorkspace === $workspaceKey ? ' studio-workspace-link-active' : '' ?>" href="<?= $escape($workspacePath) ?>"<?= $activeWorkspace === $workspaceKey ? ' aria-current="page"' : '' ?>>
+    <a class="studio-workspace-link<?= $activeWorkspace === $workspaceKey ? ' studio-workspace-link-active' : '' ?>" data-shortcut-action="nav.<?= $escape($workspaceKey) ?>" href="<?= $escape($workspacePath) ?>"<?= $activeWorkspace === $workspaceKey ? ' aria-current="page"' : '' ?>>
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><?= $workspaceIcon ?></svg>
       <span><?= $escape($workspaceLabel) ?></span>
+      <kbd data-shortcut-hint="nav.<?= $escape($workspaceKey) ?>" hidden></kbd>
     </a>
     <?php if ($activeWorkspace === 'finding' && $workspaceKey === 'review'): ?>
       <span class="studio-workspace-link studio-workspace-link-active studio-detail-context" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M14 4v16M4 14h10" stroke="currentColor" stroke-width="1.5"/></svg><span><?= $escape($t('Fall')) ?></span></span>
@@ -28,10 +29,19 @@ $workspaceItems = [
        data-utility-label-error="<?= $escape($t('Inhalt konnte nicht geladen werden.')) ?>"
        data-utility-label-fallback="<?= $escape($t('Als Seite öffnen')) ?>"
        data-utility-label-warning="<?= $escape($t('Systemstatus: Warnung bei letzter Prüfung')) ?>">
-    <a class="studio-utility-link studio-settings-link<?= $activeWorkspace === 'settings' ? ' studio-settings-link-active' : '' ?>" href="/settings" title="<?= $escape($t('Einstellungen')) ?>" aria-label="<?= $escape($t('Einstellungen')) ?>"<?= $activeWorkspace === 'settings' ? ' aria-current="page"' : '' ?>><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m9 3-1 3-3 1-2 3 2 2v3l3 1 1 3h4l1-3 3-1v-3l2-2-2-3-3-1-1-3H9Z" transform="translate(1 1)" stroke-linejoin="round"/><circle cx="12" cy="12" r="3"/></svg></a>
+    <button type="button" class="studio-utility-link" data-shortcut-help hidden title="<?= $escape($t('Tastenkürzel')) ?>" aria-label="<?= $escape($t('Tastenkürzel')) ?>" aria-haspopup="dialog">⌨</button>
+    <a class="studio-utility-link studio-settings-link<?= $activeWorkspace === 'settings' ? ' studio-settings-link-active' : '' ?>" href="/settings" data-shortcut-action="nav.settings" title="<?= $escape($t('Einstellungen')) ?>" aria-label="<?= $escape($t('Einstellungen')) ?>"<?= $activeWorkspace === 'settings' ? ' aria-current="page"' : '' ?>><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m9 3-1 3-3 1-2 3 2 2v3l3 1 1 3h4l1-3 3-1v-3l2-2-2-3-3-1-1-3H9Z" transform="translate(1 1)" stroke-linejoin="round"/><circle cx="12" cy="12" r="3"/></svg></a>
     <a class="studio-utility-link" href="/status" data-utility-open="status" title="<?= $escape($t('Systemstatus')) ?>" aria-label="<?= $escape($t('Systemstatus')) ?>" aria-haspopup="dialog"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span class="studio-utility-warning" data-utility-warning-dot hidden aria-hidden="true"></span></a>
     <a class="studio-utility-link" href="/about" data-utility-open="about" title="<?= $escape($t('Über LibreBugBounty')) ?>" aria-label="<?= $escape($t('Über LibreBugBounty')) ?>" aria-haspopup="dialog"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/></svg></a>
   </div>
 </nav>
+<template data-shortcut-dialog-template><dialog class="studio-shortcut-dialog" data-shortcut-dialog aria-labelledby="studio-shortcut-title">
+  <header><h2 id="studio-shortcut-title"><?= $escape($t('Tastenkürzel')) ?></h2><button type="button" data-shortcut-close><?= $escape($t('Schließen')) ?></button></header>
+  <p><?= $escape($t('Kürzel gelten außerhalb von Texteingaben, Dialogen und dem Remote-Browser.')) ?></p>
+  <dl><?php foreach (\App\Service\ShortcutSettings::LABELS as $shortcutAction => $shortcutLabel): ?>
+    <div><dt><?= $escape($t($shortcutLabel)) ?></dt><dd><kbd data-shortcut-hint="<?= $escape($shortcutAction) ?>"></kbd></dd></div>
+  <?php endforeach; ?></dl>
+  <a href="/settings"><?= $escape($t('Tastenkürzel konfigurieren')) ?></a>
+</dialog></template>
 <link rel="stylesheet" href="/css/studio-utilities.css?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/css/studio-utilities.css'), 0, 16) ?>">
 <script src="/js/studio-utilities.js?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/js/studio-utilities.js'), 0, 16) ?>" defer></script>

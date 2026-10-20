@@ -41,6 +41,38 @@ unchanged input and packs makes no new revision. Missing/corrupt artifacts are
 reported per case while other cases continue. Back up private rulepacks with the
 workspace using the [backup guide](BACKUP.md).
 
+## Keyboard shortcuts and paste intake
+
+In **Settings → Configure keyboard shortcuts**, change or record keys for image
+Review decisions, skip, back/reset, opening the PoC and focus mode. Existing
+Review keys remain the defaults. Leave a binding empty to disable it, or restore
+the defaults before saving. Hints on actions and keyboard help use the saved
+bindings, including after a Review case changes without a page reload.
+Changes saved in another tab are picked up with the next Review response.
+
+Page navigation can use configurable simultaneous key combinations, for example
+`Alt+Shift+B` for Inventory. Navigation starts unassigned. Duplicate assignments,
+known browser combinations and Ctrl+Alt (AltGr) are rejected. Text entry,
+selection, dialogs, statistics controls and the remote browser retain their own
+keyboard handling. Keyboard help is available from the footer keyboard button;
+ordinary buttons and forms also work without JavaScript.
+
+In **Settings**, **Immediately capture a pasted URL** is optional and off by
+default. When enabled, pasting a single URL-like value into the Intake URL field
+or outside other text fields submits through the normal intake path. There is no
+preliminary target request; server validation and exact-URL deduplication still apply. Other fields
+keep normal paste behavior. A pending save does not accept another auto-submit.
+
+## Capture new images for missing-image cases
+
+The **Errors → Image files** view offers a new capture for one case or all matching
+cases across the current filter's result pages. Captures use the existing queue;
+active jobs are reused and deferred, discarded or blocked cases are skipped.
+Queuing alone does not resolve the issue. A readable image for the current PoC
+does, without changing your assessment or overwriting historical evidence.
+Historical missing files remain visible in the technical artifact audit even
+when the current image task is resolved.
+
 ## First run
 
 A fresh installation starts with an empty case inventory. Use **Add URL** or

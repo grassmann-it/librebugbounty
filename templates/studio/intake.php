@@ -23,7 +23,7 @@
       <div class="studio-header-tools"><?php require __DIR__.'/language.php'; ?></div>
     </header>
 
-    <main class="studio-workspace" data-intake data-intake-create-url="/api/findings" data-intake-status-url="/api/findings/status" data-intake-activity-url="/api/intake/activity" data-intake-storage-key="librebugbounty.intake.v1">
+    <main class="studio-workspace" data-intake data-intake-paste-submit="<?= isset($pasteSubmitEnabled) && $pasteSubmitEnabled ? '1' : '0' ?>" data-intake-create-url="/api/findings" data-intake-status-url="/api/findings/status" data-intake-activity-url="/api/intake/activity" data-intake-storage-key="librebugbounty.intake.v1">
       <section class="studio-composer" aria-labelledby="studio-intake-title">
         <div class="studio-composer-heading">
           <div>

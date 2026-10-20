@@ -9,6 +9,7 @@ final class SettingsService
 {
     public const DEFAULTS = [
         'intake.default_payload' => 'OPENBUGBOUNTY',
+        'intake.paste_submit' => '0',
         'review.scan_timeout_ms' => '45000',
         'review.decision_delay_seconds' => '0',
         'inventory.page_size' => '10',
@@ -86,6 +87,11 @@ final class SettingsService
     public function getDefaultPayload(): string
     {
         return $this->getString('intake.default_payload', self::DEFAULTS['intake.default_payload']);
+    }
+
+    public function isPasteSubmitEnabled(): bool
+    {
+        return $this->getBool('intake.paste_submit');
     }
 
     public function getReviewScanTimeoutMs(): int

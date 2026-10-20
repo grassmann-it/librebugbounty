@@ -131,7 +131,7 @@ foreach ($detail?->screenshots ?? [] as $index => $shot) {
     <header class="studio-header">
       <?php require __DIR__.'/brand.php'; ?>
       <div class="studio-header-tools">
-        <button type="button" class="review-focus-toggle review-button" data-review-focus-toggle aria-pressed="false" aria-keyshortcuts="f" aria-controls="review-main" hidden><span data-review-focus-label><?= $escape($t('Fokusmodus')) ?></span><kbd>F</kbd></button>
+        <button type="button" class="review-focus-toggle review-button" data-review-focus-toggle data-shortcut-action="review.focus" aria-pressed="false" aria-controls="review-main" hidden><span data-review-focus-label><?= $escape($t('Fokusmodus')) ?></span><kbd data-shortcut-hint="review.focus" hidden>F</kbd></button>
         <a class="studio-header-link" href="/findings"><?= $escape($t('Zum Bestand')) ?> <span aria-hidden="true">↗</span></a>
         <?php require __DIR__.'/language.php'; ?>
       </div>
@@ -289,7 +289,7 @@ foreach ($detail?->screenshots ?? [] as $index => $shot) {
               <input type="hidden" name="images" value="<?= $escape($view->images) ?>">
               <input type="hidden" name="after" value="<?= $escape($view->after ?? '') ?>">
               <input type="hidden" name="displayed_evidence_id" value="<?= $escape($selectedEvidenceId ?? '') ?>" data-review-displayed-evidence>
-              <div class="review-decision-heading"><div><h3><?= $escape($t('Deine Entscheidung')) ?></h3><p><?= $escape($t('„Not vulnerable“ speichert „Behoben“. „Vulnerable“ bestätigt den Befund. {keep}Überspringen lässt den Fall unverändert.', ['keep' => $canKeep ? $t('„Bewertung behalten“ erledigt die Sichtung ohne neues Urteil. ') : ''])) ?></p></div><p class="review-keyboard" data-review-keyboard hidden><kbd>←</kbd> Not vulnerable <kbd>→</kbd> Vulnerable</p></div>
+              <div class="review-decision-heading"><div><h3><?= $escape($t('Deine Entscheidung')) ?></h3><p><?= $escape($t('„Not vulnerable“ speichert „Behoben“. „Vulnerable“ bestätigt den Befund. {keep}Überspringen lässt den Fall unverändert.', ['keep' => $canKeep ? $t('„Bewertung behalten“ erledigt die Sichtung ohne neues Urteil. ') : ''])) ?></p></div><p class="review-keyboard" data-review-keyboard hidden><kbd data-shortcut-hint="review.fixed" hidden>←</kbd> Not vulnerable <kbd data-shortcut-hint="review.confirmed" hidden>→</kbd> Vulnerable</p></div>
               <?php if (!$canAssess): ?><p class="review-stale"><?= $escape($t('Dieser Fall gehört nicht mehr zum offenen Review-Vorrat. Öffne den Fall für eine Korrektur oder gehe zum nächsten.')) ?></p><?php endif; ?>
               <?php if ($view->claims !== []): ?>
                 <fieldset class="review-claims" data-review-claims>
@@ -348,11 +348,11 @@ foreach ($detail?->screenshots ?? [] as $index => $shot) {
             <p class="review-delay-status" role="status" aria-live="polite" data-review-delay-status></p><progress class="review-delay-progress" data-review-delay-progress max="1" value="0" hidden></progress>
           </div>
           <div class="review-keypad" aria-label="<?= $escape($t('Review-Tasten')) ?>">
-            <?php if ($canOpenPoc): ?><a class="review-button review-key-poc" href="<?= $escape($pocUrl) ?>" target="_blank" rel="noopener noreferrer" data-review-poc-open><kbd>↑</kbd><span><?= $escape($t('PoC öffnen')) ?></span></a><?php else: ?><button class="review-button review-key-poc" type="button" disabled><kbd>↑</kbd><span><?= $escape($t('PoC öffnen')) ?></span></button><?php endif; ?>
-            <button class="review-button review-key-skip" type="submit" form="review-skip-form" data-review-skip<?= $finding === null ? ' disabled' : '' ?>><kbd>Enter</kbd><span><?= $escape($t('Überspringen')) ?></span></button>
-            <button class="review-button review-button-fixed review-key-fixed" type="submit" form="review-assessment-form" name="assessment" value="fixed" data-review-fixed<?= !$canAssess ? ' disabled' : '' ?>><kbd>←</kbd><span>Not vulnerable</span></button>
-            <button class="review-button review-key-back" type="submit" form="review-back-form" data-review-back<?= !$reviewBackAvailable ? ' disabled' : '' ?>><kbd>↓</kbd><span><?= $escape($t('Zurück & Reset')) ?></span></button>
-            <button class="review-button review-button-primary review-key-confirm" type="submit" form="review-assessment-form" name="assessment" value="confirmed" data-review-confirm<?= !$canAssess ? ' disabled' : '' ?>><span>Vulnerable</span><kbd>→</kbd></button>
+            <?php if ($canOpenPoc): ?><a class="review-button review-key-poc" data-shortcut-action="review.poc" href="<?= $escape($pocUrl) ?>" target="_blank" rel="noopener noreferrer" data-review-poc-open><kbd data-shortcut-hint="review.poc" hidden>↑</kbd><span><?= $escape($t('PoC öffnen')) ?></span></a><?php else: ?><button class="review-button review-key-poc" data-shortcut-action="review.poc" type="button" disabled><kbd data-shortcut-hint="review.poc" hidden>↑</kbd><span><?= $escape($t('PoC öffnen')) ?></span></button><?php endif; ?>
+            <button class="review-button review-key-skip" data-shortcut-action="review.skip" type="submit" form="review-skip-form" data-review-skip<?= $finding === null ? ' disabled' : '' ?>><kbd data-shortcut-hint="review.skip" hidden>Enter</kbd><span><?= $escape($t('Überspringen')) ?></span></button>
+            <button class="review-button review-button-fixed review-key-fixed" data-shortcut-action="review.fixed" type="submit" form="review-assessment-form" name="assessment" value="fixed" data-review-fixed<?= !$canAssess ? ' disabled' : '' ?>><kbd data-shortcut-hint="review.fixed" hidden>←</kbd><span>Not vulnerable</span></button>
+            <button class="review-button review-key-back" data-shortcut-action="review.back" type="submit" form="review-back-form" data-review-back<?= !$reviewBackAvailable ? ' disabled' : '' ?>><kbd data-shortcut-hint="review.back" hidden>↓</kbd><span><?= $escape($t('Zurück & Reset')) ?></span></button>
+            <button class="review-button review-button-primary review-key-confirm" data-shortcut-action="review.confirmed" type="submit" form="review-assessment-form" name="assessment" value="confirmed" data-review-confirm<?= !$canAssess ? ' disabled' : '' ?>><span>Vulnerable</span><kbd data-shortcut-hint="review.confirmed" hidden>→</kbd></button>
           </div>
           <p class="review-submit-status" role="status" aria-live="polite" data-review-submit-status></p>
         </div>

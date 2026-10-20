@@ -84,12 +84,14 @@ async function main() {
     assert.equal(await select(page, 'inventory_page_size').inputValue(), '10');
     assert.equal(await select(page, 'export_profile').inputValue(), 'report');
     assert.equal(await select(page, 'export_screenshot_mode').inputValue(), 'latest');
-    assert.equal(await page.locator('.studio-settings-form input:not([type="hidden"]), .studio-settings-form select').count(), 8);
+    assert.equal(await page.locator('.studio-settings-form input:not([type="hidden"]):not([name^="shortcut_bindings"]):not([name="paste_submit"]), .studio-settings-form select').count(), 8);
+    assert.equal(await page.locator('[name="paste_submit"]').isChecked(), false);
+    assert.equal(await page.locator('[name^="shortcut_bindings"]').count(), 12);
     assert.equal(await page.locator('[name=recheck_interval_days]').inputValue(), '14');
     assert.equal(await page.locator('[name=recheck_error_backoff_days]').inputValue(), '3');
     assert.equal(await page.locator('[data-health-kind], [data-about-release], [data-documentation-links]').count(), 0);
     assert.equal(await page.locator('[data-restrictions]').count(), 1);
-    mark('Eight settings render with 14/3-day cadence and restrictions, without embedded health or About');
+    mark('Existing settings retain 14/3-day cadence; paste defaults off and shortcut bindings are available');
     await goto(page, '/status');
     assert.equal(await page.locator('[data-health-kind=screenshot]').getAttribute('data-health-state'), 'unknown');
     assert.equal(await page.locator('[data-utility-content=status]').getAttribute('data-utility-warning'), 'true');
@@ -101,6 +103,7 @@ async function main() {
       if (await page.locator('html').getAttribute('lang') !== locale) {
         await Promise.all([page.waitForNavigation(), page.locator(`[data-language-switcher] a[href^="/language/${locale}?"]`).click()]);
       }
+      await page.locator('.studio-shortcut-editor').evaluate(node => { node.open = true; });
       for (const width of [320, 375, 390, 960, 1440]) {
         await page.setViewportSize({ width, height: 900 });
         const geometry = await page.evaluate(() => ({
@@ -110,7 +113,7 @@ async function main() {
             return box.top + box.height / 2;
           }),
           groups: [...document.querySelectorAll('.studio-settings-group legend')].map(node => node.textContent.trim()),
-          controls: [...document.querySelectorAll('.studio-settings-form input, .studio-settings-form select, .studio-settings-form button')].map(node => {
+          controls: [...document.querySelectorAll('.studio-settings-form input:not([type="hidden"]), .studio-settings-form select, .studio-settings-form button')].filter(node => node.getClientRects().length > 0).map(node => {
             const box = node.getBoundingClientRect();
             return { left: box.left, right: box.right, width: box.width };
           }),

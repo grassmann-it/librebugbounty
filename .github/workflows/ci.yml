@@ -126,6 +126,10 @@ jobs:
           STUDIO_REVIEW_ONLY: recovery
       - name: Test intake sessions, help, compact statistics and release updates with fresh fixtures
         run: python tests/browser/run_intake.py
+      - name: Test configurable review and navigation shortcuts with isolated fixtures
+        run: python tests/browser/run_shortcuts.py
+      - name: Test missing-image queue recovery with isolated fixtures
+        run: python tests/browser/run_missing_image_recovery.py
       - name: Test footer utilities and lazy accessible dialogs
         run: node tests/browser/studio-utilities-ui.cjs
         env:

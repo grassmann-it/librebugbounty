@@ -23,6 +23,7 @@ SUITES = {
     "session": "studio-intake-session.cjs",
     "help": "studio-intake-help.cjs",
     "collapse": "studio-intake-collapse.cjs",
+    "paste": "studio-intake-paste.cjs",
     "release-update": "studio-release-update.cjs",
 }
 

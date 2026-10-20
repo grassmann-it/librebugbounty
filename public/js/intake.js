@@ -790,6 +790,41 @@
       }
     });
 
+    if (root.dataset.intakePasteSubmit === '1') {
+      document.addEventListener('paste', (event) => {
+        if (event.defaultPrevented || !(event.target instanceof Element)) return;
+        const target = event.target;
+        // A dialog owns paste even when focus is on one of its buttons.
+        if (document.querySelector('dialog[open], [role="dialog"][aria-modal="true"]')
+          || target.closest('dialog, [role="dialog"], iframe')) return;
+        if (target !== urlInput && (target.isContentEditable || target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])'))) return;
+        const value = event.clipboardData?.getData('text/plain').trim() || '';
+        if (!value || /\s/u.test(value)) return;
+        // Recognize candidates only. Keep URL, query and payload verbatim; the
+        // server remains responsible for URL validation and normalization.
+        const explicitScheme = /^https?:\/\//i.test(value);
+        const candidate = explicitScheme ? value.replace(/^https?:\/\//i, '') : value;
+        const host = candidate.split(/[/?#]/, 1)[0];
+        const label = '[\\p{L}\\p{N}](?:[\\p{L}\\p{N}-]*[\\p{L}\\p{N}])?';
+        const hostname = explicitScheme ? `(?:${label}(?:\\.${label})*|\\[[0-9a-f:]+\\])` : `${label}(?:\\.${label})+`;
+        if (!new RegExp(`^${hostname}(?::[0-9]+)?$`, 'iu').test(host)) return;
+        // Do not let a second URL paste replace the in-flight draft either.
+        event.preventDefault();
+        if (saving) return;
+        urlInput.value = value;
+        persist();
+        const originalType = urlInput.type;
+        try {
+          // Native type=url rejects schema-less candidates before submit fires.
+          // Relax only this synchronous paste submission, retaining other checks.
+          urlInput.type = 'text';
+          form.requestSubmit(submitButton);
+        } finally {
+          urlInput.type = originalType;
+        }
+      });
+    }
+
     form.addEventListener('input', persist);
     const refreshVisible = () => {
       if (document.visibilityState !== 'visible') {

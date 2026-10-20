@@ -20,6 +20,12 @@ repository's tagged commits.
 - Backup listing and explicit retention previews, observation-aware storage
   auditing, permission preflight and update information separating release
   comparison from installation provenance.
+- Configurable image-Review shortcuts and simultaneous page-navigation key
+  combinations, with consistent hints/help and input protection. Optional
+  paste-to-submit in Intake starts disabled and uses normal URL validation.
+- Explicit single-case and filtered queue actions for missing images. A readable
+  image for the active PoC resolves the current task while historical missing
+  files remain traceable in the artifact audit.
 
 ### Changed
 

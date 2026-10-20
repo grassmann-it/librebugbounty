@@ -1,0 +1,22 @@
+.studio-shortcut-editor { margin: 20px 0; padding: 16px; border: 1px solid #495260; border-radius: 6px; }
+.studio-shortcut-editor summary { cursor: pointer; font-weight: 600; }
+.studio-shortcut-row { margin-top: 12px; }
+.studio-shortcut-row > div { display: flex; gap: 8px; }
+.studio-shortcut-row button, [data-shortcut-reset] { padding: 6px 12px; border: 1px solid #495260; border-radius: 5px; background: #252e39; color: inherit; }
+.studio-shortcut-row input { flex: 1; }
+.studio-settings-form .studio-paste-setting { display: flex; align-items: center; gap: 8px; }
+.studio-settings-form .studio-paste-setting input { width: 18px; height: 18px; flex: none; }
+.studio-shortcut-dialog { width: min(620px, calc(100vw - 30px)); max-height: 85dvh; overflow: auto; padding: 24px; border: 1px solid #495260; border-radius: 10px; background: #1b1f24; color: #e4e8ee; }
+.studio-shortcut-dialog::backdrop { background: #080b10bd; }
+.studio-shortcut-dialog header { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+.studio-shortcut-dialog h2 { margin: 0; }
+.studio-shortcut-dialog dl > div { display: flex; justify-content: space-between; gap: 16px; margin: 10px 0; }
+.studio-shortcut-dialog dd { margin: 0; }
+.studio-workspace-link > kbd { font-size: 10px; color: var(--studio-muted); }
+.studio-workspace-nav:has([data-shortcut-help]) { padding-inline: 204px; }
+[data-shortcut-help] { cursor: pointer; background: transparent; color: inherit; border: 0; }
+@media (max-width: 1120px) { .studio-workspace-link > kbd { display: none; } }
+@media (max-width: 420px) {
+  .studio-shortcut-row > div { flex-wrap: wrap; }
+  .studio-shortcut-row input { flex-basis: 100%; }
+}

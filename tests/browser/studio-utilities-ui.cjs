@@ -45,7 +45,9 @@ const server = http.createServer(async (req, res) => {
     await page.route('**/*', route => { assert.ok(route.request().url().startsWith(origin)); return route.continue(); });
     await page.goto(origin);
     assert.equal(aboutCalls, 0); assert.equal(statusCalls, 0);
-    assert.equal(await page.locator('.studio-utility-link').count(), 3);
+    assert.equal(await page.locator('a.studio-utility-link').count(), 3);
+    assert.equal(await page.locator('[data-shortcut-help]').count(), 1);
+    assert.equal(await page.locator('[data-shortcut-help]').isVisible(), false, 'Shortcut help remains hidden without its configuration script');
     await page.locator('[data-utility-open="about"]').click();
     await page.locator('dialog [data-utility-content]').waitFor();
     assert.equal(aboutCalls, 1); assert.equal(statusCalls, 0);
@@ -80,7 +82,7 @@ const server = http.createServer(async (req, res) => {
     slow = false;
     for (const width of [390, 760, 1440]) {
       await page.setViewportSize({ width, height: 900 });
-      const rects = await page.locator('.studio-utility-link').evaluateAll(nodes => nodes.map(n => {const r=n.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}}));
+      const rects = await page.locator('a.studio-utility-link').evaluateAll(nodes => nodes.map(n => {const r=n.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}}));
       for (const rect of rects) { assert.ok(rect.width >= 40 && rect.height >= 40); assert.ok(rect.x >= 0 && rect.right <= width); }
       assert.ok(rects[0].right <= rects[1].x);
       await page.locator('[data-utility-open="about"]').click();

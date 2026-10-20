@@ -22,12 +22,15 @@ Implemented in the candidate:
   retention previews, observation-aware evidence audits, upgrade permission
   preflight and honest installation-origin information.
 - Additive migration and release/upgrade/backup acceptance from published 2.1.1.
+- Configurable image-Review keys and page-navigation combinations, optional
+  URL-paste intake, and explicit queue recovery for missing current images.
 
-C7–C9 and C4 acceptance are the current finalization scope. Configurable shortcuts
-and measured performance/all-day-use work (C10) remain outside this implementation
-pass. The candidate must not be treated as fully release-approved while required
-acceptance or agreed release scope remains open. A private real corpus and backup
-measurements on a representative private workspace are still needed.
+C7–C9, C4 and C10 acceptance are the current finalization scope. Image-Review and
+navigation shortcuts are implemented; representative performance measurements
+and private everyday-use acceptance remain open. The candidate must not be
+treated as fully release-approved while required acceptance or agreed release
+scope remains open. A private real corpus and backup measurements on a
+representative private workspace are still needed.
 
 Cribrum does not add automatic disclosure delivery or external AI calls. SQLi,
 LFI and RFI heuristics remain suspicion; classification never replaces assessment.
@@ -37,10 +40,11 @@ LFI and RFI heuristics remain suspicion; classification never replaces assessmen
 - Offer configurable shortcuts for useful actions across the workspace, with
   visible key hints and protection for text entry and normal browser controls.
 
-Moneta already stores defaults for inventory page size, export profile, and
+The candidate stores defaults for inventory page size, export profile, and
 report screenshots alongside the intake marker, browser time limit, and review
 decision pause. Explicit page selections override those defaults. Freely
-configurable shortcuts are planned for 2.2.0; Review currently has its fixed key layout.
+configurable shortcuts are available for image Review and page navigation in the
+2.2.0 candidate; the existing Review key layout remains the default.
 
 ## Database portability
 

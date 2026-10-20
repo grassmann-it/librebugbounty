@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\AppInfo;
 use App\Service\RecheckScheduleService;
 use App\Service\SettingsService;
+use App\Service\ShortcutSettings;
 use App\Service\SystemHealthService;
 use App\Service\UiTranslator;
 use App\Service\ReleaseUpdateService;
@@ -24,6 +25,7 @@ final class SettingsController
         private readonly \Symfony\Component\Security\Csrf\CsrfTokenManagerInterface $csrf,
         private readonly ReleaseUpdateService $updates,
         private readonly \App\Service\CribrumStatusService $cribrumStatus,
+        private readonly ShortcutSettings $shortcuts,
     ) {
     }
 
@@ -52,6 +54,20 @@ final class SettingsController
     public function save(Request $request): Response
     {
         $parameters = $request->request->all();
+        $shortcutBindings = $this->shortcuts->bindings();
+        $pasteSubmitEnabled = $this->settings->isPasteSubmitEnabled();
+        if (array_key_exists('shortcut_bindings', $parameters) || array_key_exists('paste_submit_present', $parameters)) {
+            $token = $parameters['_token'] ?? null;
+            if (!is_string($token) || !$this->csrf->isTokenValid(new \Symfony\Component\Security\Csrf\CsrfToken('settings_preferences', $token))) {
+                return new Response($this->i18n->trans('Das Formular ist abgelaufen oder ungültig. Bitte lade die Seite neu.'), Response::HTTP_FORBIDDEN);
+            }
+        }
+        if (array_key_exists('paste_submit_present', $parameters)) {
+            if ($parameters['paste_submit_present'] !== '1' || !in_array($parameters['paste_submit'] ?? '0', ['0', '1'], true)) {
+                return new Response($this->i18n->trans('Ungültige Einstellungsangaben.'), Response::HTTP_BAD_REQUEST);
+            }
+            $pasteSubmitEnabled = ($parameters['paste_submit'] ?? '0') === '1';
+        }
         $optional = [
             'review_decision_delay_seconds' => (string) $this->settings->getReviewDecisionDelaySeconds(),
             'inventory_page_size' => $this->settings->getInventoryPageSize(),
@@ -89,6 +105,19 @@ final class SettingsController
         $recheckIntervalDays = $optional['recheck_interval_days'];
         $recheckErrorBackoffDays = $optional['recheck_error_backoff_days'];
         $errors = [];
+        if (array_key_exists('shortcut_bindings', $parameters)) {
+            try {
+                $shortcutBindings = ShortcutSettings::validate($parameters['shortcut_bindings']);
+            } catch (\InvalidArgumentException $error) {
+                $errors['shortcut_bindings'] = $this->i18n->trans($error->getMessage());
+                if (is_array($parameters['shortcut_bindings'])) {
+                    foreach (ShortcutSettings::DEFAULTS as $action => $default) {
+                        $value = $parameters['shortcut_bindings'][$action] ?? $default;
+                        $shortcutBindings[$action] = is_string($value) ? $value : $default;
+                    }
+                }
+            }
+        }
         if ($defaultPayload === '') {
             $errors['default_payload'] = $this->i18n->trans('Das Standardkennzeichen darf nicht leer sein.');
         }
@@ -120,7 +149,7 @@ final class SettingsController
         }
 
         if ($errors !== []) {
-            return $this->render($request, $defaultPayload, $reviewTimeout, $reviewDecisionDelay, $inventoryPageSize, $exportProfile, $exportScreenshotMode, $recheckIntervalDays, $recheckErrorBackoffDays, $errors, null, Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->render($request, $defaultPayload, $reviewTimeout, $reviewDecisionDelay, $inventoryPageSize, $exportProfile, $exportScreenshotMode, $recheckIntervalDays, $recheckErrorBackoffDays, $errors, null, Response::HTTP_UNPROCESSABLE_ENTITY, $shortcutBindings, $pasteSubmitEnabled);
         }
 
         $previousIntervalDays = $this->settings->getRecheckIntervalDays();
@@ -128,6 +157,12 @@ final class SettingsController
             'intake.default_payload' => $defaultPayload,
             'review.scan_timeout_ms' => (string) (int) $reviewTimeout,
         ];
+        if (array_key_exists('shortcut_bindings', $parameters)) {
+            $values['ui.shortcuts'] = json_encode($shortcutBindings, JSON_THROW_ON_ERROR);
+        }
+        if (array_key_exists('paste_submit_present', $parameters)) {
+            $values['intake.paste_submit'] = $pasteSubmitEnabled ? '1' : '0';
+        }
         foreach ([
             'review_decision_delay_seconds' => 'review.decision_delay_seconds',
             'inventory_page_size' => 'inventory.page_size',
@@ -236,7 +271,11 @@ final class SettingsController
         array $errors,
         ?string $message,
         int $status = Response::HTTP_OK,
+        ?array $shortcutBindings = null,
+        ?bool $pasteSubmitEnabled = null,
     ): Response {
+        $shortcutBindings ??= $this->shortcuts->bindings();
+        $pasteSubmitEnabled ??= $this->settings->isPasteSubmitEnabled();
         $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $locale = $this->i18n->locale();
         $languageReturnPath = $request->getRequestUri();
