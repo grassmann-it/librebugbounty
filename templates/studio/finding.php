@@ -481,6 +481,7 @@ $storedTime = static function (?string $value) use ($formatTime, $t): string {
             </section>
             <section aria-labelledby="studio-observation-history-title">
               <h2 id="studio-observation-history-title"><?= $escape($t('Technische Beobachtungen')) ?></h2>
+              <p><a href="/findings/<?= $escape(rawurlencode($finding->getId())) ?>/diagnostics"><?= $escape($t('Observation-Diagnostik')) ?></a></p>
               <?php if ($view->runs === []): ?><p class="studio-detail-hint"><?= $escape($t('Noch keine technische Beobachtung aufgezeichnet.')) ?></p><?php endif; ?>
               <ol class="studio-record-list">
                 <?php foreach ($view->runs as $run): ?>

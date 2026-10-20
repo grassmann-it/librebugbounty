@@ -1,0 +1,3415 @@
+{
+  "schema": 1,
+  "version": "synthetic-2026.10.20-v1",
+  "packs": {
+    "core": "2026.10.19"
+  },
+  "classifierVersion": "cribrum-1.0.0",
+  "cases": [
+    {
+      "id": "framework/whoops--there-was-an-error positive",
+      "positiveRules": [
+        "framework/whoops--there-was-an-error"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Whoops! There was an error </pre>",
+        "domText": "Whoops! There was an error ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/whoops--there-was-an-error negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/whoops--there-was-an-error"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Whoops! There was an error </pre>",
+        "domText": "Whoops! There was an error ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/whoops--there-was-an-error/info positive",
+      "positiveRules": [
+        "framework/whoops--there-was-an-error/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Whoops! There was an error </pre>",
+        "domText": "Whoops! There was an error ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/whoops--there-was-an-error/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/whoops--there-was-an-error/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Whoops! There was an error </pre>",
+        "domText": "Whoops! There was an error ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/ignition-by-laravel positive",
+      "positiveRules": [
+        "framework/ignition-by-laravel"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Ignition by Laravel </pre>",
+        "domText": "Ignition by Laravel ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/ignition-by-laravel negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/ignition-by-laravel"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Ignition by Laravel </pre>",
+        "domText": "Ignition by Laravel ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/ignition-by-laravel/info positive",
+      "positiveRules": [
+        "framework/ignition-by-laravel/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Ignition by Laravel </pre>",
+        "domText": "Ignition by Laravel ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/ignition-by-laravel/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/ignition-by-laravel/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Ignition by Laravel </pre>",
+        "domText": "Ignition by Laravel ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/laravel-framework positive",
+      "positiveRules": [
+        "framework/laravel-framework"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>laravel/framework </pre>",
+        "domText": "laravel/framework ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/laravel-framework negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/laravel-framework"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>laravel/framework </pre>",
+        "domText": "laravel/framework ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/laravel-framework/info positive",
+      "positiveRules": [
+        "framework/laravel-framework/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>laravel/framework </pre>",
+        "domText": "laravel/framework ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/laravel-framework/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/laravel-framework/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>laravel/framework </pre>",
+        "domText": "laravel/framework ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/server-error-in-----application positive",
+      "positiveRules": [
+        "framework/server-error-in-----application"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Server Error in &#x27;/&#x27; Application </pre>",
+        "domText": "Server Error in '/' Application ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/server-error-in-----application negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/server-error-in-----application"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Server Error in &#x27;/&#x27; Application </pre>",
+        "domText": "Server Error in '/' Application ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/server-error-in-----application/info positive",
+      "positiveRules": [
+        "framework/server-error-in-----application/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Server Error in &#x27;/&#x27; Application </pre>",
+        "domText": "Server Error in '/' Application ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/server-error-in-----application/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/server-error-in-----application/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Server Error in &#x27;/&#x27; Application </pre>",
+        "domText": "Server Error in '/' Application ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/runtime-error-description- positive",
+      "positiveRules": [
+        "framework/runtime-error-description-"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Runtime Error Description: </pre>",
+        "domText": "Runtime Error Description: ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/runtime-error-description- negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/runtime-error-description-"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Runtime Error Description: </pre>",
+        "domText": "Runtime Error Description: ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/runtime-error-description-/info positive",
+      "positiveRules": [
+        "framework/runtime-error-description-/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Runtime Error Description: </pre>",
+        "domText": "Runtime Error Description: ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/runtime-error-description-/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/runtime-error-description-/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Runtime Error Description: </pre>",
+        "domText": "Runtime Error Description: ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/asp.net-is-configured positive",
+      "positiveRules": [
+        "framework/asp.net-is-configured"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>ASP.NET is configured </pre>",
+        "domText": "ASP.NET is configured ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/asp.net-is-configured negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/asp.net-is-configured"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>ASP.NET is configured </pre>",
+        "domText": "ASP.NET is configured ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/asp.net-is-configured/info positive",
+      "positiveRules": [
+        "framework/asp.net-is-configured/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>ASP.NET is configured </pre>",
+        "domText": "ASP.NET is configured ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/asp.net-is-configured/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/asp.net-is-configured/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>ASP.NET is configured </pre>",
+        "domText": "ASP.NET is configured ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/django-version- positive",
+      "positiveRules": [
+        "framework/django-version-"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Django Version: </pre>",
+        "domText": "Django Version: ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/django-version- negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/django-version-"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Django Version: </pre>",
+        "domText": "Django Version: ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/django-version-/info positive",
+      "positiveRules": [
+        "framework/django-version-/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Django Version: </pre>",
+        "domText": "Django Version: ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/django-version-/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/django-version-/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Django Version: </pre>",
+        "domText": "Django Version: ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/django_settings_module positive",
+      "positiveRules": [
+        "framework/django_settings_module"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>DJANGO_SETTINGS_MODULE </pre>",
+        "domText": "DJANGO_SETTINGS_MODULE ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/django_settings_module negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/django_settings_module"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>DJANGO_SETTINGS_MODULE </pre>",
+        "domText": "DJANGO_SETTINGS_MODULE ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/django_settings_module/info positive",
+      "positiveRules": [
+        "framework/django_settings_module/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>DJANGO_SETTINGS_MODULE </pre>",
+        "domText": "DJANGO_SETTINGS_MODULE ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/django_settings_module/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/django_settings_module/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>DJANGO_SETTINGS_MODULE </pre>",
+        "domText": "DJANGO_SETTINGS_MODULE ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/using-the-urlconf-defined positive",
+      "positiveRules": [
+        "framework/using-the-urlconf-defined"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Using the URLconf defined </pre>",
+        "domText": "Using the URLconf defined ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/using-the-urlconf-defined negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/using-the-urlconf-defined"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Using the URLconf defined </pre>",
+        "domText": "Using the URLconf defined ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/using-the-urlconf-defined/info positive",
+      "positiveRules": [
+        "framework/using-the-urlconf-defined/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Using the URLconf defined </pre>",
+        "domText": "Using the URLconf defined ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/using-the-urlconf-defined/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/using-the-urlconf-defined/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Using the URLconf defined </pre>",
+        "domText": "Using the URLconf defined ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/whitelabel-error-page positive",
+      "positiveRules": [
+        "framework/whitelabel-error-page"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Whitelabel Error Page </pre>",
+        "domText": "Whitelabel Error Page ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/whitelabel-error-page negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/whitelabel-error-page"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Whitelabel Error Page </pre>",
+        "domText": "Whitelabel Error Page ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/whitelabel-error-page/info positive",
+      "positiveRules": [
+        "framework/whitelabel-error-page/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Whitelabel Error Page </pre>",
+        "domText": "Whitelabel Error Page ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/whitelabel-error-page/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/whitelabel-error-page/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Whitelabel Error Page </pre>",
+        "domText": "Whitelabel Error Page ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/this-application-has-no-explicit--error-mapping positive",
+      "positiveRules": [
+        "framework/this-application-has-no-explicit--error-mapping"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>This application has no explicit /error mapping </pre>",
+        "domText": "This application has no explicit /error mapping ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/this-application-has-no-explicit--error-mapping negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/this-application-has-no-explicit--error-mapping"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>This application has no explicit /error mapping </pre>",
+        "domText": "This application has no explicit /error mapping ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/this-application-has-no-explicit--error-mapping/info positive",
+      "positiveRules": [
+        "framework/this-application-has-no-explicit--error-mapping/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>This application has no explicit /error mapping </pre>",
+        "domText": "This application has no explicit /error mapping ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/this-application-has-no-explicit--error-mapping/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/this-application-has-no-explicit--error-mapping/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>This application has no explicit /error mapping </pre>",
+        "domText": "This application has no explicit /error mapping ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/fatal-error- positive",
+      "positiveRules": [
+        "framework/fatal-error-"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Fatal error: </pre>",
+        "domText": "Fatal error: ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/fatal-error- negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/fatal-error-"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Fatal error: </pre>",
+        "domText": "Fatal error: ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/fatal-error-/info positive",
+      "positiveRules": [
+        "framework/fatal-error-/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Fatal error: </pre>",
+        "domText": "Fatal error: ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/fatal-error-/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/fatal-error-/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Fatal error: </pre>",
+        "domText": "Fatal error: ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/php-warning- positive",
+      "positiveRules": [
+        "framework/php-warning-"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>PHP Warning: </pre>",
+        "domText": "PHP Warning: ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/php-warning- negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/php-warning-"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>PHP Warning: </pre>",
+        "domText": "PHP Warning: ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/php-warning-/info positive",
+      "positiveRules": [
+        "framework/php-warning-/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>PHP Warning: </pre>",
+        "domText": "PHP Warning: ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/php-warning-/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/php-warning-/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>PHP Warning: </pre>",
+        "domText": "PHP Warning: ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/php-notice- positive",
+      "positiveRules": [
+        "framework/php-notice-"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>PHP Notice: </pre>",
+        "domText": "PHP Notice: ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/php-notice- negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/php-notice-"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>PHP Notice: </pre>",
+        "domText": "PHP Notice: ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "framework/php-notice-/info positive",
+      "positiveRules": [
+        "framework/php-notice-/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>PHP Notice: </pre>",
+        "domText": "PHP Notice: ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "framework/php-notice-/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "framework/php-notice-/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>PHP Notice: </pre>",
+        "domText": "PHP Notice: ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "database/you-have-an-error-in-your-sql-syntax positive",
+      "positiveRules": [
+        "database/you-have-an-error-in-your-sql-syntax"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>You have an error in your SQL syntax </pre>",
+        "domText": "You have an error in your SQL syntax ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "database/you-have-an-error-in-your-sql-syntax negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/you-have-an-error-in-your-sql-syntax"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>You have an error in your SQL syntax </pre>",
+        "domText": "You have an error in your SQL syntax ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "database/you-have-an-error-in-your-sql-syntax/info positive",
+      "positiveRules": [
+        "database/you-have-an-error-in-your-sql-syntax/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>You have an error in your SQL syntax </pre>",
+        "domText": "You have an error in your SQL syntax ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "database/you-have-an-error-in-your-sql-syntax/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/you-have-an-error-in-your-sql-syntax/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>You have an error in your SQL syntax </pre>",
+        "domText": "You have an error in your SQL syntax ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "database/you-have-an-error-in-your-sql-syntax/sqli positive",
+      "positiveRules": [
+        "database/you-have-an-error-in-your-sql-syntax/sqli"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>You have an error in your SQL syntax C4-INPUT</pre>",
+        "domText": "You have an error in your SQL syntax C4-INPUT",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "C4-INPUT"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed",
+        "sql_injection": "suspected"
+      }
+    },
+    {
+      "id": "database/you-have-an-error-in-your-sql-syntax/sqli negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/you-have-an-error-in-your-sql-syntax/sqli"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>You have an error in your SQL syntax C4-INPUT</pre>",
+        "domText": "You have an error in your SQL syntax C4-INPUT",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      },
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "database/mysqlsyntaxerrorexception positive",
+      "positiveRules": [
+        "database/mysqlsyntaxerrorexception"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>MySQLSyntaxErrorException </pre>",
+        "domText": "MySQLSyntaxErrorException ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "database/mysqlsyntaxerrorexception negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/mysqlsyntaxerrorexception"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>MySQLSyntaxErrorException </pre>",
+        "domText": "MySQLSyntaxErrorException ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "database/mysqlsyntaxerrorexception/info positive",
+      "positiveRules": [
+        "database/mysqlsyntaxerrorexception/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>MySQLSyntaxErrorException </pre>",
+        "domText": "MySQLSyntaxErrorException ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "database/mysqlsyntaxerrorexception/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/mysqlsyntaxerrorexception/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>MySQLSyntaxErrorException </pre>",
+        "domText": "MySQLSyntaxErrorException ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "database/mysqlsyntaxerrorexception/sqli positive",
+      "positiveRules": [
+        "database/mysqlsyntaxerrorexception/sqli"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>MySQLSyntaxErrorException C4-INPUT</pre>",
+        "domText": "MySQLSyntaxErrorException C4-INPUT",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "C4-INPUT"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed",
+        "sql_injection": "suspected"
+      }
+    },
+    {
+      "id": "database/mysqlsyntaxerrorexception/sqli negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/mysqlsyntaxerrorexception/sqli"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>MySQLSyntaxErrorException C4-INPUT</pre>",
+        "domText": "MySQLSyntaxErrorException C4-INPUT",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      },
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "database/sqlexception positive",
+      "positiveRules": [
+        "database/sqlexception"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>SQLException </pre>",
+        "domText": "SQLException ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "database/sqlexception negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/sqlexception"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>SQLException </pre>",
+        "domText": "SQLException ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "database/sqlexception/info positive",
+      "positiveRules": [
+        "database/sqlexception/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>SQLException </pre>",
+        "domText": "SQLException ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "database/sqlexception/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/sqlexception/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>SQLException </pre>",
+        "domText": "SQLException ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "database/sqlexception/sqli positive",
+      "positiveRules": [
+        "database/sqlexception/sqli"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>SQLException C4-INPUT</pre>",
+        "domText": "SQLException C4-INPUT",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "C4-INPUT"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed",
+        "sql_injection": "suspected"
+      }
+    },
+    {
+      "id": "database/sqlexception/sqli negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/sqlexception/sqli"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>SQLException C4-INPUT</pre>",
+        "domText": "SQLException C4-INPUT",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      },
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "database/postgresql-error- positive",
+      "positiveRules": [
+        "database/postgresql-error-"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>PostgreSQL ERROR: </pre>",
+        "domText": "PostgreSQL ERROR: ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "database/postgresql-error- negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/postgresql-error-"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>PostgreSQL ERROR: </pre>",
+        "domText": "PostgreSQL ERROR: ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "database/postgresql-error-/info positive",
+      "positiveRules": [
+        "database/postgresql-error-/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>PostgreSQL ERROR: </pre>",
+        "domText": "PostgreSQL ERROR: ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "database/postgresql-error-/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/postgresql-error-/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>PostgreSQL ERROR: </pre>",
+        "domText": "PostgreSQL ERROR: ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "database/postgresql-error-/sqli positive",
+      "positiveRules": [
+        "database/postgresql-error-/sqli"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>PostgreSQL ERROR: C4-INPUT</pre>",
+        "domText": "PostgreSQL ERROR: C4-INPUT",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "C4-INPUT"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed",
+        "sql_injection": "suspected"
+      }
+    },
+    {
+      "id": "database/postgresql-error-/sqli negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/postgresql-error-/sqli"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>PostgreSQL ERROR: C4-INPUT</pre>",
+        "domText": "PostgreSQL ERROR: C4-INPUT",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      },
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "database/syntax-error-at-or-near positive",
+      "positiveRules": [
+        "database/syntax-error-at-or-near"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>syntax error at or near </pre>",
+        "domText": "syntax error at or near ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "database/syntax-error-at-or-near negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/syntax-error-at-or-near"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>syntax error at or near </pre>",
+        "domText": "syntax error at or near ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "database/syntax-error-at-or-near/info positive",
+      "positiveRules": [
+        "database/syntax-error-at-or-near/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>syntax error at or near </pre>",
+        "domText": "syntax error at or near ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "database/syntax-error-at-or-near/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/syntax-error-at-or-near/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>syntax error at or near </pre>",
+        "domText": "syntax error at or near ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "database/syntax-error-at-or-near/sqli positive",
+      "positiveRules": [
+        "database/syntax-error-at-or-near/sqli"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>syntax error at or near C4-INPUT</pre>",
+        "domText": "syntax error at or near C4-INPUT",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "C4-INPUT"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed",
+        "sql_injection": "suspected"
+      }
+    },
+    {
+      "id": "database/syntax-error-at-or-near/sqli negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/syntax-error-at-or-near/sqli"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>syntax error at or near C4-INPUT</pre>",
+        "domText": "syntax error at or near C4-INPUT",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      },
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "database/sqlite3--query positive",
+      "positiveRules": [
+        "database/sqlite3--query"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>SQLite3::query </pre>",
+        "domText": "SQLite3::query ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "database/sqlite3--query negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/sqlite3--query"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>SQLite3::query </pre>",
+        "domText": "SQLite3::query ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "database/sqlite3--query/info positive",
+      "positiveRules": [
+        "database/sqlite3--query/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>SQLite3::query </pre>",
+        "domText": "SQLite3::query ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "database/sqlite3--query/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/sqlite3--query/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>SQLite3::query </pre>",
+        "domText": "SQLite3::query ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "database/sqlite3--query/sqli positive",
+      "positiveRules": [
+        "database/sqlite3--query/sqli"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>SQLite3::query C4-INPUT</pre>",
+        "domText": "SQLite3::query C4-INPUT",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "C4-INPUT"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed",
+        "sql_injection": "suspected"
+      }
+    },
+    {
+      "id": "database/sqlite3--query/sqli negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/sqlite3--query/sqli"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>SQLite3::query C4-INPUT</pre>",
+        "domText": "SQLite3::query C4-INPUT",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      },
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "database/sqlite_error positive",
+      "positiveRules": [
+        "database/sqlite_error"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>SQLITE_ERROR </pre>",
+        "domText": "SQLITE_ERROR ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "database/sqlite_error negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/sqlite_error"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>SQLITE_ERROR </pre>",
+        "domText": "SQLITE_ERROR ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "database/sqlite_error/info positive",
+      "positiveRules": [
+        "database/sqlite_error/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>SQLITE_ERROR </pre>",
+        "domText": "SQLITE_ERROR ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "database/sqlite_error/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/sqlite_error/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>SQLITE_ERROR </pre>",
+        "domText": "SQLITE_ERROR ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "database/sqlite_error/sqli positive",
+      "positiveRules": [
+        "database/sqlite_error/sqli"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>SQLITE_ERROR C4-INPUT</pre>",
+        "domText": "SQLITE_ERROR C4-INPUT",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "C4-INPUT"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed",
+        "sql_injection": "suspected"
+      }
+    },
+    {
+      "id": "database/sqlite_error/sqli negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/sqlite_error/sqli"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>SQLITE_ERROR C4-INPUT</pre>",
+        "domText": "SQLITE_ERROR C4-INPUT",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      },
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "database/unclosed-quotation-mark-after-the-character-stri positive",
+      "positiveRules": [
+        "database/unclosed-quotation-mark-after-the-character-stri"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Unclosed quotation mark after the character string </pre>",
+        "domText": "Unclosed quotation mark after the character string ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "database/unclosed-quotation-mark-after-the-character-stri negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/unclosed-quotation-mark-after-the-character-stri"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Unclosed quotation mark after the character string </pre>",
+        "domText": "Unclosed quotation mark after the character string ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "database/unclosed-quotation-mark-after-the-character-stri/info positive",
+      "positiveRules": [
+        "database/unclosed-quotation-mark-after-the-character-stri/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Unclosed quotation mark after the character string </pre>",
+        "domText": "Unclosed quotation mark after the character string ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "database/unclosed-quotation-mark-after-the-character-stri/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/unclosed-quotation-mark-after-the-character-stri/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Unclosed quotation mark after the character string </pre>",
+        "domText": "Unclosed quotation mark after the character string ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "database/unclosed-quotation-mark-after-the-character-stri/sqli positive",
+      "positiveRules": [
+        "database/unclosed-quotation-mark-after-the-character-stri/sqli"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Unclosed quotation mark after the character string C4-INPUT</pre>",
+        "domText": "Unclosed quotation mark after the character string C4-INPUT",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "C4-INPUT"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed",
+        "sql_injection": "suspected"
+      }
+    },
+    {
+      "id": "database/unclosed-quotation-mark-after-the-character-stri/sqli negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/unclosed-quotation-mark-after-the-character-stri/sqli"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Unclosed quotation mark after the character string C4-INPUT</pre>",
+        "domText": "Unclosed quotation mark after the character string C4-INPUT",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      },
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "database/microsoft-sql-server positive",
+      "positiveRules": [
+        "database/microsoft-sql-server"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Microsoft SQL Server </pre>",
+        "domText": "Microsoft SQL Server ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "database/microsoft-sql-server negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/microsoft-sql-server"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Microsoft SQL Server </pre>",
+        "domText": "Microsoft SQL Server ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "database/microsoft-sql-server/info positive",
+      "positiveRules": [
+        "database/microsoft-sql-server/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Microsoft SQL Server </pre>",
+        "domText": "Microsoft SQL Server ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "database/microsoft-sql-server/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/microsoft-sql-server/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Microsoft SQL Server </pre>",
+        "domText": "Microsoft SQL Server ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "database/microsoft-sql-server/sqli positive",
+      "positiveRules": [
+        "database/microsoft-sql-server/sqli"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Microsoft SQL Server C4-INPUT</pre>",
+        "domText": "Microsoft SQL Server C4-INPUT",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "C4-INPUT"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed",
+        "sql_injection": "suspected"
+      }
+    },
+    {
+      "id": "database/microsoft-sql-server/sqli negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/microsoft-sql-server/sqli"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Microsoft SQL Server C4-INPUT</pre>",
+        "domText": "Microsoft SQL Server C4-INPUT",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      },
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "database/ora- positive",
+      "positiveRules": [
+        "database/ora-"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>ORA- </pre>",
+        "domText": "ORA- ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "database/ora- negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/ora-"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>ORA- </pre>",
+        "domText": "ORA- ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "database/ora-/info positive",
+      "positiveRules": [
+        "database/ora-/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>ORA- </pre>",
+        "domText": "ORA- ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      }
+    },
+    {
+      "id": "database/ora-/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/ora-/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>ORA- </pre>",
+        "domText": "ORA- ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "database/ora-/sqli positive",
+      "positiveRules": [
+        "database/ora-/sqli"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>ORA- C4-INPUT</pre>",
+        "domText": "ORA- C4-INPUT",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "C4-INPUT"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed",
+        "sql_injection": "suspected"
+      }
+    },
+    {
+      "id": "database/ora-/sqli negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "database/ora-/sqli"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>ORA- C4-INPUT</pre>",
+        "domText": "ORA- C4-INPUT",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed"
+      },
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "stack/traceback--most-recent-call-last- positive",
+      "positiveRules": [
+        "stack/traceback--most-recent-call-last-"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Traceback (most recent call last) </pre>",
+        "domText": "Traceback (most recent call last) ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "information_disclosure": "observed",
+        "stack_trace": "observed"
+      }
+    },
+    {
+      "id": "stack/traceback--most-recent-call-last- negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "stack/traceback--most-recent-call-last-"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Traceback (most recent call last) </pre>",
+        "domText": "Traceback (most recent call last) ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "stack/traceback--most-recent-call-last-/info positive",
+      "positiveRules": [
+        "stack/traceback--most-recent-call-last-/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Traceback (most recent call last) </pre>",
+        "domText": "Traceback (most recent call last) ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "information_disclosure": "observed",
+        "stack_trace": "observed"
+      }
+    },
+    {
+      "id": "stack/traceback--most-recent-call-last-/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "stack/traceback--most-recent-call-last-/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Traceback (most recent call last) </pre>",
+        "domText": "Traceback (most recent call last) ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "stack/exception-in-thread positive",
+      "positiveRules": [
+        "stack/exception-in-thread"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Exception in thread </pre>",
+        "domText": "Exception in thread ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "information_disclosure": "observed",
+        "stack_trace": "observed"
+      }
+    },
+    {
+      "id": "stack/exception-in-thread negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "stack/exception-in-thread"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Exception in thread </pre>",
+        "domText": "Exception in thread ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "stack/exception-in-thread/info positive",
+      "positiveRules": [
+        "stack/exception-in-thread/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Exception in thread </pre>",
+        "domText": "Exception in thread ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "information_disclosure": "observed",
+        "stack_trace": "observed"
+      }
+    },
+    {
+      "id": "stack/exception-in-thread/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "stack/exception-in-thread/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Exception in thread </pre>",
+        "domText": "Exception in thread ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "stack/at-java. positive",
+      "positiveRules": [
+        "stack/at-java."
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>at java. </pre>",
+        "domText": "at java. ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "information_disclosure": "observed",
+        "stack_trace": "observed"
+      }
+    },
+    {
+      "id": "stack/at-java. negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "stack/at-java."
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>at java. </pre>",
+        "domText": "at java. ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "stack/at-java./info positive",
+      "positiveRules": [
+        "stack/at-java./info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>at java. </pre>",
+        "domText": "at java. ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "information_disclosure": "observed",
+        "stack_trace": "observed"
+      }
+    },
+    {
+      "id": "stack/at-java./info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "stack/at-java./info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>at java. </pre>",
+        "domText": "at java. ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "stack/stack-trace- positive",
+      "positiveRules": [
+        "stack/stack-trace-"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Stack trace: </pre>",
+        "domText": "Stack trace: ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "information_disclosure": "observed",
+        "stack_trace": "observed"
+      }
+    },
+    {
+      "id": "stack/stack-trace- negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "stack/stack-trace-"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Stack trace: </pre>",
+        "domText": "Stack trace: ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "stack/stack-trace-/info positive",
+      "positiveRules": [
+        "stack/stack-trace-/info"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Stack trace: </pre>",
+        "domText": "Stack trace: ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "information_disclosure": "observed",
+        "stack_trace": "observed"
+      }
+    },
+    {
+      "id": "stack/stack-trace-/info negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "stack/stack-trace-/info"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>Stack trace: </pre>",
+        "domText": "Stack trace: ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "file/failed-to-open-stream positive",
+      "positiveRules": [
+        "file/failed-to-open-stream"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>failed to open stream </pre>",
+        "domText": "failed to open stream ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed"
+      }
+    },
+    {
+      "id": "file/failed-to-open-stream negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "file/failed-to-open-stream"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>failed to open stream </pre>",
+        "domText": "failed to open stream ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "lfi/failed-to-open-stream positive",
+      "positiveRules": [
+        "lfi/failed-to-open-stream"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>failed to open stream ../../etc/passwd</pre>",
+        "domText": "failed to open stream ../../etc/passwd",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "../../etc/passwd"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "local_file_inclusion": "suspected"
+      }
+    },
+    {
+      "id": "lfi/failed-to-open-stream negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "lfi/failed-to-open-stream"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>failed to open stream ../../etc/passwd</pre>",
+        "domText": "failed to open stream ../../etc/passwd",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed"
+      },
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "rfi/failed-to-open-stream positive",
+      "positiveRules": [
+        "rfi/failed-to-open-stream"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>failed to open stream https://fixture.test/remote.php</pre>",
+        "domText": "failed to open stream https://fixture.test/remote.php",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "https://fixture.test/remote.php"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "remote_file_inclusion": "suspected"
+      }
+    },
+    {
+      "id": "rfi/failed-to-open-stream negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "rfi/failed-to-open-stream"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>failed to open stream https://fixture.test/remote.php</pre>",
+        "domText": "failed to open stream https://fixture.test/remote.php",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed"
+      },
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "file/no-such-file-or-directory positive",
+      "positiveRules": [
+        "file/no-such-file-or-directory"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>No such file or directory </pre>",
+        "domText": "No such file or directory ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed"
+      }
+    },
+    {
+      "id": "file/no-such-file-or-directory negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "file/no-such-file-or-directory"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>No such file or directory </pre>",
+        "domText": "No such file or directory ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "lfi/no-such-file-or-directory positive",
+      "positiveRules": [
+        "lfi/no-such-file-or-directory"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>No such file or directory ../../etc/passwd</pre>",
+        "domText": "No such file or directory ../../etc/passwd",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "../../etc/passwd"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "local_file_inclusion": "suspected"
+      }
+    },
+    {
+      "id": "lfi/no-such-file-or-directory negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "lfi/no-such-file-or-directory"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>No such file or directory ../../etc/passwd</pre>",
+        "domText": "No such file or directory ../../etc/passwd",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed"
+      },
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "rfi/no-such-file-or-directory positive",
+      "positiveRules": [
+        "rfi/no-such-file-or-directory"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>No such file or directory https://fixture.test/remote.php</pre>",
+        "domText": "No such file or directory https://fixture.test/remote.php",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "https://fixture.test/remote.php"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "remote_file_inclusion": "suspected"
+      }
+    },
+    {
+      "id": "rfi/no-such-file-or-directory negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "rfi/no-such-file-or-directory"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>No such file or directory https://fixture.test/remote.php</pre>",
+        "domText": "No such file or directory https://fixture.test/remote.php",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed"
+      },
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "file/failed-opening-for-inclusion positive",
+      "positiveRules": [
+        "file/failed-opening-for-inclusion"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>failed opening for inclusion </pre>",
+        "domText": "failed opening for inclusion ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed"
+      }
+    },
+    {
+      "id": "file/failed-opening-for-inclusion negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "file/failed-opening-for-inclusion"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>failed opening for inclusion </pre>",
+        "domText": "failed opening for inclusion ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "lfi/failed-opening-for-inclusion positive",
+      "positiveRules": [
+        "lfi/failed-opening-for-inclusion"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>failed opening for inclusion ../../etc/passwd</pre>",
+        "domText": "failed opening for inclusion ../../etc/passwd",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "../../etc/passwd"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "local_file_inclusion": "suspected"
+      }
+    },
+    {
+      "id": "lfi/failed-opening-for-inclusion negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "lfi/failed-opening-for-inclusion"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>failed opening for inclusion ../../etc/passwd</pre>",
+        "domText": "failed opening for inclusion ../../etc/passwd",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed"
+      },
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "rfi/failed-opening-for-inclusion positive",
+      "positiveRules": [
+        "rfi/failed-opening-for-inclusion"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>failed opening for inclusion https://fixture.test/remote.php</pre>",
+        "domText": "failed opening for inclusion https://fixture.test/remote.php",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "https://fixture.test/remote.php"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "remote_file_inclusion": "suspected"
+      }
+    },
+    {
+      "id": "rfi/failed-opening-for-inclusion negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "rfi/failed-opening-for-inclusion"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>failed opening for inclusion https://fixture.test/remote.php</pre>",
+        "domText": "failed opening for inclusion https://fixture.test/remote.php",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed"
+      },
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "file/open_basedir-restriction-in-effect positive",
+      "positiveRules": [
+        "file/open_basedir-restriction-in-effect"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>open_basedir restriction in effect </pre>",
+        "domText": "open_basedir restriction in effect ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed"
+      }
+    },
+    {
+      "id": "file/open_basedir-restriction-in-effect negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "file/open_basedir-restriction-in-effect"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>open_basedir restriction in effect </pre>",
+        "domText": "open_basedir restriction in effect ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "lfi/open_basedir-restriction-in-effect positive",
+      "positiveRules": [
+        "lfi/open_basedir-restriction-in-effect"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>open_basedir restriction in effect ../../etc/passwd</pre>",
+        "domText": "open_basedir restriction in effect ../../etc/passwd",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "../../etc/passwd"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "local_file_inclusion": "suspected"
+      }
+    },
+    {
+      "id": "lfi/open_basedir-restriction-in-effect negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "lfi/open_basedir-restriction-in-effect"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>open_basedir restriction in effect ../../etc/passwd</pre>",
+        "domText": "open_basedir restriction in effect ../../etc/passwd",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed"
+      },
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "rfi/open_basedir-restriction-in-effect positive",
+      "positiveRules": [
+        "rfi/open_basedir-restriction-in-effect"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>open_basedir restriction in effect https://fixture.test/remote.php</pre>",
+        "domText": "open_basedir restriction in effect https://fixture.test/remote.php",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "https://fixture.test/remote.php"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "remote_file_inclusion": "suspected"
+      }
+    },
+    {
+      "id": "rfi/open_basedir-restriction-in-effect negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "rfi/open_basedir-restriction-in-effect"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>open_basedir restriction in effect https://fixture.test/remote.php</pre>",
+        "domText": "open_basedir restriction in effect https://fixture.test/remote.php",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed"
+      },
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "file/include----failed-opening positive",
+      "positiveRules": [
+        "file/include----failed-opening"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>include(): Failed opening </pre>",
+        "domText": "include(): Failed opening ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed"
+      }
+    },
+    {
+      "id": "file/include----failed-opening negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "file/include----failed-opening"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>include(): Failed opening </pre>",
+        "domText": "include(): Failed opening ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "lfi/include----failed-opening positive",
+      "positiveRules": [
+        "lfi/include----failed-opening"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>include(): Failed opening ../../etc/passwd</pre>",
+        "domText": "include(): Failed opening ../../etc/passwd",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "../../etc/passwd"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "local_file_inclusion": "suspected"
+      }
+    },
+    {
+      "id": "lfi/include----failed-opening negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "lfi/include----failed-opening"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>include(): Failed opening ../../etc/passwd</pre>",
+        "domText": "include(): Failed opening ../../etc/passwd",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed"
+      },
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "rfi/include----failed-opening positive",
+      "positiveRules": [
+        "rfi/include----failed-opening"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>include(): Failed opening https://fixture.test/remote.php</pre>",
+        "domText": "include(): Failed opening https://fixture.test/remote.php",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "https://fixture.test/remote.php"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "remote_file_inclusion": "suspected"
+      }
+    },
+    {
+      "id": "rfi/include----failed-opening negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "rfi/include----failed-opening"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>include(): Failed opening https://fixture.test/remote.php</pre>",
+        "domText": "include(): Failed opening https://fixture.test/remote.php",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed"
+      },
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "file/require----failed-opening positive",
+      "positiveRules": [
+        "file/require----failed-opening"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>require(): Failed opening </pre>",
+        "domText": "require(): Failed opening ",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed"
+      }
+    },
+    {
+      "id": "file/require----failed-opening negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "file/require----failed-opening"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>require(): Failed opening </pre>",
+        "domText": "require(): Failed opening ",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Documentation quotes the exact signature in a successful response."
+    },
+    {
+      "id": "lfi/require----failed-opening positive",
+      "positiveRules": [
+        "lfi/require----failed-opening"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>require(): Failed opening ../../etc/passwd</pre>",
+        "domText": "require(): Failed opening ../../etc/passwd",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "../../etc/passwd"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "local_file_inclusion": "suspected"
+      }
+    },
+    {
+      "id": "lfi/require----failed-opening negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "lfi/require----failed-opening"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>require(): Failed opening ../../etc/passwd</pre>",
+        "domText": "require(): Failed opening ../../etc/passwd",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed"
+      },
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "rfi/require----failed-opening positive",
+      "positiveRules": [
+        "rfi/require----failed-opening"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>require(): Failed opening https://fixture.test/remote.php</pre>",
+        "domText": "require(): Failed opening https://fixture.test/remote.php",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "https://fixture.test/remote.php"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "remote_file_inclusion": "suspected"
+      }
+    },
+    {
+      "id": "rfi/require----failed-opening negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "rfi/require----failed-opening"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>require(): Failed opening https://fixture.test/remote.php</pre>",
+        "domText": "require(): Failed opening https://fixture.test/remote.php",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {
+        "error_disclosure": "observed"
+      },
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "file-content/root-x-0-0- positive",
+      "positiveRules": [
+        "file-content/root-x-0-0-"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>root:x:0:0: ../../etc/passwd</pre>",
+        "domText": "root:x:0:0: ../../etc/passwd",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "../../etc/passwd"
+      },
+      "claims": {
+        "local_file_inclusion": "observed"
+      }
+    },
+    {
+      "id": "file-content/root-x-0-0- negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "file-content/root-x-0-0-"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>root:x:0:0: ../../etc/passwd</pre>",
+        "domText": "root:x:0:0: ../../etc/passwd",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "file-content/-extensions- positive",
+      "positiveRules": [
+        "file-content/-extensions-"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>[extensions] ../../etc/passwd</pre>",
+        "domText": "[extensions] ../../etc/passwd",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "../../etc/passwd"
+      },
+      "claims": {
+        "local_file_inclusion": "observed"
+      }
+    },
+    {
+      "id": "file-content/-extensions- negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "file-content/-extensions-"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>[extensions] ../../etc/passwd</pre>",
+        "domText": "[extensions] ../../etc/passwd",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "file-content/begin-rsa-private-key positive",
+      "positiveRules": [
+        "file-content/begin-rsa-private-key"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>BEGIN RSA PRIVATE KEY ../../etc/passwd</pre>",
+        "domText": "BEGIN RSA PRIVATE KEY ../../etc/passwd",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "../../etc/passwd"
+      },
+      "claims": {
+        "local_file_inclusion": "observed"
+      }
+    },
+    {
+      "id": "file-content/begin-rsa-private-key negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "file-content/begin-rsa-private-key"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>BEGIN RSA PRIVATE KEY ../../etc/passwd</pre>",
+        "domText": "BEGIN RSA PRIVATE KEY ../../etc/passwd",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "file-content/begin-openssh-private-key positive",
+      "positiveRules": [
+        "file-content/begin-openssh-private-key"
+      ],
+      "negativeRules": [],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>BEGIN OPENSSH PRIVATE KEY ../../etc/passwd</pre>",
+        "domText": "BEGIN OPENSSH PRIVATE KEY ../../etc/passwd",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": "../../etc/passwd"
+      },
+      "claims": {
+        "local_file_inclusion": "observed"
+      }
+    },
+    {
+      "id": "file-content/begin-openssh-private-key negative",
+      "positiveRules": [],
+      "negativeRules": [
+        "file-content/begin-openssh-private-key"
+      ],
+      "input": {
+        "url": "https://fixture.test/corpus",
+        "rawHtml": "<pre>BEGIN OPENSSH PRIVATE KEY ../../etc/passwd</pre>",
+        "domText": "BEGIN OPENSSH PRIVATE KEY ../../etc/passwd",
+        "httpStatus": 500,
+        "contentType": "text/html",
+        "payload": null
+      },
+      "claims": {},
+      "reason": "Matching response without the required input context."
+    },
+    {
+      "id": "visible-marker",
+      "input": {
+        "url": "https://fixture.test/visible-marker",
+        "httpStatus": 200,
+        "rawHtml": "<p>OPENBUG</p>",
+        "domText": "OPENBUG",
+        "expectedEvidence": "OPENBUG"
+      },
+      "claims": {
+        "xss": "suspected"
+      },
+      "excludedClaims": [
+        "sql_injection",
+        "local_file_inclusion",
+        "remote_file_inclusion"
+      ]
+    },
+    {
+      "id": "native-dialog",
+      "input": {
+        "url": "https://fixture.test/native-dialog",
+        "httpStatus": 200,
+        "expectedEvidence": "OPENBUG",
+        "dialogSeen": true,
+        "dialogText": "OPENBUG alert"
+      },
+      "claims": {
+        "xss": "observed"
+      },
+      "excludedClaims": [
+        "sql_injection",
+        "local_file_inclusion",
+        "remote_file_inclusion"
+      ]
+    },
+    {
+      "id": "unrelated-dialog",
+      "input": {
+        "url": "https://fixture.test/unrelated-dialog",
+        "httpStatus": 200,
+        "expectedEvidence": "OPENBUG",
+        "dialogSeen": true,
+        "dialogText": "Welcome"
+      },
+      "claims": {},
+      "excludedClaims": [
+        "xss",
+        "sql_injection",
+        "local_file_inclusion",
+        "remote_file_inclusion"
+      ]
+    },
+    {
+      "id": "entity-marker-sql",
+      "input": {
+        "url": "https://fixture.test/entity-marker-sql",
+        "httpStatus": 500,
+        "rawHtml": "<p>You have an error in your SQL syntax &lt;OPENBUG&gt;</p>",
+        "domText": "You have an error in your SQL syntax <OPENBUG>",
+        "expectedEvidence": "<OPENBUG>"
+      },
+      "claims": {
+        "error_disclosure": "observed",
+        "information_disclosure": "observed",
+        "sql_injection": "suspected"
+      },
+      "excludedClaims": [
+        "xss",
+        "local_file_inclusion",
+        "remote_file_inclusion"
+      ]
+    },
+    {
+      "id": "marketing",
+      "input": {
+        "url": "https://fixture.test/marketing",
+        "httpStatus": 200,
+        "rawHtml": "<h1>Error-free database hosting for Laravel and ASP.NET</h1>",
+        "domText": "Error-free database hosting for Laravel and ASP.NET"
+      },
+      "claims": {},
+      "excludedClaims": [
+        "xss",
+        "sql_injection",
+        "local_file_inclusion",
+        "remote_file_inclusion"
+      ]
+    },
+    {
+      "id": "code-example",
+      "input": {
+        "url": "https://fixture.test/code-example",
+        "httpStatus": 200,
+        "rawHtml": "<pre>try { query(); } catch (SQLException e) { log(e); }</pre>",
+        "domText": "try { query(); } catch (SQLException e) { log(e); }"
+      },
+      "claims": {},
+      "excludedClaims": [
+        "xss",
+        "sql_injection",
+        "local_file_inclusion",
+        "remote_file_inclusion"
+      ]
+    },
+    {
+      "id": "documentation",
+      "input": {
+        "url": "https://fixture.test/documentation",
+        "httpStatus": 200,
+        "rawHtml": "<article>Whoops! There was an error: see the Laravel guide.</article>",
+        "domText": "Whoops! There was an error: see the Laravel guide."
+      },
+      "claims": {},
+      "excludedClaims": [
+        "xss",
+        "sql_injection",
+        "local_file_inclusion",
+        "remote_file_inclusion"
+      ]
+    },
+    {
+      "id": "search-results",
+      "input": {
+        "url": "https://fixture.test/search-results",
+        "httpStatus": 200,
+        "rawHtml": "<p>Search: PostgreSQL ERROR: syntax error at or near</p>",
+        "domText": "Search: PostgreSQL ERROR: syntax error at or near"
+      },
+      "claims": {},
+      "excludedClaims": [
+        "xss",
+        "sql_injection",
+        "local_file_inclusion",
+        "remote_file_inclusion"
+      ]
+    },
+    {
+      "id": "harmless-error",
+      "input": {
+        "url": "https://fixture.test/harmless-error",
+        "httpStatus": 404,
+        "rawHtml": "<h1>Page not found</h1>",
+        "domText": "Page not found"
+      },
+      "claims": {},
+      "excludedClaims": [
+        "xss",
+        "sql_injection",
+        "local_file_inclusion",
+        "remote_file_inclusion"
+      ]
+    },
+    {
+      "id": "empty-response",
+      "input": {
+        "url": "https://fixture.test/empty-response",
+        "httpStatus": 200,
+        "rawHtml": "",
+        "domText": ""
+      },
+      "claims": {},
+      "excludedClaims": [
+        "xss",
+        "sql_injection",
+        "local_file_inclusion",
+        "remote_file_inclusion"
+      ]
+    },
+    {
+      "id": "missing-response",
+      "input": {
+        "url": "https://fixture.test/missing-response",
+        "httpStatus": 200
+      },
+      "claims": {},
+      "excludedClaims": [
+        "xss",
+        "sql_injection",
+        "local_file_inclusion",
+        "remote_file_inclusion"
+      ]
+    }
+  ]
+}

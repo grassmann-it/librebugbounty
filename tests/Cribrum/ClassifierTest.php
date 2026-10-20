@@ -7,6 +7,8 @@ use App\Cribrum\CribrumClassifier;
 use App\Cribrum\ObservationInput;
 use App\Cribrum\Taxonomy;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
+use App\Cribrum\RulePackRepository;
 
 final class ClassifierTest extends TestCase
 {
@@ -191,6 +193,75 @@ final class ClassifierTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
         new ObservationInput('https://fixture.test/a', str_repeat('a', 1048577), null, 'text/html', 200, null, null, null, false, null);
+    }
+
+    public static function corpus(): iterable
+    {
+        $corpus = self::loadCorpus();
+        foreach ($corpus['cases'] as $case) {
+            yield $corpus['version'].' pack/core@'.$corpus['packs']['core'].' '.$corpus['classifierVersion'].' '.$case['id'] => [$case];
+        }
+    }
+
+    #[DataProvider('corpus')]
+    public function testVersionedCorpus(array $case): void
+    {
+        $trace = [];
+        $result = $this->classifier()->classify(ObservationInput::fromArray($case['input']), $trace);
+        $this->assertClaims($result, $case['claims']);
+        foreach ($case['excludedClaims'] ?? [] as $claim) self::assertNotContains($claim, array_column($result->toArray()['suggestions'], 'claim'));
+        $hits = array_column($result->signals, 'rule');
+        foreach ($case['positiveRules'] ?? [] as $rule) self::assertContains($rule, $hits);
+        foreach ($case['negativeRules'] ?? [] as $rule) self::assertNotContains($rule, $hits);
+        foreach ($trace as $evaluation) {
+            if ($evaluation['pack'] === 'builtin') continue;
+            self::assertSame('core', $evaluation['pack']);
+            self::assertSame(self::loadCorpus()['packs']['core'], $evaluation['version']);
+            if ($evaluation['outcome'] === 'hit') self::assertNotNull($evaluation['span']);
+            else self::assertNotEmpty($evaluation['exclusion']);
+        }
+        self::assertSame($result->toArray(), $this->classifier()->classify(ObservationInput::fromArray($case['input']))->toArray());
+    }
+
+    public function testCorpusCoversEveryDefaultRuleAndReportsVersions(): void
+    {
+        $corpus = self::loadCorpus();
+        $result = $this->classifier()->classify(ObservationInput::fromArray(['url' => 'https://fixture.test/empty']));
+        self::assertSame($corpus['packs'], $result->packs);
+        self::assertSame($corpus['classifierVersion'], $result->classifierVersion);
+        fwrite(STDERR, "\nC4 corpus=".$corpus['version'].' pack/core='.$result->packs['core'].' classifier/core='.$result->classifierVersion."\n");
+        $positives = $negatives = [];
+        foreach ($corpus['cases'] as $case) {
+            $positives = [...$positives, ...($case['positiveRules'] ?? [])];
+            $negatives = [...$negatives, ...($case['negativeRules'] ?? [])];
+        }
+        foreach ((new RulePackRepository('/nonexistent-private-cribrum-packs'))->load()['packs'] as $pack) {
+            foreach ($pack->rules as $rule) {
+                self::assertContains($rule->id, $positives, 'Missing positive: '.$rule->id);
+                self::assertContains($rule->id, $negatives, 'Missing relevant negative: '.$rule->id);
+            }
+        }
+    }
+
+    public static function responseLimits(): iterable
+    {
+        yield 'raw at limit' => ['rawHtml', 1048576, false];
+        yield 'raw oversize' => ['rawHtml', 1048577, true];
+        yield 'DOM at limit' => ['domText', 524288, false];
+        yield 'DOM oversize' => ['domText', 524289, true];
+    }
+
+    #[DataProvider('responseLimits')]
+    public function testResponseLimits(string $field, int $bytes, bool $rejected): void
+    {
+        if ($rejected) $this->expectException(\InvalidArgumentException::class);
+        $input = ObservationInput::fromArray(['url' => 'https://fixture.test/size', $field => str_repeat('a', $bytes)]);
+        self::assertSame([], $this->classifier()->classify($input)->suggestions);
+    }
+
+    private static function loadCorpus(): array
+    {
+        return json_decode(file_get_contents(dirname(__DIR__).'/Fixtures/cribrum/corpus-v1.json'), true, 512, JSON_THROW_ON_ERROR);
     }
 
     private function classifier(): CribrumClassifier

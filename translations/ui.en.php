@@ -1,6 +1,14 @@
 <?php
 
 return [
+    // C4 observation diagnostics.
+    'Zurück zum Fall' => 'Back to case',
+    'Observation-Diagnostik' => 'Observation diagnostics',
+    'Nur lokale Artefakte und gespeicherter Aufnahmekontext. Die Diagnose ändert keine Claims oder gespeicherten Ergebnisse.' => 'Local artifacts and captured context only. Diagnostics do not change claims or stored results.',
+    'Gespeicherte Klassifikation' => 'Stored classification',
+    'Aktuelle Packs und Core-Version' => 'Active packs and core version',
+    'Treffer, Vorschläge und Spans' => 'Hits, suggestions and spans',
+    'Regel-Treffer und Ausschlüsse' => 'Rule hits and exclusions',
     'Claims für diese Meldung' => 'Claims for this report',
     'Wir denken: {claims}. Siehst du das auch?' => 'We think: {claims}. Do you agree?',
     'kein neuer Claim' => 'no new claim',

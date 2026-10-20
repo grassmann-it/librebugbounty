@@ -15,7 +15,17 @@ final class CribrumClassifier
         $this->repository = new RulePackRepository($this->privateDirectory);
     }
 
-    public function classify(ObservationInput $input): ClassificationResult
+    /** Active versions are available even when an observation artifact is missing. */
+    public function configuration(): array
+    {
+        $loaded = $this->repository->load();
+        $packs = [];
+        foreach ($loaded['packs'] as $pack) $packs[$pack->id] = $pack->version;
+        return ['classifierVersion' => self::VERSION, 'packs' => $packs, 'diagnostics' => $loaded['diagnostics']];
+    }
+
+    /** Pass an empty evaluation array to collect read-only rule diagnostics. */
+    public function classify(ObservationInput $input, ?array &$evaluations = null): ClassificationResult
     {
         $loaded = $this->repository->load();
         $diagnostics = $loaded['diagnostics'];
@@ -30,8 +40,16 @@ final class CribrumClassifier
         foreach ($loaded['packs'] as $pack) {
             foreach ($pack->rules as $rule) {
                 try {
-                    $match = $this->match($rule, $input, $raw, $text, $context);
+                    $exclusion = null;
+                    $match = $this->match($rule, $input, $raw, $text, $context, $exclusion);
+                    if ($evaluations !== null) $evaluations[] = [
+                        'pack' => $pack->id, 'version' => $pack->version, 'rule' => $rule->id,
+                        'outcome' => $match === null ? 'excluded' : 'hit',
+                        'exclusion' => $exclusion, 'shadow' => $rule->shadow,
+                        'span' => $match === null ? null : $this->span($rule->representation, $rule->representation === 'raw' ? $raw : $text, $match['phrase']),
+                    ];
                 } catch (\Throwable $error) {
+                    if ($evaluations !== null) $evaluations[] = ['pack' => $pack->id, 'version' => $pack->version, 'rule' => $rule->id, 'outcome' => 'error', 'error' => $error->getMessage()];
                     $diagnostics[] = 'Rule '.$pack->id.'/'.$rule->id.' failed: '.$error->getMessage();
                     continue;
                 }
@@ -71,6 +89,24 @@ final class CribrumClassifier
         }
         foreach ($this->xssSignals($input, $raw, $text) as $signal) $signals[] = $signal;
 
+        if ($evaluations !== null) {
+            foreach (['dialog-marker', 'reflection', 'reflection/entity-encoded'] as $builtin) {
+                $hit = null;
+                foreach ($merged as $suggestion) {
+                    if (in_array('builtin/'.$builtin, $suggestion->ruleIds, true)) $hit = $suggestion;
+                }
+                $encoded = $builtin === 'reflection/entity-encoded' && array_any($signals, static fn (array $signal): bool => $signal['rule'] === 'reflection/entity-encoded');
+                $evaluations[] = [
+                    'pack' => 'builtin', 'version' => self::VERSION, 'rule' => $builtin,
+                    'outcome' => $hit !== null || $encoded ? 'hit' : 'excluded',
+                    'exclusion' => $hit !== null || $encoded ? null : 'Marker, representation or native-dialog conditions not met',
+                    'span' => $hit?->spans[0] ?? ($builtin === 'dialog-marker' && $hit !== null
+                        ? $this->span('dialog', $input->dialogText, trim((string) $input->expectedEvidence))
+                        : ($encoded ? $this->span('text', $text, trim((string) $input->expectedEvidence)) : null)),
+                ];
+            }
+        }
+
         $suggestions = array_values($merged);
         usort($suggestions, static function (ClaimSuggestion $a, ClaimSuggestion $b): int {
             return [$a->claim, $a->state, $b->score, implode("\n", $a->ruleIds)] <=> [$b->claim, $b->state, $a->score, implode("\n", $b->ruleIds)];
@@ -83,25 +119,26 @@ final class CribrumClassifier
     }
 
     /** @return array{phrase:string,representation:string}|null */
-    private function match(Rule $rule, ObservationInput $input, ?string $raw, ?string $text, array $context): ?array
+    private function match(Rule $rule, ObservationInput $input, ?string $raw, ?string $text, array $context, ?string &$exclusion): ?array
     {
-        if ($rule->minStatus !== null && ($input->httpStatus === null || $input->httpStatus < $rule->minStatus)) return null;
+        if ($rule->minStatus !== null && ($input->httpStatus === null || $input->httpStatus < $rule->minStatus)) { $exclusion = 'httpStatus below '.$rule->minStatus.' or missing'; return null; }
         $subject = $rule->representation === 'raw' ? $raw : $text;
-        if ($subject === null) return null;
+        if ($subject === null) { $exclusion = 'Missing '.$rule->representation.' representation'; return null; }
         foreach ($rule->context as $required) {
-            if (!$context[$required]) return null;
+            if (!$context[$required]) { $exclusion = 'Missing context: '.$required; return null; }
         }
         foreach ($rule->excludes as $exclude) {
-            if (mb_stripos($subject, $exclude) !== false) return null;
+            if (mb_stripos($subject, $exclude) !== false) { $exclusion = 'Excluded phrase: '.$exclude; return null; }
         }
         if ($rule->any !== []) {
             foreach ($rule->any as $phrase) {
                 if (mb_stripos($subject, $phrase) !== false) return ['phrase' => $phrase, 'representation' => $rule->representation];
             }
+            $exclusion = 'No any-pattern matched';
             return null;
         }
         foreach ($rule->all as $phrase) {
-            if (mb_stripos($subject, $phrase) === false) return null;
+            if (mb_stripos($subject, $phrase) === false) { $exclusion = 'Missing required phrase: '.$phrase; return null; }
         }
 
         return ['phrase' => $rule->all[0], 'representation' => $rule->representation];
