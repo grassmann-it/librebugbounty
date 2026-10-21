@@ -13,10 +13,13 @@ repository's tagged commits.
 - Bounded, private HTTP/DOM observations from existing browser runs, hash-verified
   artifacts and a deterministic local classifier with versioned declarative
   rulepacks. SQLi/LFI/RFI stay suspected until manually reviewed. Classification
-  never replaces assessment or sends additional target requests.
+  never replaces assessment; automatic classification sends no additional target requests.
 - Observation diagnostics, active pack versions and storage policy in Settings
   and Status. Local `app:cribrum:reclassify` supports finding selection and dry
   runs, preserves manual decisions and historical results, and reuses artifacts.
+- CLI-only `app:cribrum:classify` probes one explicitly supplied URL or evaluates
+  a local HTTP response offline, with JSON output and optional rule explanations.
+  It uses active rulepacks without saving cases, observations or jobs.
 - Backup listing and explicit retention previews, observation-aware storage
   auditing, permission preflight and update information separating release
   comparison from installation provenance.

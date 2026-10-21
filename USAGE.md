@@ -41,6 +41,48 @@ unchanged input and packs makes no new revision. Missing/corrupt artifacts are
 reported per case while other cases continue. Back up private rulepacks with the
 workspace using the [backup guide](BACKUP.md).
 
+### Try the classifier from the CLI
+
+Probe one URL explicitly, without creating a case, claim, observation or job:
+
+```bash
+php bin/console app:cribrum:classify 'https://example.org/search?q=OPENBUG'
+```
+
+This performs one bounded HTTP GET, with verified TLS and no redirects, retries,
+browser, JavaScript or subresource requests. Only test targets you are authorized
+to access. Unlike automatic classification of existing captures, this command
+explicitly contacts the supplied target. HTTP errors (including 4xx/5xx) are
+classified; a redirect is classified as returned, not followed.
+
+Alternatively supply a local, decoded UTF-8 HTTP response (status line, headers,
+blank line, body), or just its body. `--response` always stays offline: a positional
+URL then supplies context only. Include the original URL/payload because some
+rules depend on it. A missing status stays unknown, not 200.
+
+```bash
+php bin/console app:cribrum:classify 'https://example.org/search?q=OPENBUG' --response=response.txt
+php bin/console app:cribrum:classify --response=body.html --status=500 --content-type=text/html
+cat response.txt | php bin/console app:cribrum:classify --response=- --format=json --explain
+```
+
+Use `--payload='...'` for original payload context, `--marker=OPENBUG` for an
+expected reflection marker and `--dom=dom.txt` for separately captured DOM text
+(not HTML). DOM input may also use `-` for stdin, but only one input can read stdin.
+The body limit is 1 MiB, HTTP headers 64 KiB, and optional DOM text 512 KiB;
+oversized inputs are rejected, not truncated. Decode transfer/content encodings
+before providing saved responses (no raw chunked or compressed wire data).
+
+The command uses the active core and private rulepacks, shows their versions,
+claim suggestions, scores and bounded excerpts. `--explain` includes rule hits
+and exclusions; `--format=json` gives machine-readable results. Response headers
+and full bodies are not dumped, but URLs and excerpts may still contain private
+data: inspect output before sharing. Nothing is stored by the command itself.
+Exit status 0 means evaluation succeeded (also for no hits), 1 means a read,
+transport or rulepack diagnostic error, and 2 means invalid input/options.
+No hits do not prove safety. Reflection alone cannot prove XSS execution;
+SQLi/LFI/RFI remain suspicion, and all suggestions require manual assessment.
+
 ## Keyboard shortcuts and paste intake
 
 In **Settings → Configure keyboard shortcuts**, change or record keys for image

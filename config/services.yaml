@@ -91,3 +91,11 @@ services:
   App\Service\SecurityTxtProvider:
     arguments:
       $client: '@app.security_txt_public_client'
+
+  app.cribrum_probe_client:
+    class: Symfony\Contracts\HttpClient\HttpClientInterface
+    factory: ['Symfony\Component\HttpClient\HttpClient', 'create']
+
+  App\Service\CribrumProbeSource:
+    arguments:
+      $client: '@app.cribrum_probe_client'
