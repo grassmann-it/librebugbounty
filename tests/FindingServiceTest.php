@@ -34,8 +34,8 @@ final class FindingServiceTest extends UnitTestCase
         );
 
         self::assertSame('example.com', $finding->getDomain()->getHostname());
-        self::assertSame(self::DEFAULT_FINDING_TYPE, $finding->getTitle());
-        self::assertSame(self::DEFAULT_FINDING_TYPE, $finding->getType());
+        self::assertSame('unclassified', $finding->getTitle());
+        self::assertSame('unclassified', $finding->getType());
         self::assertSame('OPENBUGBOUNTY', $finding->getExpectedEvidence());
         self::assertNotNull($finding->getSubmittedAt());
     }

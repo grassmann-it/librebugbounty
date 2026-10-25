@@ -185,6 +185,23 @@ final class StudioExportPreferencesTest extends DatabaseTestCase
         self::assertSame('state', $this->profiles->get([])->profile);
     }
 
+    public function testExportFormPreservesInventoryFiltersAlongsideEditedSelection(): void
+    {
+        $this->fixture();
+        $response = $this->request('/export?'.http_build_query([
+            'profile' => 'report', 'report_kind' => 'pure_xss', 'review' => 'deferred',
+            'sort' => 'additional_first', 'domain' => 'export-preference.invalid',
+        ]));
+        self::assertSame(200, $response->getStatusCode());
+        $xpath = $this->xpath($response);
+        self::assertSame('pure_xss', $xpath->evaluate('string(//form[@id="export-filters"]//input[@name="report_kind"]/@value)'));
+        self::assertSame('deferred', $xpath->evaluate('string(//form[@id="export-filters"]//input[@name="review"]/@value)'));
+        self::assertSame('additional_first', $xpath->evaluate('string(//form[@id="export-filters"]//select[@name="sort"]/option[@selected]/@value)'));
+        self::assertSame('export-preference.invalid', $xpath->evaluate('string(//form[@id="export-filters"]//input[@name="domain"]/@value)'));
+        self::assertSame(1.0, $xpath->evaluate('count(//*[@data-export-preview-state])'));
+        self::assertStringContainsString('Vorschau für die zuletzt angewendete Auswahl', $xpath->evaluate('string(//*[@data-export-preview-state])'));
+    }
+
     public function testPreparedDownloadKeepsEffectiveChoicesAfterPreferencesChange(): void
     {
         [, $latest] = $this->fixture();

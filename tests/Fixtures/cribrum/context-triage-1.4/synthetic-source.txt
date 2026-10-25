@@ -1,0 +1,15 @@
+<?php
+function synthetic_connection() {
+    $host = 'db.synthetic.invalid';
+    $user = 'synthetic_reader';
+    $password = 'not-a-real-password';
+    $database = 'synthetic_catalog';
+    if (!$connection = mysql_connect($host, $user, $password)) {
+        return false;
+    }
+    if (!mysql_select_db($database, $connection)) {
+        return false;
+    }
+    return $connection;
+}
+?>

@@ -1,0 +1,25 @@
+{
+  "schema": 2,
+  "id": "contributor-triage",
+  "version": "1.1.0",
+  "rules": [
+    {
+      "id": "contributor.sql-diagnostic.v1",
+      "detector": "sql-triage-v1",
+      "outputs": [
+        "sql_error_observed",
+        "input_in_sql_error",
+        "sql_input_structure_indication"
+      ],
+      "shadow": true
+    },
+    {
+      "id": "contributor.reflection.v1",
+      "detector": "reflection-triage-v1",
+      "outputs": [
+        "input_reflected"
+      ],
+      "shadow": true
+    }
+  ]
+}

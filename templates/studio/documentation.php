@@ -21,10 +21,10 @@
       <?php require __DIR__.'/brand.php'; ?>
       <div class="studio-header-tools"><?php require __DIR__.'/language.php'; ?></div>
     </header>
-    <main class="studio-doc-main">
+    <main class="studio-doc-main" id="main-content">
       <div class="studio-doc-layout">
         <aside class="studio-doc-sidebar">
-          <a class="studio-doc-back" href="/settings">← <?= $escape($t('Zurück zu Einstellungen')) ?></a>
+          <a class="studio-doc-back" href="/about">← <?= $escape($t('Zurück zu Über')) ?></a>
           <h1><?= $escape($t('Dokumentation')) ?></h1>
           <p class="studio-doc-language"><?= $escape($t('Englische Dokumentation')) ?></p>
           <nav aria-label="<?= $escape($t('Dokumentation')) ?>">
@@ -33,9 +33,15 @@
             <?php endforeach; ?>
           </nav>
         </aside>
-        <article class="studio-doc-prose" lang="en" data-documentation-page="<?= $escape($page['slug']) ?>">
-          <?= $page['html'] ?>
-        </article>
+        <div class="studio-doc-content">
+          <nav class="studio-doc-breadcrumb" aria-label="<?= $escape($t('Pfad')) ?>">
+            <a href="/about"><?= $escape($t('Über {name}', ['name' => \App\AppInfo::NAME])) ?></a><span aria-hidden="true">›</span><span><?= $escape($t($page['title'])) ?></span>
+          </nav>
+          <p class="studio-doc-article-note" lang="<?= $escape($locale) ?>"><?= $escape($t('Dieser Artikel ist auf Englisch.')) ?></p>
+          <article class="studio-doc-prose" lang="en" data-documentation-page="<?= $escape($page['slug']) ?>">
+            <?= $page['html'] ?>
+          </article>
+        </div>
       </div>
     </main>
     <?php $activeWorkspace = 'settings'; require __DIR__.'/navigation.php'; ?>

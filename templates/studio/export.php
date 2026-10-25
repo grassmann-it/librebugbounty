@@ -40,6 +40,7 @@ $inventoryFilters = array_filter([
     'closure_reason' => ['Beendigungsgrund', $filter->closureReason, \App\Value\PursuitStatus::REASONS],
     'contact_work' => ['Kontaktarbeit', $filter->contactWork, ['allowed' => 'Nicht gesperrt', 'blocked' => 'Gesperrt']],
 ], static fn (array $field): bool => $field[1] !== '');
+$preservedFilterNames = ['report_kind', 'review'];
 ?>
 <!doctype html>
 <html lang="<?= $escape($locale) ?>">
@@ -89,6 +90,7 @@ $inventoryFilters = array_filter([
         <form class="studio-export-layout" id="export-filters" method="get" action="/export">
           <input type="hidden" name="profile" value="<?= $escape($profile) ?>">
           <?php foreach ($inventoryFilters as $name => [$label, $value]): ?><input type="hidden" name="<?= $escape($name) ?>" value="<?= $escape($value) ?>"><?php endforeach; ?>
+          <?php foreach ($preservedFilterNames as $name): if (!isset($view->filterQuery[$name])) continue; ?><input type="hidden" name="<?= $escape($name) ?>" value="<?= $escape($view->filterQuery[$name]) ?>"><?php endforeach; ?>
           <section class="studio-export-panel studio-export-selection" aria-labelledby="export-selection-title">
             <div class="studio-export-panel-heading"><h2 id="export-selection-title"><?= $escape($t('Auswahl')) ?></h2><a class="studio-export-text-link" href="/export"><?= $escape($t('Zurücksetzen')) ?></a></div>
             <label class="studio-export-field studio-export-scope"><?= $escape($t('Bereich')) ?>
@@ -97,6 +99,7 @@ $inventoryFilters = array_filter([
               </select>
             </label>
             <p class="studio-export-hint"><?= $escape($t($filter->scope === 'active' ? 'Standardauswahl: aktive Fälle. Für archivierte Fälle wähle bewusst einen anderen Bereich.' : 'Diese Auswahl enthält archivierte Fälle.')) ?> <?= $escape($t('Alle Filter gelten gemeinsam.')) ?></p>
+            <?php require __DIR__.'/cribrum-filters.php'; ?>
             <?php if ($inventoryFilters !== []): ?><p class="studio-export-hint" data-export-preserved-filters><?php $parts = []; foreach ($inventoryFilters as [$label, $value, $choices]) $parts[] = $t($label).': '.$t($choices[$value] ?? $value); ?><?= $escape(implode(' · ', $parts)) ?></p><?php endif; ?>
 
             <div class="studio-export-fields">
@@ -179,8 +182,20 @@ $inventoryFilters = array_filter([
               </dl>
             <?php endif; ?>
             <p class="studio-export-hint"><?= $escape($t('Zähler für die angewendete Auswahl.')) ?><?= $profile === 'report' ? ' '.$escape($t('Die Vorschau prüft Bildpfad, Lesbarkeit und Größe; Hash und tatsächliches Bildformat werden beim Download geprüft.')) : '' ?> <?= $escape($t('Aktualisiere die Vorschau nach Änderungen an Filtern oder Inhalten.')) ?></p>
+            <p class="studio-export-preview-state" data-export-preview-state role="status" aria-live="polite" data-current="<?= $escape($locale === 'de' ? 'Vorschau ist aktuell.' : 'Preview is current.') ?>" data-stale="<?= $escape($locale === 'de' ? 'Auswahl oder Inhalte geändert. Vorschau aktualisieren, bevor du herunterlädst.' : 'Selection or contents changed. Refresh the preview before downloading.') ?>"><?= $escape($locale === 'de' ? 'Vorschau für die zuletzt angewendete Auswahl. Nach Änderungen bitte aktualisieren; ein direkter Download verwendet die jetzigen Formularwerte.' : 'Preview for the last applied selection. Refresh after changes; a direct download uses the current form values.') ?></p>
             <?php if ($view->findingCount === 0 && !$isFirstStart): ?><p class="studio-export-empty" role="status"><?= $escape($t('Keine Fälle für diese Auswahl. Passe den Bereich oder die Filter an.')) ?></p><?php endif; ?>
             <?php if ($hasLegacyFilters): ?><p class="studio-export-empty"><?= $escape($t('Diagnosefilter aktiv. Die Herkunft der historischen Werte bleibt unklar.')) ?></p><?php endif; ?>
+            <?php if (($cribrumPreview ?? []) !== []): ?>
+              <div data-cribrum-export-preview>
+                <h3><?= $escape($locale === 'de' ? 'Fälle in dieser Auswahl · Vorschau (bis zu 5 Beispiele)' : 'Cases in this selection · preview (up to 5 examples)') ?></h3>
+                <p class="studio-export-hint"><?= $escape($locale === 'de' ? '„Zur Meldung ausgewählt“ beschreibt eine gespeicherte Auswahl, keine Bestätigung der Schwachstelle und keine Versandfreigabe.' : '“Selected for report” describes a saved selection, not a vulnerability confirmation or permission to send.') ?></p>
+                <?php foreach ($cribrumPreview as $finding): ?>
+                  <article><h4><a href="/findings/<?= $escape($finding->id) ?>"><?= $escape($finding->domain) ?></a></h4>
+                  <?php $reportProjection = $finding->reportProjection; $reportSummaryCompact = true; require __DIR__.'/report-summary.php'; ?>
+                  </article>
+                <?php endforeach; ?>
+              </div>
+            <?php endif; ?>
             <a class="studio-export-text-link studio-export-inventory-link" href="<?= $escape($view->inventoryPath) ?>"><?= $escape($t('Auswahl im Bestand ansehen')) ?> <span aria-hidden="true">↗</span></a>
 
             <?php if ($profile === 'urls'): ?>
@@ -218,7 +233,7 @@ $inventoryFilters = array_filter([
               </div>
             <?php endif; ?>
             <button class="studio-export-button studio-export-button-primary" type="submit" formaction="/export/download" data-export-download><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 15v5h16v-5"/></svg><?= $escape($t('{format} herunterladen', ['format' => $downloadFormat])) ?></button>
-            <p class="studio-export-download-hint"><?= $escape($t('Der Download verwendet die gewählten Filter und Inhaltsoptionen.')) ?></p>
+            <p class="studio-export-download-hint"><?= $escape($locale === 'de' ? 'Der Download verwendet die gewählten Filter und Inhaltsoptionen, speichert lokal und versendet keine Meldung.' : 'The download uses the selected filters and content options, saves locally, and sends no report.') ?></p>
           </section>
         </form>
       </div>
@@ -227,5 +242,6 @@ $inventoryFilters = array_filter([
     <?php $activeWorkspace = 'export'; require __DIR__.'/navigation.php'; ?>
   </div>
   <script id="studio-i18n" type="application/json"><?= $i18nJson ?></script>
+  <script src="/js/studio-export.js" defer></script>
 </body>
 </html>

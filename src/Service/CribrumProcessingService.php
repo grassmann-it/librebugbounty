@@ -20,6 +20,7 @@ final class CribrumProcessingService
         private readonly CribrumObservationStore $observations,
         private readonly CribrumClaimService $claims,
         private readonly ?LoggerInterface $logger = null,
+        private readonly ?ReportProjectionService $reportProjection = null,
     ) {
     }
 
@@ -34,6 +35,7 @@ final class CribrumProcessingService
         ?string $expectedEvidence = null,
         bool $dialogSeen = false,
         ?string $dialogText = null,
+        ?string $requestContextSha256 = null,
     ): ?HttpObservation {
         $observation = ObservationTransport::normalize($observation);
         if ($observation === null) {
@@ -41,19 +43,19 @@ final class CribrumProcessingService
             return null;
         }
 
-        $marker = trim((string) ($expectedEvidence ?? $finding->getExpectedEvidence()));
-        $dialogMarkerMatched = $dialogSeen && $dialogText !== null && $marker !== '' && mb_stripos($dialogText, $marker) !== false;
+        $capturedEvidenceForStorage = $expectedEvidence ?? $finding->getExpectedEvidence();
+        $dialogMarkerMatched = $dialogSeen && $this->classifier->matchesNativeDialogMarker($capturedEvidenceForStorage, $dialogText);
         try {
             $entity = $this->observations->store($finding, $observation, $screenshotJobId, $retestRunId, $pocRevision ?? $finding->getPocRevision(), $contextUrl ?? $finding->getPocUrl(), [
                 'url' => $contextUrl ?? $finding->getPocUrl(),
                 'payload' => $payload ?? $finding->getPayload(),
-                'expectedEvidence' => $expectedEvidence ?? $finding->getExpectedEvidence(),
+                'expectedEvidence' => $capturedEvidenceForStorage,
                 'dialogSeen' => $dialogSeen,
                 // Retain a matched marker rather than losing its proof behind
                 // the excerpt limit. Replay gets the same execution distinction.
-                'dialogText' => $dialogMarkerMatched ? $marker : ($dialogText === null ? null : mb_strcut($dialogText, 0, 8192, 'UTF-8')),
+                'dialogText' => $dialogMarkerMatched ? trim((string) $capturedEvidenceForStorage) : ($dialogText === null ? null : mb_strcut($dialogText, 0, 8192, 'UTF-8')),
                 'dialogTextRetainedAsMarker' => $dialogMarkerMatched,
-            ]);
+            ], $requestContextSha256);
         } catch (\Throwable $error) {
             $this->logger?->error('Cribrum observation could not be stored.', ['exception' => $error, 'finding' => $finding->getId()]);
             return null;
@@ -64,14 +66,15 @@ final class CribrumProcessingService
         $capturedEvidence = $expectedEvidence ?? $finding->getExpectedEvidence();
         $revision = $pocRevision ?? $finding->getPocRevision();
         $current = $this->entityManager->find(Finding::class, $finding->getId());
-        if (!$current instanceof Finding || $current->getPocUrl() !== $capturedUrl || $current->getPocRevision() !== $revision) {
+        if ($current instanceof Finding) $this->entityManager->refresh($current);
+        if (!$current instanceof Finding || $current->getPocUrl() !== $capturedUrl || $current->getPocRevision() !== $revision || !$this->observations->matchesCurrentRequest($current,$entity)) {
             try {
                 $this->claims->attachClassification($entity, [
                     'classifierVersion' => 'cribrum-stale',
                     'suggestions' => [],
                     'signals' => [],
                     'packs' => [],
-                    'diagnostics' => ['poc_changed_before_classification'],
+                    'diagnostics' => ['capture_context_changed_or_unpinned_before_classification'],
                 ]);
             } catch (\Throwable $error) {
                 $this->logger?->error('Stale Cribrum observation could not be marked.', ['exception' => $error, 'finding' => $finding->getId()]);
@@ -80,10 +83,11 @@ final class CribrumProcessingService
         }
 
         try {
+            $retained = $this->observations->load($entity);
             $input = new ObservationInput(
                 $capturedUrl,
-                $observation['rawHtml'],
-                $observation['domText'],
+                $retained['rawHtml'],
+                $retained['domText'],
                 $observation['contentType'],
                 $observation['httpStatus'],
                 $observation['finalUrl'],
@@ -91,6 +95,10 @@ final class CribrumProcessingService
                 $capturedEvidence,
                 $dialogSeen,
                 $dialogText,
+                [
+                    'status' => $retained['rawHtml'] !== null && !$entity->getRawTruncated() && !isset($observation['error']) ? 'complete' : 'partial',
+                    'truncated' => $entity->getRawTruncated(),
+                ],
             );
             $result = $this->classifier->classify($input);
             $failed = false;
@@ -105,13 +113,19 @@ final class CribrumProcessingService
         }
         try {
             $this->entityManager->getConnection()->transactional(function () use ($entity, $finding, $result, $failed): void {
+                $this->entityManager->getConnection()->executeStatement('UPDATE finding SET id=id WHERE id=?',[$finding->getId()]);
+                $this->entityManager->refresh($finding);
                 $this->claims->attachClassification($entity, $result->toArray());
+                if (!$this->observations->matchesCurrentRequest($finding,$entity)) return;
                 if (!$failed) {
                     $this->claims->applySuggestions($finding, $entity, array_map(
                         static fn ($suggestion): array => $suggestion->toArray(),
                         $result->suggestions,
                     ));
                 }
+                // One projection feeds inventory, review and report-gen. Shadow
+                // signals stay in the observation and cannot become report facts.
+                $this->reportProjection?->refresh($finding, $entity);
             });
         } catch (\Throwable $error) {
             $this->logger?->error('Cribrum suggestions could not be applied.', ['exception' => $error, 'finding' => $finding->getId()]);

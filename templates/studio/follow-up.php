@@ -2,14 +2,19 @@
 use App\Value\PursuitStatus;
 $statusLabels = ['pending' => 'Abruf vorgemerkt', 'found' => 'Kontaktvorschläge gefunden', 'expired' => 'Abgelaufene Angaben', 'not_found' => 'Keine security.txt gefunden', 'invalid' => 'Ungültige Angaben', 'error' => 'Abruf fehlgeschlagen'];
 ?>
+<div class="studio-follow-up-intro" aria-label="<?= $escape($t('Kontakt und Nachverfolgung')) ?>">
+  <p class="studio-follow-up-kicker"><?= $escape($t('Kontakt und Nachverfolgung')) ?></p>
+  <p><?= $escape($t('Kontakt suchen, Meldeweg wählen, Aktivität dokumentieren und Wiedervorlage setzen sind getrennte Schritte. Keine dieser Aktionen versendet eine Nachricht.')) ?></p>
+</div>
 <div class="studio-follow-up-grid">
   <section class="studio-work-card" id="nachverfolgung" aria-labelledby="follow-up-title" tabindex="-1">
+    <p class="studio-follow-up-step"><?= $escape($t('Entscheidungen und Sperren')) ?></p>
     <h2 id="follow-up-title"><?= $escape($t('Nachverfolgung')) ?></h2>
     <p class="studio-detail-hint"><?= $escape($t('Die Bearbeitung ist unabhängig von der fachlichen Bewertung. Ein bestätigter Befund bleibt bestätigt.')) ?></p>
     <?php if (!$workState['available']): ?>
       <p role="status"><?= $escape($t('Bitte zuerst die Datenbankmigration für Nachverfolgung und Kontakte ausführen.')) ?></p>
     <?php else: ?>
-      <p class="studio-work-effective" data-effective-policy><?= $escape($t($workState['checksBlocked'] ? 'Prüfungen gesperrt' : 'Prüfungen nicht gesperrt')) ?> · <?= $escape($t($workState['contactBlocked'] ? 'Kontakt gesperrt' : 'Kontakt nicht gesperrt')) ?></p>
+      <p class="studio-work-effective" data-effective-policy><strong><?= $escape($t('Wirksamer Stand')) ?>:</strong> <?= $escape($t($workState['checksBlocked'] ? 'Prüfungen gesperrt' : 'Prüfungen nicht gesperrt')) ?> · <?= $escape($t($workState['contactBlocked'] ? 'Kontakt gesperrt' : 'Kontakt nicht gesperrt')) ?></p>
       <form method="post" action="<?= $escape($findingPath) ?>/follow-up" data-follow-up="case">
         <?= $csrfField('finding_follow_up_'.$finding->getId()) ?><?= $returnField ?>
         <input type="hidden" name="scope" value="case"><input type="hidden" name="revision" value="<?= $escape($workState['revisions']['case']) ?>">
@@ -20,7 +25,7 @@ $statusLabels = ['pending' => 'Abruf vorgemerkt', 'found' => 'Kontaktvorschläge
         <?php foreach (['contact_blocked' => 'Keine weiteren Kontakte', 'checks_blocked' => 'Keine weiteren Prüfungen'] as $flag => $label): ?>
           <label class="studio-work-check"><input type="checkbox" name="<?= $escape($flag) ?>" value="1"<?= $workState['case'][$flag] ? ' checked' : '' ?>> <span><?= $escape($t($label)) ?></span></label>
         <?php endforeach; ?>
-        <p class="studio-detail-hint"><?= $escape($t('Ablehnung von Kontakt oder Prüfungen setzt die jeweilige Sperre. Beim Wiederöffnen bleiben angehakte Sperren bestehen.')) ?></p>
+        <p class="studio-detail-hint"><?= $escape($t('Diese Entscheidung gilt für diesen Fall. Ablehnung von Kontakt oder Prüfungen setzt die jeweilige Sperre. Beim Wiederöffnen bleiben angehakte Sperren bestehen.')) ?></p>
         <button class="studio-detail-button" type="submit"><?= $escape($t('Nachverfolgung speichern')) ?></button>
       </form>
       <details class="studio-detail-fold" data-domain-restrictions>
@@ -44,6 +49,7 @@ $statusLabels = ['pending' => 'Abruf vorgemerkt', 'found' => 'Kontaktvorschläge
     <?php endif; ?>
   </section>
   <section class="studio-work-card" id="kontakte" aria-labelledby="contact-discovery-title" tabindex="-1">
+    <p class="studio-follow-up-step"><?= $escape($t('Schritt 1 · Vorschläge prüfen')) ?></p>
     <h2 id="contact-discovery-title"><?= $escape($t('Kontaktvorschläge')) ?></h2>
     <p class="studio-detail-hint"><?= $escape($t('Nur auf Knopfdruck: öffentliche security.txt über HTTPS abrufen. Keine Websuche, kein Nachrichtenversand. Vorschläge und Richtlinien vor einer Kontaktaufnahme selbst prüfen.')) ?></p>
     <?php if ($workState['available'] && !$workState['checksBlocked'] && !$workState['contactBlocked'] && !$finding->isDiscarded()): ?>
@@ -52,16 +58,17 @@ $statusLabels = ['pending' => 'Abruf vorgemerkt', 'found' => 'Kontaktvorschläge
         <?php foreach ($contactProviders as $providerId => $providerLabel): ?><button class="studio-detail-button" type="submit" name="provider" value="<?= $escape($providerId) ?>"><?= $escape($t('Kontakte suchen: {provider}', ['provider' => $providerLabel])) ?></button><?php endforeach; ?>
       </form>
     <?php else: ?><p data-contact-discovery-blocked><?= $escape($t('Kontaktermittlung ist für diesen Fall nicht verfügbar oder gesperrt.')) ?></p><?php endif; ?>
-    <?php if ($contactHistory === []): ?><p><?= $escape($t('Noch keine Kontaktabfrage gespeichert.')) ?></p><?php endif; ?>
+    <?php if ($contactHistory === []): ?><p class="studio-follow-up-empty" data-no-contact-lookup><?= $escape($t('Noch keine Kontaktabfrage gespeichert. Es gibt daher keine Vorschläge aus security.txt.')) ?></p><?php endif; ?>
     <?php require __DIR__.'/contact-route.php'; ?>
     <ol class="studio-record-list" data-contact-history>
       <?php foreach ($contactHistory as $attempt): $result = $attempt['result']; ?>
         <li class="studio-record" data-contact-status="<?= $escape($result['status']) ?>">
           <h3><?= $escape($t($statusLabels[$result['status']] ?? 'Ungültige Angaben')) ?></h3>
-          <p><?= $escape($contactProviders[$attempt['provider']] ?? $attempt['provider']) ?> · <?= $escape($storedTime($attempt['fetched_at'])) ?></p>
+          <p><?= $escape($t('Abruf über')) ?> <?= $escape($contactProviders[$attempt['provider']] ?? $attempt['provider']) ?> · <?= $escape($storedTime($attempt['fetched_at'])) ?></p>
           <?php if ($result['source'] !== ''): ?><p><?= $escape($t('Quelle')) ?>: <code><?= $escape($result['source']) ?></code></p><?php endif; ?>
           <?php if ($result['expires'] !== null): ?><p><?= $escape($t('Veröffentlichtes Ablaufdatum')) ?>: <?= $escape($storedTime($result['expires'])) ?></p><?php endif; ?>
           <?php if ($result['status'] !== 'found' && $result['contacts'] !== []): ?><p class="studio-detail-hint"><?= $escape($t('Nicht als aktuelle Kontaktfreigabe verwenden.')) ?></p><?php endif; ?>
+          <?php if ($result['contacts'] === []): ?><p class="studio-detail-hint"><?= $escape($t('Dieser Abruf enthält keinen verwendbaren Kontaktvorschlag.')) ?></p><?php endif; ?>
           <ul><?php foreach ($result['contacts'] as $contactIndex => $contact): ?><li><?= $escape($t($contact['channel'] === 'email' ? 'E-Mail' : 'Formular oder Meldeportal')) ?>: <code><?= $escape($contact['value']) ?></code>
             <?php if ($contactRoute['available'] && \App\Service\ContactRouteService::suggestionCurrent($result)): ?>
               <form method="post" action="<?= $escape($findingPath) ?>/contact-route" data-contact-route-suggestion>

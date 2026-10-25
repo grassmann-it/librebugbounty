@@ -8,9 +8,19 @@ through the header's **DE** switch.
 
 ## Cribrum claims and local observations
 
+The focus of 2.2.0 “Cribrum” is the local classifier: turn retained HTTP/DOM
+observations into traceable suggestions while keeping your manual decision
+authoritative. Versioned rules, evidence excerpts and local diagnostics explain
+the basis; one case can retain several distinct findings.
+
 A case can carry several claims, each with its own state and report selection.
 Classifier suggestions come from the response already captured by a browser run;
-they do not trigger another target request. SQLi, LFI and RFI start as suspicion.
+they do not trigger another target request. Every valid bounded response from a
+queued screenshot, technical recheck or interactive save is retained and classified,
+including non-HTML bodies and non-2xx status codes. If the browser reached the
+target but desktop image capture failed, its response observation is still saved
+and classified before the screenshot job is marked failed. SQLi, LFI and RFI start
+as suspicion.
 Review remains a manual decision. A reported case is resolved only when every
 selected claim is fixed or rejected. Old cases without claims keep working.
 
@@ -19,6 +29,13 @@ cases independently of the current search; one case may appear under several
 claims, so claim totals must not be added together. Exports retain claim metadata;
 reports separate observation, suspicion and manual confirmation. HTTP artifacts
 are private and excluded by default. Inspect selected excerpts before sharing.
+
+Badges show each assertion and its certainty across Inventory, Workbasket, case
+detail, Review and export preview. An observed SQL error and suspected SQL
+injection are separate assertions. Missing or stale results remain explicit;
+opening evidence does not acknowledge a classification change. Additional-finding
+filters and ordering use distinct assertions, so duplicate rule hits do not
+inflate their counts. See [badges and case selection](docs/cribrum/badges.md).
 
 **Observation diagnostics** on the case detail reads local artifacts and captured
 context. It shows stored and current pack versions, hits, exclusions, spans and
@@ -32,14 +49,22 @@ reclassification, optionally restricted to one case:
 ```bash
 php bin/console app:cribrum:reclassify --finding CASE_ID --dry-run
 php bin/console app:cribrum:reclassify --finding CASE_ID
+php bin/console app:cribrum:reclassify --since='24 hours ago' --dry-run
 ```
 
 Omit `--finding` to process the latest capture of each case. Obsolete PoC revisions
-are skipped. Changed results get an immutable revision reusing the verified
+are skipped. `--since` restricts that backfill to recently created cases. Changed
+results get an immutable revision reusing the verified
 artifact; earlier results and manual claim decisions remain intact. Repeating
 unchanged input and packs makes no new revision. Missing/corrupt artifacts are
 reported per case while other cases continue. Back up private rulepacks with the
 workspace using the [backup guide](BACKUP.md).
+
+Candidate detector packs for reflection, SQL, file includes and response context
+are separate from the active core/private rules. They require explicit selection
+and default to shadow evaluation; installing the source does not activate them or
+reclassify your inventory. The [contributor guide](docs/cribrum/README.md) covers
+versioned packs, offline fixtures and the separate activation procedure.
 
 ### Try the classifier from the CLI
 
@@ -776,8 +801,9 @@ change the saved defaults. Private notes must be selected for each export and
 cannot be enabled through a global default.
 
 The About section shows the version and release name, release highlights,
-credits, project links, and license. **Release history** directly shows
-Moneta, Scriptor Quo, and Scriptor, with the newest milestone first. The
+credits, project links, and license. The 2.2.0 highlights describe the Cribrum
+classifier, traceable evidence and its use across the workflow. **Release history**
+directly shows Moneta, Scriptor Quo, and Scriptor, with the newest milestone first. The
 [changelog](CHANGELOG.md) lists the changes in each release.
 
 **Updates** shows whether a newer stable GitHub release is available. The

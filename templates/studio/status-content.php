@@ -11,10 +11,11 @@
   <div class="studio-health-overview" data-service-warning="<?= $utilityWarning ? 'true' : 'false' ?>">
     <span class="studio-health-overview-icon" aria-hidden="true"><?= $utilityWarning ? '!' : '✓' ?></span>
     <div>
-      <strong><?= $escape($t($utilityWarning ? 'Dienststatus prüfen' : 'Alle erwarteten Dienste melden sich')) ?></strong>
+      <strong><?= $escape($t($utilityWarning ? 'Dienststatus prüfen' : 'Erwartete HTTP-Dienste und Worker-Signale erreichbar')) ?></strong>
       <p><?= $escape($t('Momentaufnahme, kein Live-Monitoring')) ?> · <?= $escape($t('Stand: {date}', ['date' => $formatTime($health['checkedAt'], true)])) ?></p>
     </div>
   </div>
+  <p class="studio-health-boundary"><?= $escape($t('Warteschlangen, Worker-Signale und interaktive Verfügbarkeit sind getrennte Zustände. Eine leere Warteschlange bestätigt keinen gesunden Worker.')) ?></p>
   <div class="studio-settings-health-grid">
     <?php foreach (['recheck' => 'Recheck-Worker', 'screenshot' => 'Screenshot-Worker'] as $kind => $label):
         $group = $health[$kind];
@@ -38,7 +39,7 @@
         </div>
       </div>
       <section class="studio-health-work" aria-labelledby="health-work-<?= $escape($kind) ?>">
-        <h4 id="health-work-<?= $escape($kind) ?>"><?= $escape($t('Arbeit & Warteschlange')) ?></h4>
+        <h4 id="health-work-<?= $escape($kind) ?>"><?= $escape($t('Warteschlange und Arbeit')) ?></h4>
         <dl class="studio-health-metrics">
           <?php if ($kind === 'recheck'): ?>
           <div data-tone="<?= $group['dueNow'] > 0 ? 'work' : 'neutral' ?>"><dt><?= $escape($t('Fällig jetzt')) ?></dt><dd><?= $escape($formatNumber($group['dueNow'])) ?></dd></div>
@@ -109,7 +110,7 @@
         </ul>
       </section>
       <section class="studio-health-context" aria-labelledby="health-interactive-availability">
-        <h4 id="health-interactive-availability"><?= $escape($t('Belegung')) ?></h4>
+        <h4 id="health-interactive-availability"><?= $escape($t('Gespeicherte Belegung')) ?></h4>
         <dl>
           <div><dt><?= $escape($t('Interaktiver Arbeitsplatz')) ?></dt><dd data-health-interactive-availability="<?= $escape($interactive['availability']) ?>"><?= $escape($t(['available' => 'Frei', 'busy' => 'Belegt', 'expired' => 'Sitzung abgelaufen', 'unknown' => 'Unbekannt'][$interactive['availability']])) ?></dd></div>
           <?php if ($interactive['expiresAt'] !== null): ?>
@@ -146,7 +147,7 @@
     </article>
   </div>
   <div class="studio-health-explainer">
-    <p><?= $escape($t('Grün bedeutet: alle erwarteten automatischen Worker senden aktuelle Signale; ihre Browserdienste sowie interaktiver Worker und Gateway antworten. Die Dienstprüfung startet keine Browseraufnahme.')) ?></p>
+    <p><?= $escape($t('Grün bezieht sich auf aktuelle Worker-Signale und HTTP-Antworten der erwarteten Dienste. Chromium, Bildschirmübertragung und WSS sind damit nicht bestätigt. Die Statusabfrage startet keine Browseraufnahme.')) ?></p>
     <p><?= $escape($t('Signale gelten für Rechecks 10 Minuten und für Screenshots 5 Minuten. Auftragszahlen enthalten die Historie; abgeschlossene Aufnahmen bestätigen nicht die Lesbarkeit der Bilddateien.')) ?></p>
     <nav aria-label="<?= $escape($t('Fehlerdiagnose')) ?>"><a href="/errors"><?= $escape($t('Fehlerübersicht öffnen')) ?> <span aria-hidden="true">→</span></a><a href="/errors?kind=missing" data-health-errors="missing"><?= $escape($t('Gespeicherte Bilddateien prüfen')) ?> <span aria-hidden="true">→</span></a></nav>
   </div>

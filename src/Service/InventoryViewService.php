@@ -23,7 +23,7 @@ final class InventoryViewService
     ) {
     }
 
-    /** @param array<string, mixed> $query @return array<string, string> */
+    /** @param array<string, mixed> $query @return array<string, string|list<string>> */
     public function normalize(array $query): array
     {
         [$filter] = $this->lists->parse($query);
@@ -36,7 +36,7 @@ final class InventoryViewService
         return $normalized;
     }
 
-    /** @param array<string, string> $query */
+    /** @param array<string, string|list<string>> $query */
     public function url(array $query): string
     {
         return '/findings?'.http_build_query($query, '', '&', PHP_QUERY_RFC3986);
@@ -124,6 +124,13 @@ final class InventoryViewService
             'assessment' => ['Manuelle Bewertung', ['unknown' => FindingReadLabels::assessment(null), 'confirmed' => FindingReadLabels::assessment('confirmed'), 'fixed' => FindingReadLabels::assessment('fixed'), 'discarded' => FindingReadLabels::assessment('discarded')]],
             'observation' => ['Technische Beobachtung', array_combine([...RetestResult::values(), 'none'], array_map(static fn (string $value): string => FindingReadLabels::observation($value === 'none' ? null : $value), [...RetestResult::values(), 'none']))],
             'contact' => ['Kontakt', ['yes' => 'Kontaktiert', 'no' => 'Nicht kontaktiert']],
+            'report_kind' => ['Meldeart', \App\Value\ReportKindLabels::CHOICES + \App\Value\ReportKindLabels::KIND_LABELS],
+            'cribrum' => ['Cribrum-Aussagen', null],
+            'extra_findings' => ['Zusatzbefunde', ['yes' => 'Vorhanden', 'no' => 'Keine']],
+            'new_findings' => ['Neu seit letzter Sichtung', ['yes' => 'Ja', 'no' => 'Nein']],
+            'cribrum_freshness' => ['Cribrum-Auswertung', ['current' => 'Aktuell', 'missing' => 'Fehlt', 'stale' => 'Veraltet']],
+            'cribrum_history' => ['Cribrum-Historie', ['1' => 'Historische Aussagen einschließen']],
+            'sort' => ['Sortierung', ['additional_first' => 'Zusatzbefunde zuerst', 'cribrum_changed' => 'Zuletzt neue Erkenntnisse', 'additional_count' => 'Anzahl Zusatzbefunde']],
             'claim' => ['Claim', \App\Value\ClaimLabels::CLAIMS],
             'claim_state' => ['Claim-Zustand', \App\Value\ClaimLabels::STATES],
             'review' => ['Review-Verfügbarkeit', ['open' => 'Nicht zurückgestellt', 'deferred' => 'Zurückgestellt']],
@@ -148,7 +155,7 @@ final class InventoryViewService
         return $result;
     }
 
-    /** @param array<string, string> $query */
+    /** @param array<string, string|list<string>> $query */
     public function describe(array $query): string
     {
         $parts = [];
@@ -156,7 +163,7 @@ final class InventoryViewService
             if (!isset($query[$key]) || ($key === 'scope' && $query[$key] === 'active' && count($query) > 1)) {
                 continue;
             }
-            $value = $field['values'] === null ? $query[$key] : ($field['values']->{$query[$key]} ?? $query[$key]);
+            $value = $field['values'] === null ? (is_array($query[$key]) ? implode(', ', $query[$key]) : $query[$key]) : ($field['values']->{$query[$key]} ?? $query[$key]);
             $parts[] = $field['label'].': '.$value;
         }
 

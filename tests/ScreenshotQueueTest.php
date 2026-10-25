@@ -8,8 +8,10 @@ use App\Dto\BrowserScreenshotResult;
 use App\Entity\Domain;
 use App\Entity\Evidence;
 use App\Entity\Finding;
+use App\Entity\HttpObservation;
 use App\Entity\RetestRun;
 use App\Entity\ScreenshotJob;
+use App\Exception\BrowserScreenshotCaptureException;
 use App\Repository\ScreenshotJobRepository;
 use App\Service\BrowserRetestClientInterface;
 use App\Service\BrowserInteractiveClientInterface;
@@ -168,6 +170,44 @@ final class ScreenshotQueueTest extends DatabaseTestCase
         self::assertTrue($retry->created);
         self::assertNotSame($first->getId(), $retry->job->getId());
         self::assertSame(ScreenshotJobStatus::QUEUED, $retry->job->getStatus());
+    }
+
+    public function testFailedScreenshotStillStoresAndClassifiesItsResponseObservation(): void
+    {
+        $finding = $this->finding('failed-response');
+        $finding->setUrl('http://failed-response.localhost/fixture?q=OPENBUGBOUNTY');
+        $this->entityManager->flush();
+        $observation = [
+            'schema' => 1,
+            'contentType' => 'text/html',
+            'httpStatus' => 500,
+            'finalUrl' => $finding->getUrl(),
+            'redirectChain' => [],
+            'headers' => ['content-type' => 'text/html'],
+            'rawHtml' => '<p>You have an error in your SQL syntax OPENBUGBOUNTY</p>',
+            'rawHtmlBytes' => 57,
+            'rawHtmlTruncated' => false,
+            'domText' => 'You have an error in your SQL syntax OPENBUGBOUNTY',
+            'domTextBytes' => 50,
+            'domTextTruncated' => false,
+        ];
+        $client = $this->createMock(BrowserScreenshotClientInterface::class);
+        $client->expects(self::once())->method('capture')->willThrowException(
+            new BrowserScreenshotCaptureException('ffmpeg fixture failed', $observation, 500, $finding->getUrl())
+        );
+        self::getContainer()->set(BrowserScreenshotClientInterface::class, $client);
+
+        $job = self::getContainer()->get(ScreenshotQueueService::class)->enqueue($finding)->job;
+        $processed = self::getContainer()->get(ScreenshotQueueService::class)->processNext();
+
+        self::assertSame($job->getId(), $processed?->getId());
+        self::assertSame(ScreenshotJobStatus::FAILED, $processed?->getStatus());
+        self::assertSame('ffmpeg fixture failed', $processed?->getErrorMessage());
+        $stored = $this->entityManager->getRepository(HttpObservation::class)->findOneBy(['screenshotJobId' => $job->getId()]);
+        self::assertNotNull($stored);
+        $classification = $stored->getClassification();
+        self::assertNotNull($classification);
+        self::assertContains('sql_injection', array_column($classification['suggestions'], 'claim'));
     }
 
     public function testInterruptedJobIsRecovered(): void

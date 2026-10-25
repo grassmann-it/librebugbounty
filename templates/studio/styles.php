@@ -4,3 +4,6 @@
 <script type="application/json" id="studio-shortcuts-config"><?= json_encode($studioShortcuts, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?></script>
 <link rel="stylesheet" href="/css/studio-shortcuts.css?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/css/studio-shortcuts.css'), 0, 16) ?>">
 <script src="/js/studio-shortcuts.js?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/js/studio-shortcuts.js'), 0, 16) ?>" defer></script>
+
+<link rel="stylesheet" href="/css/studio-cribrum.css?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/css/studio-cribrum.css'), 0, 16) ?>">
+<script src="/js/studio-cribrum.js?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/js/studio-cribrum.js'), 0, 16) ?>" defer></script>

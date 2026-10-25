@@ -12,6 +12,7 @@
   <meta name="theme-color" content="#121416">
   <title><?= $escape($t('Eingang')) ?> · <?= $escape(\App\AppInfo::NAME.' '.\App\AppInfo::RELEASE_NAME) ?></title>
   <?php require __DIR__.'/styles.php'; ?>
+  <link rel="stylesheet" href="/css/studio-intake.css?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/css/studio-intake.css'), 0, 16) ?>">
   <script src="/js/i18n.js" defer></script>
   <script src="/js/intake.js?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/js/intake.js'), 0, 16) ?>" defer></script>
   <script src="/js/intake-help.js?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/js/intake-help.js'), 0, 16) ?>" defer></script>
@@ -32,6 +33,7 @@
               <h1 id="studio-intake-title"><?= $escape($t('URL erfassen')) ?></h1>
               <a class="studio-help-icon" href="/intake/help" data-intake-help-open aria-haspopup="dialog" aria-label="<?= $escape($t('Hilfe zu URL und Kennzeichen')) ?>" title="<?= $escape($t('Hilfe zu URL und Kennzeichen')) ?>">?</a>
             </div>
+            <p class="studio-intake-intro"><?= $escape($t('Eine URL erfassen. Der Fall wird zuerst gespeichert; der Screenshot wird danach im Hintergrund eingereiht.')) ?></p>
           </div>
           <span class="studio-key-hint" aria-hidden="true"><kbd>↵</kbd> <?= $escape($t('zum Erfassen')) ?></span>
         </div>
@@ -51,6 +53,7 @@
               <?= $escape($t('Erfassen')) ?>
             </button>
           </div>
+          <p class="studio-intake-save-hint"><?= $escape($t('Erfassen speichert den Fall vor der Browseraufnahme. Ob ein Screenshot vorliegt, siehst du anschließend im Verlauf.')) ?></p>
 
           <details class="studio-details">
             <summary>
@@ -58,10 +61,18 @@
               <span class="studio-payload-preview"><?= $escape($t('Kennzeichen')) ?> <span data-intake-payload-label><?= $escape($defaultPayload) ?></span></span>
             </summary>
             <div class="studio-details-fields">
+              <label for="studio-declared-type"><?= $escape($t('Vermutete Fundart')) ?> <span class="studio-optional"><?= $escape($t('Optional')) ?></span>
+                <select id="studio-declared-type" name="declaredType">
+                  <?php foreach (['unclassified' => 'Automatisch aus Belegen', 'reflected_xss' => 'XSS', 'information_disclosure' => 'Information Disclosure', 'sql_injection' => 'SQLi-Verdacht', 'local_file_inclusion' => 'LFI-Verdacht', 'remote_file_inclusion' => 'RFI-Verdacht', 'other' => 'Andere'] as $kind => $label): ?>
+                    <option value="<?= $escape($kind) ?>"><?= $escape($t($label)) ?></option>
+                  <?php endforeach; ?>
+                </select>
+                <span class="studio-marker-hint"><?= $escape($t('Die Auswahl bestätigt keinen Fund. XSS benötigt einen zugeordneten Worker-Beleg.')) ?></span>
+              </label>
               <div class="studio-marker-field">
-                <label for="studio-payload"><?= $escape($t('Kennzeichen')) ?></label>
+                <label for="studio-payload"><?= $escape($t('Kennzeichen')) ?> <span class="studio-optional"><?= $escape($t('Optional')) ?></span></label>
                 <input id="studio-payload" name="payload" value="<?= $escape($defaultPayload) ?>" placeholder="<?= $escape($defaultPayload) ?>" spellcheck="false" aria-describedby="studio-marker-hint">
-                <p id="studio-marker-hint" class="studio-marker-hint"><?= $escape($t('Erwarteter Dialogtext beim Nachtesten')) ?></p>
+                <p id="studio-marker-hint" class="studio-marker-hint"><?= $escape($t('Erwarteter Dialogtext beim Nachtesten; ergänzt keinen Payload in der URL und bestätigt keinen Fund.')) ?></p>
               </div>
               <label for="studio-notes"><?= $escape($t('Notiz')) ?> <span class="studio-optional"><?= $escape($t('Optional')) ?></span>
                 <textarea id="studio-notes" name="annotate" placeholder="<?= $escape($t('Eine Notiz für diesen Fall')) ?>" rows="2"></textarea>
@@ -123,6 +134,7 @@
           <div id="intake-toasts" class="studio-toasts" role="status" aria-live="polite"></div>
         </div>
         <p class="studio-session-hint" data-intake-history-hint><?= $escape($t('Die letzten 50 Eingaben bleiben in diesem Tab erhalten.')) ?></p>
+        <p class="studio-intake-assessment-note"><?= $escape($t('Vermutete Fundart und Kennzeichen sind Eingabehilfen, keine manuelle Bewertung oder bestätigter Befund.')) ?></p>
       </section>
     </main>
 

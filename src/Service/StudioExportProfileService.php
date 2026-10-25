@@ -401,6 +401,9 @@ final class StudioExportProfileService
         if ($options->profile === 'state' && $options->includeAssessment) {
             $record['legacy'] = ['status' => $finding->legacyStatus, 'reviewState' => $finding->legacyReviewState];
         }
+        if ($options->includeAssessment) {
+            $record['cribrum'] = CribrumSummaryExport::fromReadView($finding, $detail['claims'], $options->filter->cribrumHistory);
+        }
         if ($options->includeAssessment && $detail['claims'] !== []) {
             $record['claims'] = $options->profile === 'report'
                 ? array_values(array_filter($detail['claims'], static fn (array $claim): bool => $claim['reportSelected'] && in_array($claim['state'], ['observed', 'suspected', 'confirmed'], true)))
@@ -504,7 +507,19 @@ final class StudioExportProfileService
                     $observationRefs[$id] ??= 'observation-'.(count($observationRefs) + 1);
                     $record['claims'][$claimIndex]['observation']['id'] = $observationRefs[$id];
                 }
-                if ($options->includeHttpObservations) $record['sourceObservationIds'] = $observationRefs;
+                $selectedObservationRefs = $observationRefs;
+                // Internal context retains every ledger claim, including unselected hints.
+                // Use package-local references without adding unselected HTTP artifacts.
+                foreach ($record['cribrum']['claims'] ?? [] as $claimIndex => $claim) {
+                    if ($claim['observation'] === null) continue;
+                    $id = $claim['observation']['id'];
+                    $observationRefs[$id] ??= 'observation-'.(count($observationRefs) + 1);
+                    $record['cribrum']['claims'][$claimIndex]['observation']['id'] = $observationRefs[$id];
+                }
+                if (isset($record['cribrum'])) {
+                    $record['cribrum'] = CribrumSummaryExport::localizeReferences($record['cribrum'], $observationRefs);
+                }
+                if ($options->includeHttpObservations) $record['sourceObservationIds'] = $selectedObservationRefs;
                 $record['screenshots'] = [];
                 foreach ($selection['byFinding'][$finding->id] ?? [] as $imageIndex => $image) {
                     $item = [

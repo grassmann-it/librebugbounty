@@ -1,0 +1,354 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Cribrum coverage evaluation v1",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "runs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "pack": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "rule": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "detector": {
+            "enum": [
+              "reflection-triage-v1",
+              "sql-triage-v1",
+              "file-triage-v1",
+              "context-triage-v1"
+            ]
+          },
+          "mode": {
+            "enum": [
+              "active",
+              "shadow"
+            ]
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "familyOutcomes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "family": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                },
+                "status": {
+                  "enum": [
+                    "completed",
+                    "limited",
+                    "unavailable",
+                    "failed"
+                  ]
+                },
+                "stages": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "stage": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      },
+                      "representation": {
+                        "enum": [
+                          "raw",
+                          "dom_text",
+                          "dialog",
+                          null
+                        ]
+                      },
+                      "status": {
+                        "enum": [
+                          "completed",
+                          "limited",
+                          "unavailable",
+                          "failed"
+                        ]
+                      },
+                      "issues": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "code": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256
+                            },
+                            "detector": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256
+                            },
+                            "family": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256
+                            },
+                            "stage": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256
+                            },
+                            "representation": {
+                              "enum": [
+                                "raw",
+                                "dom_text",
+                                "dialog",
+                                null
+                              ]
+                            },
+                            "counters": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ],
+                                "minimum": 0
+                              }
+                            },
+                            "operation": {
+                              "enum": [
+                                "match",
+                                "match_all",
+                                "split",
+                                "replace",
+                                "replace_callback"
+                              ]
+                            },
+                            "pcreCode": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "candidate": {
+                              "type": "object",
+                              "properties": {
+                                "representation": {
+                                  "enum": [
+                                    "raw",
+                                    "dom_text",
+                                    "dialog"
+                                  ]
+                                },
+                                "representationSha256": {
+                                  "type": "string",
+                                  "pattern": "^[a-f0-9]{64}$"
+                                },
+                                "start": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "length": {
+                                  "type": "integer",
+                                  "minimum": 1
+                                }
+                              },
+                              "required": [
+                                "representation",
+                                "representationSha256",
+                                "start",
+                                "length"
+                              ],
+                              "additionalProperties": true
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "detector",
+                            "family",
+                            "stage",
+                            "representation"
+                          ],
+                          "additionalProperties": true
+                        },
+                        "minItems": 0
+                      }
+                    },
+                    "required": [
+                      "stage",
+                      "representation",
+                      "status",
+                      "issues"
+                    ],
+                    "additionalProperties": true,
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "status": {
+                              "const": "completed"
+                            }
+                          }
+                        },
+                        "then": {
+                          "properties": {
+                            "issues": {
+                              "maxItems": 0
+                            }
+                          }
+                        },
+                        "else": {
+                          "properties": {
+                            "issues": {
+                              "minItems": 1
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "minItems": 1
+                },
+                "counters": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "properties": {
+                    "candidatesConsidered": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "signalsQualified": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "candidatesExcluded": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "candidatesConsidered",
+                    "signalsQualified",
+                    "candidatesExcluded"
+                  ]
+                }
+              },
+              "required": [
+                "family",
+                "status",
+                "stages",
+                "counters"
+              ],
+              "additionalProperties": true
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "pack",
+          "version",
+          "rule",
+          "detector",
+          "mode",
+          "outputs",
+          "familyOutcomes"
+        ],
+        "additionalProperties": true
+      },
+      "minItems": 1
+    },
+    "engineIssues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "stage": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "representation": {
+            "enum": [
+              "raw",
+              "dom_text",
+              "dialog",
+              null
+            ]
+          },
+          "operation": {
+            "enum": [
+              "match",
+              "match_all",
+              "split",
+              "replace",
+              "replace_callback"
+            ]
+          },
+          "pcreCode": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "status": {
+            "enum": [
+              "failed",
+              "limited"
+            ]
+          },
+          "counters": {
+            "type": "object",
+            "additionalProperties": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            }
+          }
+        },
+        "required": [
+          "code",
+          "stage",
+          "representation"
+        ],
+        "additionalProperties": true
+      },
+      "minItems": 0
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "runs"
+  ],
+  "additionalProperties": true
+}

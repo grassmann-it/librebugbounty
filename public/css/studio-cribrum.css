@@ -1,0 +1,21 @@
+/* Shared C1 evidence presentation. Domain decisions are never encoded by selection. */
+.cribrum-summary-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.5rem; }
+.cribrum-summary-heading h2 { margin:0; font-size:14px; }
+.cribrum-summary-heading > span,.cribrum-action-help,.cribrum-scroll-cue { color:#bdc9d8; font-size:12px; line-height:1.6; }
+.cribrum-action-help { margin:.35rem 0 .7rem; }
+.cribrum-badges:not(:has(> li)) { display:none; }
+.cribrum-claim-source { color:#bdc9d8; font-size:11px; }
+.cribrum-scroll-cue { margin:.3rem 0; color:#ffdf9e; }
+.cribrum-summary[data-cribrum-layout="c1"] > .cribrum-badges { max-height:10rem; overflow-y:auto; padding:.35rem; scrollbar-width:thin; scrollbar-color:#859bb6 #19212c; }
+.cribrum-proof-panels { min-width:0; }
+.cribrum-proof-panels[data-enhanced] > .cribrum-proof { margin-top:0; padding:16px; background:#1c242e; }
+.cribrum-proof[hidden] { display:none !important; }
+.cribrum-proof:focus { outline:3px solid #b7d5ff; outline-offset:2px; }
+.cribrum-proof summary { cursor:pointer; color:#edf5ff; font-size:14px; font-weight:650; line-height:1.5; }
+.cribrum-proof-panels pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:20rem; overflow:auto; font-size:12px; }
+.cribrum-proof-panels .studio-record-data { display:grid; grid-template-columns:minmax(80px,.7fr) minmax(0,1.5fr); gap:8px 12px; font-size:12px; line-height:1.6; }
+.cribrum-proof-panels .studio-record-data dt { color:#b5c3d3; }
+.cribrum-proof-panels .studio-record-data dd { margin:0; overflow-wrap:anywhere; }
+.cribrum-proof-link[aria-current="true"] { outline:1px solid #b7d5ff; outline-offset:3px; border-radius:3px; }
+.cribrum-proof-panels a:focus-visible,.cribrum-proof-panels summary:focus-visible { outline:3px solid #b7d5ff; outline-offset:3px; }
+@media(max-width:640px) { .cribrum-summary[data-cribrum-layout="c1"] > .cribrum-badges { max-height:15rem; } .cribrum-proof-panels .studio-record-data { grid-template-columns:1fr; gap:4px; } }

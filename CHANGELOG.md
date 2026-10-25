@@ -5,40 +5,100 @@ repository's tagged commits.
 
 ## 2.2.0 — Cribrum (unreleased)
 
+Cribrum focuses on the local response classifier: explainable evidence, multiple
+findings per case and a shared interpretation from Review through report export.
+The release remains in preparation; candidate detector packs require explicit
+selection and default to shadow evaluation.
+
 ### Added
 
+- Bounded, private HTTP/DOM observations from existing browser runs, hash-verified
+  artifacts and a deterministic local classifier with versioned declarative
+  rulepacks, evidence spans and rule explanations. SQLi/LFI/RFI are never
+  automatically confirmed. Classification preserves manual assessment and sends
+  no additional target requests during normal browser processing.
+- Explicitly selectable `behavior-triage` 1.5.1 candidate pack with registered
+  SQL, file-include, reflection and context/disclosure/WAF detectors. Evidence
+  distinguishes SQL errors from structural SQL suspicion, include diagnostics
+  from LFI/RFI suspicion, and reflection from XSS execution. Candidate selection
+  and activation are separate; installing the code activates no candidate pack
+  or inventory-wide reclassification.
+- Consolidated classifier engine 1.3.2 with source-bound query disclosure,
+  additional stack/runtime and backend-source observations, neutral diagnostic
+  catalogue context and additional WAF/challenge recognition.
+- Per-detector evaluation coverage with stage outcomes and limits. Partial,
+  unavailable and failed evaluation remain visible; no-hit results alone do not
+  establish complete coverage or a pure-XSS case.
 - Multiple claims per case with immutable decision history, claim-aware Review,
   inventory filters, statistics, saved views and report exports. Legacy cases and
   reflected-XSS exports remain compatible.
-- Bounded, private HTTP/DOM observations from existing browser runs, hash-verified
-  artifacts and a deterministic local classifier with versioned declarative
-  rulepacks. SQLi/LFI/RFI stay suspected until manually reviewed. Classification
-  never replaces assessment; automatic classification sends no additional target requests.
+- Visible finding selection in normal and focus Review, shared by buttons,
+  keyboard and swipe. Selection retains each finding's certainty. Deselecting a
+  proposed finding records a case-specific rejection and queues its originating
+  rule for human review without disabling the rule. Saved evidence and decision
+  history remain available.
+- Shared Cribrum badges with certainty and evidence links across inventory,
+  workbasket, detail, Review and export preview. Filters and ordering select
+  additional findings, new review context, report kind and current/stale/missing
+  report projections consistently in the UI and corresponding CLIs.
+- Versioned report projections with immutable, source- and PoC-bound evidence,
+  explicit component selection, mixed-case summaries and WAF review holds.
+  `app:report:refresh` previews or refreshes explicitly selected local cases
+  without classification, browser jobs or target requests. Public contributor
+  guides, rule cards, evidence schemas and report-handoff contracts document the
+  classifier and report-gen integration.
 - Observation diagnostics, active pack versions and storage policy in Settings
   and Status. Local `app:cribrum:reclassify` supports finding selection and dry
-  runs, preserves manual decisions and historical results, and reuses artifacts.
+  runs, a creation-time `--since` window, preserves manual decisions and historical
+  results, and reuses artifacts.
 - CLI-only `app:cribrum:classify` probes one explicitly supplied URL or evaluates
   a local HTTP response offline, with JSON output and optional rule explanations.
-  It uses active rulepacks without saving cases, observations or jobs.
+  Offline input also supports explicit candidate/shadow comparisons. It saves
+  no cases, observations or jobs.
 - Backup listing and explicit retention previews, observation-aware storage
   auditing, permission preflight and update information separating release
   comparison from installation provenance.
 - Configurable image-Review shortcuts and simultaneous page-navigation key
   combinations, with consistent hints/help and input protection. Optional
   paste-to-submit in Intake starts disabled and uses normal URL validation.
+- Automatic Cribrum coverage for every valid bounded browser response: queued
+  screenshots, technical rechecks and interactive saves retain observations with
+  non-HTML bodies and non-2xx status codes. A response reached before a screenshot
+  failure is classified and retained instead of being discarded with the image result.
 - Explicit single-case and filtered queue actions for missing images. A readable
   image for the active PoC resolves the current task while historical missing
   files remain traceable in the artifact audit.
 
 ### Changed
 
+- PHP 8.4 compatibility and PHP 8.3/8.4 CI coverage; PHP 8.3 remains the minimum.
 - Reports distinguish observations, suspicion and manual confirmation. Private
   HTTP artifacts require explicit report selection; default exports omit them.
+- Report eligibility requires current qualified evidence. Missing, stale or
+  shadow-only classification does not become a confirmed finding or a fresh
+  report basis; reflection alone does not establish XSS execution. Qualified
+  additions remain visible in combined reports with their original certainty.
 - A case remains open while any reported claim is unresolved. Old cases without
   claims retain their existing behavior.
 
 ### Fixed
 
+- Qualify concrete SQL and runtime diagnostics in successful HTTP responses while
+  excluding documentation, translation catalogs and generic error/product text.
+  Observed database errors remain distinct from SQL-injection suspicion.
+- Keep SQL query disclosures tied to genuine statements and their response carrier:
+  ordinary `Select`/`From` prose, HTML attribute lookalikes and SQL supplied by
+  the request do not establish exposed internals. Server-generated queries in
+  hidden form fields and adjacent database diagnostics retain exact source spans.
+- Decode structured error fields without promoting neighboring JSON labels, and
+  align bounded JSON scans to UTF-8 character boundaries while retaining budget
+  and partial-coverage reporting.
+- Require a complete numeric Oracle error code before treating an `ORA-` match
+  as a SQL diagnostic; ordinary navigation text no longer produces this SQLi
+  false positive.
+- Generic case confirmation no longer silently adopts all classifier claims.
+- Review and case layouts keep the screenshot prominent, with scoped stylesheet
+  cache invalidation and separate evidence/history access.
 - Cover the observation-based HTTP fallback path in worker retest regressions.
 
 ## 2.1.1 — Moneta (Conatus) (2026-10-19)

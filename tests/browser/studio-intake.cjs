@@ -96,7 +96,7 @@ async function main() {
         input: rect(document.querySelector('#intake-form [name="url"]')),
         button: rect(document.querySelector('#intake-form button[type="submit"]')),
         list: rect(document.querySelector('#intake-history-list')),
-        rows: [...document.querySelectorAll('#intake-history-list [data-intake-entry]')].slice(0, 3).map(rect),
+        rows: [...document.querySelectorAll('#intake-history-list [data-intake-entry]')].map(rect),
       };
     });
     assert.ok(geometry.documentWidth <= width, `${width}: document overflows horizontally`);
@@ -105,14 +105,63 @@ async function main() {
     assert.ok(geometry.input.x >= 0 && geometry.input.right <= width, `${width}: URL input extends to ${geometry.input.right}`);
     assert.ok(geometry.button.x >= 0 && geometry.button.right <= width, `${width}: submit extends to ${geometry.button.right}`);
     if (width >= 640) {
-      assert.equal(geometry.rows.length, 3);
+      assert.ok(geometry.rows.length >= 3, `${width}: expected populated history`);
       for (const row of geometry.rows) {
         assert.ok(row.x >= 0 && row.right <= width, `${width}: row extends from ${row.x} to ${row.right}`);
-        assert.ok(row.y >= geometry.list.y && row.bottom <= Math.min(geometry.list.bottom, height), `${width}: row ${row.y}..${row.bottom} exceeds visible list ${geometry.list.y}..${geometry.list.bottom}`);
       }
+      assert.ok(geometry.rows[0].y >= geometry.list.y && geometry.rows[0].bottom <= Math.min(geometry.list.bottom, height), `${width}: newest row is not visible`);
+      const rowActions = await rows.evaluateAll(items => items.map(row => [...row.querySelectorAll('a[href], summary, button')].filter(node => node.getClientRects().length && getComputedStyle(node).visibility !== 'hidden').length));
+      assert.ok(rowActions.every(count => count > 0), `${width}: each history row needs a visible keyboard action (${rowActions.join(', ')})`);
+      await page.locator('#intake-history-list').focus();
+      const beforeEnd = await page.locator('#intake-history-list').evaluate(list => ({ active: document.activeElement === list, scrollTop: list.scrollTop, scrollHeight: list.scrollHeight, clientHeight: list.clientHeight, overflowY: getComputedStyle(list).overflowY }));
+      await page.keyboard.press('End');
+      const endFrames = await page.evaluate(async () => {
+        const list = document.querySelector('#intake-history-list');
+        const frames = [];
+        let stableFrames = 0;
+        for (let frame = 0; frame < 90; frame += 1) {
+          await new Promise(resolve => requestAnimationFrame(resolve));
+          frames.push({ frame, scrollTop: list.scrollTop, windowY: scrollY, active: document.activeElement === list });
+          if (list.scrollHeight <= list.clientHeight) break;
+          if (frames.length > 1 && Math.abs(frames.at(-1).scrollTop - frames.at(-2).scrollTop) < 0.01) stableFrames += 1;
+          else stableFrames = 0;
+          if (list.scrollTop > 0 && stableFrames >= 2) break;
+        }
+        return frames;
+      });
+      assert.ok(beforeEnd.active, `${width}: history list did not receive focus before End`);
+      assert.ok(beforeEnd.scrollHeight <= beforeEnd.clientHeight || endFrames.at(-1).scrollTop > 0, `${width}: End did not scroll history; before=${JSON.stringify(beforeEnd)} frames=${JSON.stringify(endFrames.slice(0, 12))} last=${JSON.stringify(endFrames.at(-1))}`);
+      const historyAccess = await page.locator('#intake-history-list').evaluate(list => {
+        const last = list.querySelector('[data-intake-entry]:last-child');
+        const listRect = list.getBoundingClientRect();
+        const rowRect = last.getBoundingClientRect();
+        const result = { after: list.scrollTop, scrollHeight: list.scrollHeight, clientHeight: list.clientHeight, rowTop: rowRect.top, rowBottom: rowRect.bottom, listTop: listRect.top, listBottom: listRect.bottom };
+        list.scrollTop = 0;
+        return result;
+      });
+      if (historyAccess.scrollHeight > historyAccess.clientHeight) {
+        assert.ok(historyAccess.after > 0, `${width}: history is clipped without keyboard scrolling`);
+        assert.ok(historyAccess.rowTop >= historyAccess.listTop - 1 && historyAccess.rowBottom <= Math.min(historyAccess.listBottom, height) + 1, `${width}: oldest row cannot be scrolled into view; ${JSON.stringify(historyAccess)}`);
+      }
+      const focusables = page.locator('#intake-history-list [data-intake-entry] a[href], #intake-history-list [data-intake-entry] summary, #intake-history-list [data-intake-entry] button');
+      const focusableCount = await focusables.count();
+      assert.equal(focusableCount, rowActions.reduce((total, count) => total + count, 0), `${width}: only visible history actions may be tested for Tab access`);
+      await page.locator('#intake-history-list').focus();
+      for (let index = 0; index < focusableCount; index += 1) {
+        await page.keyboard.press('Tab');
+        const access = await focusables.nth(index).evaluate(node => {
+          const list = node.closest('#intake-history-list');
+          const item = node.getBoundingClientRect();
+          const viewport = list.getBoundingClientRect();
+          return { focused: document.activeElement === node, top: item.top, bottom: item.bottom, listTop: viewport.top, listBottom: viewport.bottom, clipped: list.scrollHeight > list.clientHeight };
+        });
+        assert.ok(access.focused, `${width}: history action ${index + 1} is skipped by Tab`);
+        if (access.clipped) assert.ok(access.top >= access.listTop && access.bottom <= Math.min(access.listBottom, height), `${width}: focused history action ${index + 1} is clipped`);
+      }
+      await page.evaluate(() => { document.querySelector('#intake-history-list').scrollTop = 0; window.scrollTo(0, 0); });
     }
     if (screenshot) await page.screenshot({ path: path.join(output, `studio-${width}x${height}.png`), fullPage: true });
-    mark(`${width}×${height}: input/action visible, no horizontal overflow${width >= 640 ? ', three visible rows below progress' : ''}`);
+    mark(`${width}×${height}: input/action visible, no horizontal overflow${width >= 640 ? ', history rows accessible' : ''}`);
     return geometry;
   };
 

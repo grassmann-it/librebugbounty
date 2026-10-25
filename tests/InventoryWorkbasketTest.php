@@ -337,6 +337,12 @@ final class InventoryWorkbasketTest extends DatabaseTestCase
         foreach ($xpath->query('.//input[@name and not(@disabled)] | .//select[@name and not(@disabled)]', $form) as $control) {
             $name = $control->getAttribute('name');
             if ($control->tagName === 'select') {
+                if ($control->hasAttribute('multiple')) {
+                    foreach ($xpath->query('.//option[@selected and not(@disabled)]', $control) as $selected) {
+                        $values[rtrim($name, '[]')][] = $selected->getAttribute('value');
+                    }
+                    continue;
+                }
                 $options = $control->getElementsByTagName('option');
                 $selected = $options->item(0);
                 foreach ($options as $option) {

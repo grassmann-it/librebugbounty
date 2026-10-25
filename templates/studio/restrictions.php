@@ -2,6 +2,7 @@
 <section class="studio-settings-panel" id="restrictions" aria-labelledby="restrictions-title" data-restrictions>
   <div class="studio-settings-panel-heading"><h2 id="restrictions-title"><?= $escape($t('Sperrzentrale')) ?></h2></div>
   <p class="studio-settings-field-hint"><?= $escape($t('Fall- und Domainsperren wirken unabhängig. Domainsperren gelten nur für den exakten Hostnamen und bleiben auch ohne Fall erhalten. Aufheben plant keine Rechecks neu.')) ?></p>
+  <p class="studio-follow-up-scope-note"><?= $escape($t('Kontakt- und Prüfsperren werden einzeln aufgehoben. Das Wiederöffnen eines Falls hebt diese Sperren nicht auf.')) ?></p>
   <?php if ($restrictionError): ?><p class="studio-settings-feedback" data-tone="error" role="alert"><?= $escape($restrictionError) ?></p><?php endif; ?>
   <?php if (!$restrictions['available']): ?>
     <p><?= $escape($t('Bitte zuerst die Datenbankmigration für Nachverfolgung und Kontakte ausführen.')) ?></p>

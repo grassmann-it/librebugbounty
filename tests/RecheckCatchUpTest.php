@@ -84,7 +84,7 @@ final class RecheckCatchUpTest extends DatabaseTestCase
         // Due slots stay untouched (no rewrite needed), claims survive,
         // protected/reviewed/discarded/fresh findings keep their schedule.
         self::assertSame(
-            (new \DateTimeImmutable('-30 days'))->format('Y-m-d H:i:s'),
+            $due->getNextDueAt()->format('Y-m-d H:i:s'),
             substr((string) $connection->fetchOne('SELECT next_due_at FROM finding WHERE id = ?', [$due->getId()]), 0, 19),
         );
         self::assertSame($claimedBefore, $connection->fetchOne('SELECT next_due_at FROM finding WHERE id = ?', [$claimed->getId()]));

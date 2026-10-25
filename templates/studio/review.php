@@ -1,6 +1,7 @@
 <?php
 
 use App\Value\FindingReadLabels;
+use App\Value\CribrumBadgeCatalog;
 
 /** @var \App\Dto\ReviewQueueView $view */
 /** @var callable $escape */
@@ -21,7 +22,7 @@ $selectedEvidenceId = $view->selectedEvidenceId;
 $lastReviewedId = $view->lastReviewedId;
 $submitted ??= [];
 $kindLabels = ['all' => 'Alle offenen', 'changed' => 'Neue Hinweise', 'inconclusive' => 'Uneindeutig', 'error' => 'Technischer Fehler', 'unchecked' => 'Ohne technische Prüfung'];
-$noticeReasonLabels = ['contradiction' => 'Widerspruch zum Urteil', 'inconclusive' => 'Uneindeutiges Ergebnis', 'error' => 'Technischer Fehler'];
+$noticeReasonLabels = ['classification_changed' => 'Klassifikation geändert · Sichtung erforderlich', 'waf_block' => 'Neue WAF-Blockade · Mail wartet auf Sichtung', 'contradiction' => 'Widerspruch zum Urteil', 'inconclusive' => 'Uneindeutiges Ergebnis', 'error' => 'Technischer Fehler'];
 $storedTime = static function (?string $value) use ($formatTime): string {
     return $formatTime($value === null || $value === '' ? null : new \DateTimeImmutable($value, new \DateTimeZone('UTC')), true);
 };
@@ -30,18 +31,27 @@ $claimLabels = [
     'xss' => 'XSS', 'sql_injection' => 'SQL-Injection', 'local_file_inclusion' => 'Local File Inclusion',
     'remote_file_inclusion' => 'Remote File Inclusion', 'information_disclosure' => 'Information Disclosure',
     'error_disclosure' => 'Fehlermeldung offengelegt', 'stack_trace' => 'Stacktrace',
+    'component:sql_error_observation' => 'SQL-Fehler beobachtet',
+    'component:xss_confirmed' => 'XSS',
 ];
 $claimStateLabels = [
     'observed' => 'Beobachtet', 'suspected' => 'Verdacht', 'confirmed' => 'Bestätigt',
     'rejected' => 'Abgelehnt', 'resolved' => 'Behoben', 'stale' => 'Aktuell nicht belegt',
 ];
-$recommendedClaims = [];
-foreach ($view->claims as $claimRow) {
-    if (($claimRow['suggestedState'] ?? null) !== null) {
-        $recommendedClaims[] = ($claimLabels[$claimRow['claim']] ?? $claimRow['claim']).($claimRow['suggestedState'] === 'suspected' ? ' ('.$t('Verdacht').')' : '');
-    }
-}
-$submittedClaims = is_array($submitted['claims'] ?? null) ? $submitted['claims'] : [];
+$submittedClaimSelection = ($submitted['claim_selection_version'] ?? null) === '1' && is_array($submitted['claim_selection'] ?? null)
+    ? $submitted['claim_selection'] : null;
+$reviewClaimRows = $view->claims;
+usort($reviewClaimRows, static function (array $a, array $b) use ($locale): int {
+    $historical = static fn (array $row): int => in_array($row['selectionState'] ?? $row['state'] ?? null, ['rejected', 'resolved', 'stale'], true) ? 1 : 0;
+    return [$historical($a), CribrumBadgeCatalog::entry((string) ($a['displayCode'] ?? $a['claim']), $locale)['rank'], $a['claim']]
+        <=> [$historical($b), CribrumBadgeCatalog::entry((string) ($b['displayCode'] ?? $b['claim']), $locale)['rank'], $b['claim']];
+});
+$reviewSelectedCount = count(array_filter($reviewClaimRows, static function (array $row) use ($submittedClaimSelection): bool {
+    if (($row['kind'] ?? null) === 'proof') return (bool) ($row['selectionSeeded'] ?? false);
+    return $submittedClaimSelection !== null
+        ? (($submittedClaimSelection[$row['claim']]['selected'] ?? null) === '1')
+        : (bool) ($row['selectionSeeded'] ?? false);
+}));
 $jobLabel = static fn (string $status): string => $t(match ($status) {
     'queued' => 'Screenshot vorgemerkt',
     'running' => 'Screenshot wird aufgenommen',
@@ -117,8 +127,8 @@ foreach ($detail?->screenshots ?? [] as $index => $shot) {
   <meta name="theme-color" content="#121416">
   <title><?= $escape($t('Review')) ?> · <?= $escape(\App\AppInfo::NAME.' '.\App\AppInfo::RELEASE_NAME) ?></title>
   <?php require __DIR__.'/styles.php'; ?>
-  <link rel="stylesheet" href="/css/studio-review.css">
-  <link rel="stylesheet" href="/css/studio-review-focus.css">
+  <link rel="stylesheet" href="/css/studio-review.css?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/css/studio-review.css'), 0, 16) ?>">
+  <link rel="stylesheet" href="/css/studio-review-focus.css?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/css/studio-review-focus.css'), 0, 16) ?>">
   <link rel="stylesheet" href="/css/studio-recovery.css?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/css/studio-recovery.css'), 0, 16) ?>">
   <script src="/js/i18n.js" defer></script>
   <script src="/js/studio-review-viewer.js" defer></script>
@@ -127,7 +137,7 @@ foreach ($detail?->screenshots ?? [] as $index => $shot) {
   <script type="module" src="/js/studio-review-novnc.js?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/js/studio-review-novnc.js'), 0, 16) ?>"></script>
 </head>
 <body data-studio data-studio-review data-review-trail="<?= $escape($reviewTrailId) ?>" data-review-decision-delay="<?= $reviewDecisionDelaySeconds ?>" data-total="<?= $view->total ?>" data-remaining="<?= $view->remaining ?>" data-current-id="<?= $escape($finding?->getId() ?? '') ?>">
-  <div data-review-preloads="<?= $escape(json_encode($view->preloadImages, JSON_THROW_ON_ERROR)) ?>" class="studio-shell studio-review-shell<?= $finding !== null || $reviewBackAvailable ? ' review-has-card' : '' ?><?= $canKeep ? ' review-has-notice' : '' ?>">
+  <div data-review-preloads="<?= $escape(json_encode($view->preloadImages, JSON_THROW_ON_ERROR)) ?>" class="studio-shell studio-review-shell<?= $finding !== null || $reviewBackAvailable ? ' review-has-card' : '' ?><?= $canKeep ? ' review-has-notice' : '' ?><?= $finding !== null && $view->claims !== [] ? ' review-has-claims' : '' ?>">
     <header class="studio-header">
       <?php require __DIR__.'/brand.php'; ?>
       <div class="studio-header-tools">
@@ -240,6 +250,12 @@ foreach ($detail?->screenshots ?? [] as $index => $shot) {
               <details class="review-inspector" open data-review-inspector><summary><?= $escape($t('Angaben & Optionen')) ?></summary>
               <aside class="review-source" aria-labelledby="review-source-title" data-review-poc>
                 <button type="button" class="review-button review-pin" data-review-pin aria-pressed="false" hidden><?= $escape($t('Seitenleiste anheften')) ?></button>
+                        <div class="review-state-rail" aria-label="<?= $escape($t('Bewertung und Beobachtung')) ?>">
+              <div><span><?= $escape($t('Manuelle Bewertung')) ?></span><strong><?= $escape($t(FindingReadLabels::assessment($finding->getManualAssessment(), $finding->getDiscardReason()))) ?></strong></div>
+              <div><span><?= $escape($t('Letzte technische Beobachtung')) ?></span><strong><?= $escape($t(FindingReadLabels::observation($latestRun?->getResult()))) ?></strong></div>
+            </div>
+                <?php $reportSummaryCompact = false; $reportSummaryDeferDetails = false; require __DIR__.'/report-summary.php'; ?>
+                <div class="review-cribrum-host" data-cribrum-panel-host></div>
 
             <?php if ($isRecoveryReview): ?>
               <section class="review-notice" data-review-resumed><h3><?= $escape($t('Zurückgestellter Fall wieder zur Sichtung')) ?></h3><p><?= $escape($t('Die Wiederaufnahme ändert dein Urteil nicht. Prüfe den aktuellen Stand; du kannst die Bewertung beibehalten oder neu entscheiden.')) ?></p></section>
@@ -289,39 +305,10 @@ foreach ($detail?->screenshots ?? [] as $index => $shot) {
               <input type="hidden" name="images" value="<?= $escape($view->images) ?>">
               <input type="hidden" name="after" value="<?= $escape($view->after ?? '') ?>">
               <input type="hidden" name="displayed_evidence_id" value="<?= $escape($selectedEvidenceId ?? '') ?>" data-review-displayed-evidence>
+              <input type="hidden" name="claim_selection_version" value="1">
+              <input type="hidden" name="claim_selection_observation" value="<?= $escape($view->claimObservationId ?? '') ?>">
               <div class="review-decision-heading"><div><h3><?= $escape($t('Deine Entscheidung')) ?></h3><p><?= $escape($t('„Not vulnerable“ speichert „Behoben“. „Vulnerable“ bestätigt den Befund. {keep}Überspringen lässt den Fall unverändert.', ['keep' => $canKeep ? $t('„Bewertung behalten“ erledigt die Sichtung ohne neues Urteil. ') : ''])) ?></p></div><p class="review-keyboard" data-review-keyboard hidden><kbd data-shortcut-hint="review.fixed" hidden>←</kbd> Not vulnerable <kbd data-shortcut-hint="review.confirmed" hidden>→</kbd> Vulnerable</p></div>
               <?php if (!$canAssess): ?><p class="review-stale"><?= $escape($t('Dieser Fall gehört nicht mehr zum offenen Review-Vorrat. Öffne den Fall für eine Korrektur oder gehe zum nächsten.')) ?></p><?php endif; ?>
-              <?php if ($view->claims !== []): ?>
-                <fieldset class="review-claims" data-review-claims>
-                  <legend><?= $escape($t('Claims für diese Meldung')) ?></legend>
-                  <p class="review-claims-summary"><?= $escape($t('Wir denken: {claims}. Siehst du das auch?', ['claims' => implode(' · ', $recommendedClaims) ?: $t('kein neuer Claim')])) ?></p>
-                  <details class="review-claim-adjust"<?= $submittedClaims !== [] ? ' open' : '' ?>><summary><?= $escape($t('Claims anpassen')) ?></summary><div class="review-claim-list">
-                  <?php foreach ($view->claims as $claimRow): ?>
-                    <?php
-                      $claimName = $claimRow['claim'];
-                      $submittedClaim = $submittedClaims[$claimName] ?? null;
-                      $submittedState = is_array($submittedClaim) && is_string($submittedClaim['state'] ?? null) ? $submittedClaim['state'] : null;
-                      $claimState = $submittedState !== null && $submittedState !== '' ? $submittedState : ($claimRow['state'] ?? $claimRow['suggestedState'] ?? '');
-                      $reportChecked = is_array($submittedClaim)
-                        ? ($submittedClaim['report'] ?? null) === '1'
-                        : (bool) ($claimRow['reportSelected'] ?? false) || ($claimRow['suggestedState'] ?? null) !== null;
-                      $claimReasons = is_array($claimRow['reasons'] ?? null) ? array_slice(array_values(array_filter($claimRow['reasons'], 'is_string')), 0, 2) : [];
-                    ?>
-                    <div class="review-claim-row" data-review-claim="<?= $escape($claimName) ?>">
-                      <label class="review-claim-select"><span><?= $escape($t($claimLabels[$claimName] ?? $claimName)) ?></span>
-                        <select name="claims[<?= $escape($claimName) ?>][state]"<?= !$canAssess ? ' disabled' : '' ?>>
-                          <option value=""<?= $claimState === '' ? ' selected' : '' ?>><?= $escape($t('Keine Aussage')) ?></option>
-                          <?php foreach ($claimStateLabels as $stateValue => $stateLabel): ?><option value="<?= $escape($stateValue) ?>"<?= $claimState === $stateValue ? ' selected' : '' ?>><?= $escape($t($stateLabel)) ?></option><?php endforeach; ?>
-                        </select>
-                      </label>
-                      <label class="review-claim-report"><input type="checkbox" name="claims[<?= $escape($claimName) ?>][report]" value="1"<?= $reportChecked ? ' checked' : '' ?><?= !$canAssess || in_array($claimState, ['rejected', 'resolved', 'stale'], true) ? ' disabled' : '' ?>> <?= $escape($t('Zur Meldung auswählen')) ?></label>
-                      <input type="hidden" name="claims[<?= $escape($claimName) ?>][revision]" value="<?= $escape((string) ($claimRow['revision'] ?? 0)) ?>">
-                      <?php if ($claimReasons !== []): ?><p class="review-claim-reason"><?= $escape($t('Begründung')).': '.implode(' · ', $claimReasons) ?></p><?php endif; ?>
-                    </div>
-                  <?php endforeach; ?>
-                  </div></details>
-                </fieldset>
-              <?php endif; ?>
               <details class="review-basis"<?= (($submitted['observation_id'] ?? '') !== '' || ($submitted['evidence_id'] ?? '') !== '') ? ' open' : '' ?>><summary><?= $escape($t('Bewertungsgrundlage')) ?> <span><?= $escape($t('optional · ohne Auswahl unbekannt')) ?></span></summary><p><?= $escape($t('Wähle nur einen Beleg oder eine Beobachtung, die du tatsächlich beurteilt hast. Das angezeigte Bild wird nicht automatisch ausgewählt.')) ?></p><div class="review-basis-fields">
                 <label for="review-evidence-basis"><?= $escape($t('Beurteilter Beleg')) ?><select name="evidence_id" id="review-evidence-basis"<?= !$canAssess ? ' disabled' : '' ?>><option value=""><?= $escape($t('Unbekannt / kein konkreter Beleg')) ?></option><?php foreach ($detail->evidence as $item): ?><option value="<?= $escape($item->getId()) ?>"<?= ($submitted['evidence_id'] ?? '') === $item->getId() ? ' selected' : '' ?><?= isset($unavailableEvidence[$item->getId()]) && ($submitted['evidence_id'] ?? '') !== $item->getId() ? ' disabled' : '' ?>><?= $escape($evidenceLabels[$item->getId()] ?? $item->getKind().' · '.$t('Ablage').': '.$formatTime($item->getCreatedAt(), true).' · '.substr($item->getId(), 0, 8)) ?></option><?php endforeach; ?></select></label>
                 <label for="review-observation-basis"><?= $escape($t('Beurteilte Beobachtung')) ?><select name="observation_id" id="review-observation-basis"<?= !$canAssess ? ' disabled' : '' ?>><option value=""><?= $escape($t('Unbekannt / keine konkrete Beobachtung')) ?></option><?php foreach ($detail->runs as $run): ?><option value="<?= $escape($run->getId()) ?>"<?= ($submitted['observation_id'] ?? '') === $run->getId() ? ' selected' : '' ?>><?= $escape($t(FindingReadLabels::observation($run->getResult())).' · '.$formatTime($run->getFinishedAt() ?? $run->getStartedAt(), true).' · '.substr($run->getId(), 0, 8)) ?></option><?php endforeach; ?></select></label>
@@ -344,9 +331,42 @@ foreach ($detail?->screenshots ?? [] as $index => $shot) {
       <section class="review-action-dock" aria-label="<?= $escape($t('Entscheidung für den angezeigten Fall')) ?>" data-review-dock>
         <div class="review-dock-inner">
           <div class="review-dock-case"><strong><?= $escape($finding?->getDomain()->getHostname() ?? $t('Runde beendet')) ?></strong><span><?= $escape($t('Zurück setzt den vorherigen Fall wieder auf unbewertet.')) ?></span>
+            <?php if (in_array('classification_changed', array_column($view->triggeringObservations, 'reason'), true)): ?><button class="review-button" type="submit" form="review-assessment-form" name="assessment" value="acknowledge_change"<?= !$canAssess ? ' disabled' : '' ?>><?= $escape($t('Geprüft · Klassifikationshinweis erledigen')) ?></button><?php endif; ?>
+            <?php if (($reportProjection['wafBlockReview']['pending'] ?? false) || in_array('waf_block', array_column($view->triggeringObservations, 'reason'), true)): ?><button class="review-button" type="submit" form="review-assessment-form" name="assessment" value="acknowledge_waf_block"<?= !$canAssess ? ' disabled' : '' ?>><?= $escape($locale === 'de' ? 'Geprüft · WAF-Hinweis erledigen' : 'Reviewed · acknowledge WAF notice') ?></button><?php endif; ?>
             <?php if ($canKeep): ?><button class="review-button review-button-keep" type="submit" form="review-assessment-form" name="assessment" value="keep" data-review-keep<?= !$canAssess ? ' disabled' : '' ?>><?= $escape($t('Geprüft · Bewertung behalten')) ?></button><?php endif; ?>
             <p class="review-delay-status" role="status" aria-live="polite" data-review-delay-status></p><progress class="review-delay-progress" data-review-delay-progress max="1" value="0" hidden></progress>
           </div>
+          <?php if ($finding !== null && $view->claims !== []): ?>
+            <fieldset class="review-claims" data-review-claims>
+              <legend><?= $escape($t('Befunde übernehmen')) ?> <span class="review-claim-counter"><output data-review-claim-count><?= $reviewSelectedCount ?>/<?= count($reviewClaimRows) ?></output> <?= $escape($t('ausgewählt')) ?></span></legend>
+              <div class="review-claim-list">
+                <?php foreach ($reviewClaimRows as $claimRow): ?>
+                  <?php
+                    $claimName = (string) $claimRow['claim'];
+                    $claimProof = ($claimRow['kind'] ?? null) === 'proof';
+                    $claimCertainty = (string) ($claimRow['selectionState'] ?? $claimRow['state'] ?? $claimRow['suggestedState'] ?? '');
+                    $claimChecked = $claimProof ? (bool) ($claimRow['selectionSeeded'] ?? false) : ($submittedClaimSelection !== null
+                        ? (($submittedClaimSelection[$claimName]['selected'] ?? null) === '1')
+                        : (bool) ($claimRow['selectionSeeded'] ?? false));
+                    $claimSelectable = $canAssess && (bool) ($claimRow['selectionSelectable'] ?? !in_array($claimCertainty, ['rejected', 'resolved', 'stale'], true));
+                    $claimHistorical = !$claimSelectable && in_array($claimCertainty, ['rejected', 'resolved', 'stale'], true);
+                    $claimCatalog = CribrumBadgeCatalog::entry((string) ($claimRow['displayCode'] ?? $claimName), $locale);
+                    $claimTitle = $claimCatalog['known'] ? $claimCatalog['label'] : $t($claimLabels[$claimName] ?? $claimName);
+                    $claimCertaintyLabel = $claimCertainty === '' ? $t('Keine Aussage') : $t($claimStateLabels[$claimCertainty] ?? $claimCertainty);
+                    $claimReasons = is_array($claimRow['reasons'] ?? null) ? array_values(array_filter($claimRow['reasons'], 'is_string')) : [];
+                  ?>
+                  <input type="hidden" form="review-assessment-form" name="claim_selection[<?= $escape($claimName) ?>][revision]" value="<?= $escape((string) ($claimRow['revision'] ?? 0)) ?>">
+                  <label class="review-claim-badge" data-review-claim="<?= $escape($claimName) ?>" data-review-claim-state="<?= $escape($claimCertainty) ?>" data-review-claim-source="<?= $escape((string) ($claimRow['selectionSource'] ?? 'none')) ?>"<?= $claimHistorical ? ' data-review-claim-historical' : '' ?><?= $claimProof ? ' data-review-claim-proof title="'.$escape($t('Gespeicherter Beleg bleibt bestehen.')).'"' : ($claimReasons !== [] ? ' title="'.$escape(implode(' · ', $claimReasons)).'"' : '') ?>>
+                    <input type="checkbox" form="review-assessment-form" name="claim_selection[<?= $escape($claimName) ?>][selected]" value="1"<?= $claimChecked ? ' checked' : '' ?><?= !$claimSelectable ? ' disabled' : '' ?>>
+                    <span class="review-claim-name"><?= $escape($claimTitle) ?></span>
+                    <small><?= $escape($claimCertaintyLabel) ?><?= $claimProof ? ' · '.$escape($t('Mit Beleg')) : '' ?></small>
+                  </label>
+                <?php endforeach; ?>
+              </div>
+              <span class="review-claim-more" data-review-claim-more hidden>↓ <?= $escape($t('Weitere Befunde')) ?></span>
+              <p class="review-claims-summary"><?= $escape($t('Verdacht bleibt Verdacht. Abwahl verwirft den Befund; Vorschlagsregeln werden vorgemerkt.')) ?> <button type="button" data-review-open-details><?= $escape($t('Belege')) ?></button> · <a href="/settings/cribrum/rule-review"><?= $escape($t('Regeln')) ?></a></p>
+            </fieldset>
+          <?php endif; ?>
           <div class="review-keypad" aria-label="<?= $escape($t('Review-Tasten')) ?>">
             <?php if ($canOpenPoc): ?><a class="review-button review-key-poc" data-shortcut-action="review.poc" href="<?= $escape($pocUrl) ?>" target="_blank" rel="noopener noreferrer" data-review-poc-open><kbd data-shortcut-hint="review.poc" hidden>↑</kbd><span><?= $escape($t('PoC öffnen')) ?></span></a><?php else: ?><button class="review-button review-key-poc" data-shortcut-action="review.poc" type="button" disabled><kbd data-shortcut-hint="review.poc" hidden>↑</kbd><span><?= $escape($t('PoC öffnen')) ?></span></button><?php endif; ?>
             <button class="review-button review-key-skip" data-shortcut-action="review.skip" type="submit" form="review-skip-form" data-review-skip<?= $finding === null ? ' disabled' : '' ?>><kbd data-shortcut-hint="review.skip" hidden>Enter</kbd><span><?= $escape($t('Überspringen')) ?></span></button>

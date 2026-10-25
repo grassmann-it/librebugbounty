@@ -13,7 +13,7 @@ const origin = new URL(base).origin;
 const output = process.env.STUDIO_BROWSER_OUTPUT;
 
 async function main() {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true, args: [`--unsafely-treat-insecure-origin-as-secure=${origin}`] });
   const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] });
   const errors = [], external = [], posts = [], checks = [];
   let stored = 0;

@@ -30,6 +30,12 @@ final class CribrumClaimService
         return array_values($claims);
     }
 
+    /** Bounded, database-current metadata shared by detail and review badge views. */
+    public function readClaims(Finding $finding): array
+    {
+        return CribrumClaimExport::forFindings($this->entityManager->getConnection(), [$finding->getId()])[$finding->getId()] ?? [];
+    }
+
     public function apply(
         Finding $finding,
         string $claim,
@@ -66,7 +72,9 @@ final class CribrumClaimService
             if ($current !== null && $current->source === 'manual' && $source === 'classifier') {
                 return $current;
             }
-            if ($current !== null && $current->state === $state && $current->reportSelected === $reportSelected && $current->severity === $severity && $current->observationId === $observationId) {
+            // A manual adoption of the same state changes decision ownership and
+            // must receive its own immutable revision.
+            if ($current !== null && $current->state === $state && $current->source === $source && $current->reportSelected === $reportSelected && $current->severity === $severity && $current->observationId === $observationId) {
                 return $current;
             }
 
@@ -95,6 +103,8 @@ final class CribrumClaimService
                 $revision = new FindingClaimRevision($current, null, $ruleIds, $reason);
             }
             $this->entityManager->persist($revision);
+            // Migration-installed claim triggers invalidate the report basis in
+            // this flush transaction, including callers that use direct SQL.
             $this->entityManager->flush();
 
             return $current;

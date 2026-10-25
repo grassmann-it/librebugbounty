@@ -1,5 +1,5 @@
 .studio-doc-main { min-width: 0; min-height: 0; overflow-y: auto; scroll-behavior: smooth; }
-.studio-doc-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 38px; width: min(100%, 1180px); margin: 0 auto; padding: 34px 32px 64px; align-items: start; }
+.studio-doc-layout { display: grid; grid-template-columns: 245px minmax(0, 1fr); gap: 32px; width: min(100%, 1280px); margin: 0 auto; padding: 32px 32px 64px; align-items: start; }
 .studio-doc-sidebar { position: sticky; top: 28px; min-width: 0; }
 .studio-doc-back { display: inline-block; margin-bottom: 22px; color: var(--studio-muted) !important; font-size: 12px; }
 .studio-doc-back:hover { color: var(--studio-blue) !important; }
@@ -9,6 +9,10 @@
 .studio-doc-sidebar nav a { padding: 10px 12px; border: 1px solid transparent; border-radius: 5px; color: #c2ccd8; font-size: 13px; }
 .studio-doc-sidebar nav a:hover { background: #20262e; color: var(--studio-text); }
 .studio-doc-sidebar nav a[aria-current="page"] { border-color: #3e526d; background: #213047; color: #c9dfff; }
+.studio-doc-content { min-width: 0; }
+.studio-doc-breadcrumb { display: flex; align-items: center; gap: 9px; margin: 0 0 12px; color: var(--studio-muted); font-size: 12px; }
+.studio-doc-breadcrumb a { color: #b8d2f4; }
+.studio-doc-article-note { width: fit-content; margin: 0 0 12px; padding: 5px 9px; border: 1px solid #42536a; border-radius: 4px; color: #c8ddf7; font-size: 12px; }
 
 .studio-doc-prose { min-width: 0; padding: 30px 34px 36px; border: 1px solid var(--studio-line); border-radius: 8px; background: var(--studio-panel); color: #cbd4df; font-size: 14px; line-height: 1.75; overflow-wrap: anywhere; }
 .studio-doc-prose > :first-child { margin-top: 0; }
@@ -40,6 +44,9 @@
 .studio-doc-prose img.studio-doc-image-thumbnail { width: 32%; }
 .studio-doc-prose blockquote { margin: 20px 0; padding: 1px 18px; border-left: 3px solid var(--studio-blue); background: #212a36; }
 .studio-doc-prose hr { margin: 28px 0; border: 0; border-top: 1px solid var(--studio-line); }
+.studio-doc-sidebar a:focus-visible,
+.studio-doc-breadcrumb a:focus-visible,
+.studio-doc-prose a:focus-visible { outline: 2px solid #82dbb2; outline-offset: 3px; }
 
 @media (max-width: 850px) {
   .studio-doc-layout { grid-template-columns: 1fr; gap: 22px; padding: 26px 20px 44px; }

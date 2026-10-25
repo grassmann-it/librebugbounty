@@ -1,0 +1,12 @@
+{
+  "input_url": "https://fixture.test/?file=..%2F..%2Ffixture.ini",
+  "final_url": null,
+  "body_sha256": "b10272c127dd2ddcff86d3a115ef0373c441c285d1a4dad97c766c5f5779b991",
+  "request_pass": 2,
+  "capture_status": "captured",
+  "http_status": 500,
+  "content_type": "text/html; charset=UTF-8",
+  "body_truncated": false,
+  "capture_finished_at": "2026-01-01T00:00:00Z",
+  "provenance": "synthetic fixture, no target request"
+}

@@ -1,0 +1,67 @@
+/* Contact work remains a set of separate, explicit saved actions. */
+.studio-follow-up-intro {
+  width: min(100%, 1720px);
+  box-sizing: border-box;
+  margin: 1.5rem auto 0;
+  padding: 1rem 1.25rem;
+  border-left: 3px solid #85b8dc;
+  background: #1a2026;
+  color: #e3e8ed;
+}
+.studio-follow-up-intro p { margin: .3rem 0; }
+.studio-follow-up-kicker,
+.studio-follow-up-step {
+  color: #a9d2ed;
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+.studio-follow-up-step { margin: 0 0 .5rem; }
+.studio-follow-up-empty {
+  padding: .85rem 1rem;
+  border: 1px dashed #697581;
+  border-radius: .6rem;
+  color: #d1d8df;
+}
+.studio-follow-up-grid { align-items: start; }
+.studio-follow-up-grid > .studio-work-card,
+.studio-disclosure-record { background: #181d22; }
+.studio-work-card h2,
+.studio-disclosure-record h2 { margin-bottom: .55rem; }
+.studio-contact-route {
+  padding-top: 1rem;
+  border-top: 1px solid #414b54;
+}
+.studio-work-card form > label:not(.studio-work-check),
+.studio-contact-route form > label,
+.studio-disclosure-record form > label { font-weight: 600; }
+.studio-work-card input:focus-visible,
+.studio-work-card select:focus-visible,
+.studio-work-card textarea:focus-visible,
+.studio-work-card button:focus-visible,
+.studio-work-card summary:focus-visible,
+.studio-disclosure-record input:focus-visible,
+.studio-disclosure-record select:focus-visible,
+.studio-disclosure-record textarea:focus-visible,
+.studio-disclosure-record button:focus-visible,
+.studio-disclosure-record a:focus-visible,
+.studio-settings-panel[data-restrictions] button:focus-visible {
+  outline: 3px solid #a9d2ed;
+  outline-offset: 3px;
+}
+.studio-work-card button,
+.studio-disclosure-record button,
+.studio-settings-panel[data-restrictions] button { min-height: 2.75rem; }
+.studio-work-card code,
+.studio-disclosure-record code { overflow-wrap: anywhere; }
+.studio-follow-up-scope-note {
+  border-left: 3px solid #85b8dc;
+  padding-left: .75rem;
+  color: #d1d8df;
+}
+@media (max-width: 650px) {
+  .studio-follow-up-intro { padding: .85rem 1rem; }
+  .studio-follow-up-grid > .studio-work-card,
+  .studio-disclosure-record { padding: 1rem; }
+}

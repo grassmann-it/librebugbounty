@@ -14,7 +14,7 @@ final class FindingListService
         'q', 'domain', 'assessment', 'observation', 'contact', 'scope',
         'legacy_status', 'legacyStatus', 'legacy_bucket', 'legacyBucket',
         'status', 'bucket', 'type', 'severity', 'exact_domain', 'exactDomain',
-        'page', 'pageSize', 'event', 'from', 'to', 'tld', 'sent', 'legacy_review', 'pursuit', 'closure_reason', 'contact_work', 'reminder', 'view', 'review', 'claim', 'claim_state',
+        'page', 'pageSize', 'event', 'from', 'to', 'tld', 'sent', 'legacy_review', 'pursuit', 'closure_reason', 'contact_work', 'reminder', 'view', 'review', 'claim', 'claim_state', 'report_kind', 'cribrum', 'extra_findings', 'new_findings', 'cribrum_freshness', 'cribrum_history', 'sort',
     ];
 
     public function __construct(
@@ -83,7 +83,7 @@ final class FindingListService
         );
     }
 
-    /** @return array<string, string> */
+    /** @return array<string, string|list<string>> */
     public function filterQuery(FindingReadFilter $filter): array
     {
         return array_filter([
@@ -111,8 +111,15 @@ final class FindingListService
             'view' => $filter->view,
             'claim' => $filter->claim,
             'claim_state' => $filter->claimState,
+            'report_kind' => $filter->reportKind,
+            'cribrum' => $filter->cribrumCodes,
+            'extra_findings' => $filter->extraFindings,
+            'new_findings' => $filter->newFindings,
+            'cribrum_freshness' => $filter->cribrumFreshness,
+            'cribrum_history' => $filter->cribrumHistory ? '1' : '',
+            'sort' => $filter->sort === 'default' ? '' : $filter->sort,
             'review' => $filter->review === 'all' ? '' : $filter->review,
-        ], static fn (string $value): bool => $value !== '');
+        ], static fn (string|array $value): bool => $value !== '' && $value !== []);
     }
 
     /** @param array<string, mixed> $query */
@@ -134,10 +141,22 @@ final class FindingListService
     public function parse(array $query): array
     {
         foreach ([...self::LIST_QUERY_FIELDS, 'message', 'error'] as $field) {
+            if ($field === 'cribrum') continue;
             if (array_key_exists($field, $query) && (!is_string($query[$field]) || !mb_check_encoding($query[$field], 'UTF-8'))) {
                 throw new \InvalidArgumentException('Filterangaben müssen einzelne Textwerte sein.');
             }
         }
+        $codes = $query['cribrum'] ?? [];
+        if (!is_array($codes) || !array_is_list($codes) || count($codes) > 100) {
+            throw new \InvalidArgumentException('Cribrum-Codes müssen eine Liste sein.');
+        }
+        foreach ($codes as $code) {
+            if (!is_string($code) || !mb_check_encoding($code, 'UTF-8')) {
+                throw new \InvalidArgumentException('Ungültiger Cribrum-Code.');
+            }
+        }
+        $codes = array_values(array_unique(array_map(trim(...), $codes)));
+        sort($codes, SORT_STRING);
         $get = static fn (string $name, string $default = ''): string => trim($query[$name] ?? $default);
         $pick = static function (array $names) use ($query, $get): string {
             $values = [];
@@ -185,6 +204,9 @@ final class FindingListService
         if ($page === false || !in_array($pageSize, ['10', '25', '50', '100', 'all'], true)) {
             throw new \InvalidArgumentException('Ungültige Seite oder Seitengröße.');
         }
+        if (!in_array($get('cribrum_history'), ['', '0', '1'], true)) {
+            throw new \InvalidArgumentException('Die Cribrum-Historie muss 0 oder 1 sein.');
+        }
         $filter = new FindingReadFilter(
             domain: $get('domain'),
             assessment: $get('assessment'),
@@ -211,6 +233,13 @@ final class FindingListService
             review: $get('review'),
             claim: $get('claim'),
             claimState: $get('claim_state'),
+            reportKind: $get('report_kind'),
+            cribrumCodes: $codes,
+            extraFindings: $get('extra_findings'),
+            newFindings: $get('new_findings'),
+            cribrumFreshness: $get('cribrum_freshness'),
+            cribrumHistory: $get('cribrum_history') === '1',
+            sort: $get('sort', 'default'),
         );
 
         return [$filter, $page, $pageSize];

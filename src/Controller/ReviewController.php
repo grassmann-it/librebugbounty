@@ -43,6 +43,8 @@ final class ReviewController
         private readonly BrowserInteractiveClientInterface $browserInteractive,
         private readonly FindingDetailService $details,
         private readonly ReviewDispositionService $dispositions,
+        private readonly ?\App\Service\ReportProjectionService $reportProjections = null,
+        private readonly ?\App\Service\CribrumClaimService $cribrumClaims = null,
     ) {
     }
 
@@ -103,6 +105,7 @@ final class ReviewController
         $submitted = [];
         $malformed = false;
         $claimDecisions = [];
+        $claimSelection = null;
         $rawClaims = $parameters['claims'] ?? [];
         foreach (['assessment', 'discard_reason', 'observation_id', 'evidence_id', 'displayed_evidence_id', 'kind', 'images', 'after', '_token', 'context_token', 'trail_id', 'trail_version'] as $field) {
             if (array_key_exists($field, $parameters) && !is_string($parameters[$field])) {
@@ -127,6 +130,20 @@ final class ReviewController
                 ];
             }
         } else {
+            $malformed = true;
+        }
+        if (array_key_exists('claim_selection_version', $parameters)) {
+            if (!is_string($parameters['claim_selection_version']) || !is_string($parameters['claim_selection_observation'] ?? null)
+                || (isset($parameters['claim_selection']) && !is_array($parameters['claim_selection']))) {
+                $malformed = true;
+            } else {
+                $claimSelection = ['version' => $parameters['claim_selection_version'],
+                    'observation' => $parameters['claim_selection_observation'], 'rows' => $parameters['claim_selection'] ?? []];
+            }
+            $submitted['claim_selection'] = is_array($parameters['claim_selection'] ?? null) ? $parameters['claim_selection'] : [];
+            $submitted['claim_selection_version'] = is_string($parameters['claim_selection_version'] ?? null) ? $parameters['claim_selection_version'] : '';
+            $submitted['claim_selection_observation'] = is_string($parameters['claim_selection_observation'] ?? null) ? $parameters['claim_selection_observation'] : '';
+        } elseif (array_key_exists('claim_selection', $parameters) || array_key_exists('claim_selection_observation', $parameters)) {
             $malformed = true;
         }
         $query = array_intersect_key($parameters, array_flip(['kind', 'images', 'after']));
@@ -168,6 +185,7 @@ final class ReviewController
                 $submitted['context_token'],
                 $trail['current']['explicit'] ?? false,
                 claimDecisions: $claimDecisions,
+                claimSelection: $claimSelection,
             );
         } catch (\UnexpectedValueException $exception) {
             return $this->render($request, $this->queue->get($query, $id, $trail['current']['explicit'] ?? false), null, $this->i18n->trans($exception->getMessage()), $submitted, Response::HTTP_CONFLICT);
@@ -181,6 +199,8 @@ final class ReviewController
             'confirmed' => $this->i18n->trans('Vulnerable bestätigt.'),
             'fixed' => $this->i18n->trans('Not vulnerable bestätigt.'),
             'discarded' => $this->i18n->trans('Fall verworfen.'),
+            'acknowledge_change' => $this->i18n->trans('Klassifikationshinweis geprüft.'),
+            'acknowledge_waf_block' => $this->i18n->trans('WAF-Hinweis geprüft.'),
             'keep' => $this->i18n->trans('Hinweis geprüft. Bewertung beibehalten.'),
         };
         $card = $this->card($view, $trail['current']['explicit'] ?? false);
@@ -844,6 +864,10 @@ final class ReviewController
         $formatNumber = fn (int|float $value, int $decimals = 0): string => $this->i18n->formatNumber($value, $decimals);
         $i18nJson = $this->i18n->browserCatalogJson();
         $csrfField = fn (string $tokenId): string => '<input type="hidden" name="_token" value="'.$escape($this->csrf->getToken($tokenId)->getValue()).'">';
+        $reportProjection = $view->detail === null ? null : $this->reportProjections?->current($view->detail->finding);
+        $reportProjectionCurrent = $view->detail === null ? null : $this->reportProjections?->isCurrent($view->detail->finding);
+        $cribrumClaims = $view->detail === null ? [] : ($this->cribrumClaims?->readClaims($view->detail->finding) ?? $view->claims);
+        $reportEvidence = $view->detail === null ? [] : ($this->reportProjections?->evidence($view->detail->finding) ?? []);
         $contextToken = $view->detail === null ? '' : $this->queue->contextToken($view->detail->finding->getId(), $view->stateFingerprint);
         $recoveryPrompt = null;
         $prompt = $request->getSession()->get('review_recovery_prompt');

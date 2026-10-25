@@ -4,6 +4,7 @@ $recordToday = DisclosureRecordService::today();
 $recordReminder = $disclosureRecord['reminder'];
 ?>
 <section class="studio-work-card studio-disclosure-record" id="meldung" aria-labelledby="disclosure-record-title" tabindex="-1" data-disclosure-record>
+  <p class="studio-follow-up-step"><?= $escape($t('Schritte 3 und 4 · Dokumentieren und planen')) ?></p>
   <h2 id="disclosure-record-title"><?= $escape($t('Meldung & Verlauf')) ?></h2>
   <p class="studio-detail-hint"><?= $escape($t('Nur dokumentieren, nicht versenden. Historische Kontakt- und Versandmarkierungen bleiben unverändert. Wiedervorlagen sind manuell und lösen keine Prüfungen oder Nachrichten aus.')) ?></p>
   <?php if (!$disclosureRecord['available']): ?><p><?= $escape($t('Bitte zuerst die Datenbankmigration für die Meldeakte ausführen.')) ?></p>
@@ -11,6 +12,7 @@ $recordReminder = $disclosureRecord['reminder'];
     <div class="studio-follow-up-grid">
       <div>
         <h3><?= $escape($t('Aktivität festhalten')) ?></h3>
+        <p class="studio-detail-hint"><?= $escape($t('Hier wird eine bereits erfolgte Aktivität protokolliert. Das Speichern sendet keine Nachricht.')) ?></p>
         <form method="post" action="<?= $escape($findingPath) ?>/disclosure-record" data-disclosure-activity>
           <?= $csrfField('finding_disclosure_record_'.$finding->getId()) ?><?= $returnField ?>
           <input type="hidden" name="kind" value="activity"><input type="hidden" name="entry_id" value="<?= $escape(\Symfony\Component\Uid\Uuid::v7()->toRfc4122()) ?>">
@@ -25,6 +27,7 @@ $recordReminder = $disclosureRecord['reminder'];
       </div>
       <div>
         <h3><?= $escape($t('Wiedervorlage')) ?></h3>
+        <p class="studio-detail-hint"><?= $escape($t('Termin und nächster Schritt sind nur eine manuelle Erinnerung.')) ?></p>
         <?php if ($recordReminder): ?>
           <div class="studio-record" data-current-reminder data-reminder-open="<?= $recordReminder['completed_at'] === null ? 'yes' : 'no' ?>">
             <strong><?= $escape($t($recordReminder['completed_at'] !== null ? 'Erledigt' : ($recordReminder['due_on'] < $recordToday ? 'Überfällig' : ($recordReminder['due_on'] === $recordToday ? 'Heute' : 'Geplant')))) ?></strong>
@@ -38,7 +41,7 @@ $recordReminder = $disclosureRecord['reminder'];
               <button type="submit" class="studio-detail-button"><?= $escape($t('Wiedervorlage erledigen')) ?></button>
             </form>
           <?php endif; ?>
-        <?php else: ?><p><?= $escape($t('Noch keine Wiedervorlage.')) ?></p><?php endif; ?>
+        <?php else: ?><p class="studio-follow-up-empty"><?= $escape($t('Noch keine Wiedervorlage gespeichert.')) ?></p><?php endif; ?>
         <p class="studio-detail-hint"><?= $escape($t('Eine offene Wiedervorlage pro Fall. Speichern ersetzt den Termin und nächsten Schritt. Kalenderdaten gelten in Europe/Berlin.')) ?></p>
         <form method="post" action="<?= $escape($findingPath) ?>/disclosure-record" data-disclosure-reminder>
           <?= $csrfField('finding_disclosure_record_'.$finding->getId()) ?><?= $returnField ?>

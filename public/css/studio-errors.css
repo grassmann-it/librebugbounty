@@ -15,3 +15,15 @@
 .studio-error-case strong { color: var(--studio-red); }
 .studio-list-heading-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 @media (max-width: 720px) { .studio-error-results { padding: 12px 16px; } }
+
+[data-studio-errors] .studio-list-heading { align-items: end; }
+[data-studio-errors] .studio-list-hint { line-height: 1.55; }
+[data-studio-errors] .studio-error-summary { margin: 0 0 12px; color: #c7d3df; font-size: 12px; font-variant-numeric: tabular-nums; }
+[data-studio-errors] .studio-error-empty { padding: 52px 20px; border: 1px solid #39414b; border-radius: 8px; background: #1c2128; text-align: center; }
+[data-studio-errors] .studio-error-empty strong { display: block; color: #e4eaf0; font-size: 16px; }
+[data-studio-errors] .studio-error-empty p { max-width: 480px; margin: 8px auto 0; color: #b8c5d2; font-size: 12px; line-height: 1.55; }
+[data-studio-errors] .studio-error-case { border-radius: 8px; }
+[data-studio-errors] .studio-error-case form { margin-top: 8px; }
+[data-studio-errors] .studio-error-case button:disabled { cursor: not-allowed; opacity: .72; }
+[data-studio-errors] :is(a, button, input, select):focus-visible { outline: 2px solid #8bd9b4; outline-offset: 3px; }
+@media (max-width: 720px) { [data-studio-errors] .studio-list-heading { align-items: flex-start; } }

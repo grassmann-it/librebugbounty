@@ -162,6 +162,22 @@
       }
     });
     applyMode();
+    const claimPanel = root.querySelector('[data-review-claims]');
+    const claimList = claimPanel?.querySelector('.review-claim-list');
+    const claimCounter = claimPanel?.querySelector('[data-review-claim-count]');
+    const claimMore = claimPanel?.querySelector('[data-review-claim-more]');
+    const updateClaimSummary = () => {
+      if (!claimList) return;
+      const boxes = Array.from(claimList.querySelectorAll('input[type="checkbox"]'));
+      if (claimCounter) claimCounter.textContent = `${boxes.filter(box => box.checked).length}/${boxes.length}`;
+      if (claimMore) claimMore.hidden = claimList.scrollHeight <= claimList.clientHeight + 2
+        || claimList.scrollTop + claimList.clientHeight >= claimList.scrollHeight - 2;
+    };
+    on(claimPanel, 'change', updateClaimSummary);
+    on(claimList, 'scroll', updateClaimSummary);
+    on(modeToggle, 'click', () => window.requestAnimationFrame(updateClaimSummary));
+    on(window, 'resize', updateClaimSummary);
+    updateClaimSummary();
     const network = root.querySelector('[data-review-network]');
     const networkMessage = root.querySelector('[data-review-network-message]');
     const recover = root.querySelector('[data-review-recover]');

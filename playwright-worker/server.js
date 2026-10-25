@@ -9,6 +9,9 @@ const { chromium, firefox } = require('playwright');
 const port = parseInt(process.env.PORT || '3000', 10);
 const DEFAULT_SCREENSHOT_SETTLE_MS = 3000;
 const DEFAULT_CHALLENGE_WAIT_MS = 30000;
+const DESKTOP_CAPTURE_TIMEOUT_MS = 2500;
+const DESKTOP_CAPTURE_ATTEMPTS = 2;
+const DESKTOP_CAPTURE_RETRY_DELAY_MS = 150;
 const CHALLENGE_POLL_MS = 500;
 const DIALOG_RENDER_DELAY_MS = 400;
 const POST_CAPTURE_DIALOG_GRACE_MS = 50;
@@ -244,35 +247,67 @@ function execFileAsync(file, args, options = {}) {
   });
 }
 
-async function captureDesktopScreenshot(signal) {
+async function captureDesktopScreenshot(signal, dependencies = {}) {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'playwright-desktop-'));
   const filePath = path.join(directory, 'screen.png');
+  const exec = dependencies.execFileAsync || execFileAsync;
+  const wait = dependencies.wait || ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+  const timeoutMs = dependencies.captureTimeoutMs ?? DESKTOP_CAPTURE_TIMEOUT_MS;
+  const attempts = dependencies.captureAttempts ?? DESKTOP_CAPTURE_ATTEMPTS;
 
   try {
-    await execFileAsync('ffmpeg', [
-      '-hide_banner',
-      '-loglevel', 'error',
-      '-nostdin',
-      '-y',
-      '-f', 'x11grab',
-      '-draw_mouse', '0',
-      '-video_size', '1440x900',
-      '-i', process.env.DISPLAY,
-      '-frames:v', '1',
-      filePath,
-    ], {
-      env: {
-        ...process.env,
-      },
-      timeout: 10000,
-      signal,
-    });
+    let lastError = null;
+    const failures = [];
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      const attemptStart = Date.now();
+      try {
+        await exec('ffmpeg', [
+          '-hide_banner',
+          '-loglevel', 'error',
+          '-nostdin',
+          '-y',
+          '-f', 'x11grab',
+          '-draw_mouse', '0',
+          '-video_size', '1440x900',
+          '-i', process.env.DISPLAY,
+          '-frames:v', '1',
+          filePath,
+        ], {
+          env: {
+            ...process.env,
+          },
+          timeout: timeoutMs,
+          signal,
+        });
+        lastError = null;
+        break;
+      } catch (error) {
+        lastError = error;
+        failures.push(describeCaptureError(error, attempt, Date.now() - attemptStart));
+        if (signal?.aborted || attempt === attempts) break;
+        await wait(DESKTOP_CAPTURE_RETRY_DELAY_MS);
+        if (signal?.aborted) break;
+      }
+    }
+    if (lastError !== null) throw new Error(failures.join(' | '));
 
     const buffer = await readFile(filePath);
     return buffer.toString('base64');
   } finally {
     await rm(directory, { recursive: true, force: true }).catch(() => {});
   }
+}
+
+function describeCaptureError(error, attempt = null, elapsedMs = null) {
+  const details = [];
+  if (attempt !== null) details.push(`attempt ${attempt}`);
+  if (elapsedMs !== null) details.push(`${Math.max(0, elapsedMs)}ms`);
+  if (error?.code !== undefined && error.code !== null) details.push(`exit ${error.code}`);
+  if (error?.signal) details.push(`signal ${error.signal}`);
+  else if (error?.killed) details.push('timed out');
+  const stderr = String(error?.stderr || '').replace(/\s+/g, ' ').trim().slice(0, 500);
+  const suffix = stderr === '' ? '' : `: ${stderr}`;
+  return `ffmpeg desktop capture failed${details.length === 0 ? '' : ` (${details.join(', ')})`}${suffix}`;
 }
 
 // All headed browsers share the same Xvfb desktop. This FIFO is the final
@@ -1839,6 +1874,7 @@ async function runRetest(payload, dependencies = {}) {
 
   page.on('dialog', async (dialog) => {
     dialogEvents.push({
+      origin: 'native',
       type: dialog.type(),
       message: dialog.message(),
     });
@@ -2005,6 +2041,7 @@ async function runScreenshot(payload, dependencies = {}) {
   let capturedAt = null;
   let captureMethod = null;
   let normalCaptureTask = null;
+  let screenshotCaptureError = null;
   let navigationError = null;
   let navigationWatchdog = null;
   let challengeDetected = false;
@@ -2038,6 +2075,28 @@ async function runScreenshot(payload, dependencies = {}) {
         process.kill('SIGKILL');
       }
     }, milliseconds);
+  }
+
+  async function failWithoutScreenshot(cause = null, response = null, mainDocumentResponse = null) {
+    armBrowserWatchdog((OBSERVATION_READ_TIMEOUT_MS * 2) + 2000);
+    const observation = await buildHttpObservation({ response: mainDocumentResponse ?? response, page }, dependencies);
+    const error = cause ?? new Error('Screenshot capture completed without an image.');
+    error.observation = observation;
+    error.httpStatus = (mainDocumentResponse ?? response)?.status?.() ?? null;
+    error.finalUrl = page.url();
+    error.dialogSeen = dialogInfo !== null;
+    error.dialogType = dialogInfo?.type || null;
+    error.dialogText = dialogInfo?.message || null;
+    throw error;
+  }
+
+  async function awaitDialogCapture() {
+    if (dialogTask === null) return;
+    try {
+      await dialogTask;
+    } catch (error) {
+      screenshotCaptureError = error;
+    }
   }
 
   try {
@@ -2135,7 +2194,7 @@ async function runScreenshot(payload, dependencies = {}) {
     if (dialogTask !== null) {
       // A real dialog is already conclusive evidence for this neutral capture.
       // Do not let an alert loop keep page.goto() blocked until its timeout.
-      await dialogTask;
+      await awaitDialogCapture();
     } else {
       await navigationTask;
     }
@@ -2146,7 +2205,7 @@ async function runScreenshot(payload, dependencies = {}) {
     if (screenshotBase64 === null) {
       await Promise.race([dialogSeen, wait(settleMs)]);
       if (dialogTask !== null) {
-        await dialogTask;
+        await awaitDialogCapture();
       }
     }
     if (screenshotBase64 === null) {
@@ -2170,12 +2229,16 @@ async function runScreenshot(payload, dependencies = {}) {
           await Promise.race([dialogSeen, wait(settleMs)]);
         }
         if (dialogTask !== null) {
-          await dialogTask;
+          await awaitDialogCapture();
         }
       }
     }
     if (screenshotBase64 === null && navigationError !== null && page.url() === 'about:blank') {
-      throw new Error(`Navigation did not reach the target page: ${navigationError}`);
+      await failWithoutScreenshot(
+        new Error(`Navigation did not reach the target page: ${navigationError}`),
+        response,
+        mainDocumentResponse,
+      );
     }
     if (screenshotBase64 === null) {
       normalCaptureTask = (async () => {
@@ -2186,7 +2249,11 @@ async function runScreenshot(payload, dependencies = {}) {
           captureMethod = 'desktop-page';
         }
       })();
-      await normalCaptureTask;
+      try {
+        await normalCaptureTask;
+      } catch (error) {
+        screenshotCaptureError = error;
+      }
       // Playwright can deliver a dialog event just after ffmpeg's child-process
       // callback. Keep the listener alive for one short grace period so such a
       // dialog replaces the normal image instead of racing with teardown.
@@ -2201,10 +2268,10 @@ async function runScreenshot(payload, dependencies = {}) {
     // can reject after the browser session has already closed.
     stopDialogObservation(false);
     if (dialogTask !== null) {
-      await dialogTask;
+      await awaitDialogCapture();
     }
     if (screenshotBase64 === null) {
-      throw new Error('Screenshot capture completed without an image.');
+      await failWithoutScreenshot(screenshotCaptureError, response, mainDocumentResponse);
     }
 
     // The image is already stored, so a hanging body or DOM read can only cost
@@ -2221,6 +2288,9 @@ async function runScreenshot(payload, dependencies = {}) {
       dialogSeen: dialogInfo !== null,
       dialogType: dialogInfo?.type || null,
       dialogText: dialogInfo?.message || null,
+      dialogOrigin: dialogInfo ? 'native' : null,
+      dialogEvents: dialogInfo ? [{ type: dialogInfo.type, message: dialogInfo.message, origin: 'native' }] : [],
+      hookedDialogEvents: [],
       captureMethod,
       metadata: {
         timeoutMs,
@@ -2354,6 +2424,14 @@ function createWorkerServer(dependencies = {}) {
         }
         sendJson(res, error.statusCode || 500, {
           errorMessage: error.message,
+          ...(pathname === '/screenshot' && error.observation ? {
+            observation: error.observation,
+            httpStatus: error.httpStatus ?? null,
+            finalUrl: error.finalUrl ?? null,
+            dialogSeen: error.dialogSeen === true,
+            dialogType: error.dialogType ?? null,
+            dialogText: error.dialogText ?? null,
+          } : {}),
           ...(pathname === '/retest' ? { result: 'error', raw: {} } : {}),
         });
       }
@@ -2431,6 +2509,12 @@ module.exports = {
   runScreenshot,
   runRetest,
   buildHttpObservation,
+  describeCaptureError,
+  captureDesktopScreenshot,
+  DESKTOP_CAPTURE_TIMEOUT_MS,
+  DESKTOP_CAPTURE_ATTEMPTS,
+  DESKTOP_CAPTURE_RETRY_DELAY_MS,
+  INTERACTIVE_DIALOG_CAPTURE_TIMEOUT_MS,
   truncateObservationText,
   OBSERVATION_SCHEMA,
   OBSERVATION_HEADERS,

@@ -1,0 +1,27 @@
+{
+    "case": "plain_prefix_budget_preserves_local_evidence",
+    "input": {
+        "url": "https://fixture.test/?q=marker",
+        "rawHtml": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxSyntax error in query expression 'id=marker'."
+    },
+    "rawHtmlSha256": "d19d4fb9f04e1c99755f823c0a7215c562952b53db666e73781c001e21baa575",
+    "expectedSignalCodes": [
+        "sql_error_observed",
+        "input_in_sql_error",
+        "sql_input_structure_indication"
+    ],
+    "expectedEvidenceIds": [
+        "7423a58ee965eae3132344f40ccd13be362b39a81a1263ae6ec7ac9997038a63",
+        "74e44c979accc8c02cb796a8e0d82b9259b25730e3af6d539aa2002100d46a4e",
+        "61b7049ad9fb337b216e5028d6074212bdf5643601f8e1c2a9e51cfd938f355c"
+    ],
+    "expectedSignalsSha256": "bb07f773ebb2464b1a8cf5f75dd30561495628f999507e4e2ce2f74578aaa5e6",
+    "expectedOutcome": {
+        "family": "sql",
+        "status": "limited",
+        "stage": "diagnostic",
+        "issue": "context_budget",
+        "limit": 1024
+    },
+    "reason": "The preceding plain-text line exceeds the backward context window. The complete visible Access diagnostic and local query remain fully qualified and retain the complete B0 signal arrays."
+}

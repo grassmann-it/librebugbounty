@@ -8,6 +8,7 @@
  * @var callable $t
  */
 $novncMessages = [
+    'unconfirmed' => $t('Browser-Status noch nicht geprüft'),
     'loading' => $t('Browser-Status wird geprüft …'),
     'available' => $t('Bereit für eine interaktive Prüfung'),
     'own_active' => $t('Dein interaktiver Browser ist aktiv'),
@@ -78,11 +79,11 @@ $novncMessages = [
 ];
 ?>
 <link rel="stylesheet" href="/css/studio-review-interactive.css">
-<section class="novnc-panel" data-review-novnc data-finding-id="<?= $escape($finding->getId()) ?>" data-csrf-token="<?= $escape($interactiveCsrfToken ?? '') ?>" data-return-path="<?= $escape($returnPath ?? '/review') ?>" data-original-url="<?= $escape($finding->getUrl()) ?>" data-poc-url="<?= $escape($finding->getPocUrl()) ?>" data-method="<?= $escape($finding->getMethod()) ?>" data-state="loading" aria-label="<?= $escape($t('Interaktiv prüfen')) ?>" tabindex="-1">
+<section class="novnc-panel" data-review-novnc data-finding-id="<?= $escape($finding->getId()) ?>" data-csrf-token="<?= $escape($interactiveCsrfToken ?? '') ?>" data-return-path="<?= $escape($returnPath ?? '/review') ?>" data-original-url="<?= $escape($finding->getUrl()) ?>" data-poc-url="<?= $escape($finding->getPocUrl()) ?>" data-method="<?= $escape($finding->getMethod()) ?>" data-state="unconfirmed" aria-label="<?= $escape($t('Interaktiv prüfen')) ?>" tabindex="-1">
   <script type="application/json" data-novnc-messages><?= json_encode($novncMessages, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?></script>
   <header class="novnc-heading">
     <div><strong><?= $escape($t('Interaktiv prüfen')) ?></strong><p><?= $escape($t('Live-Browser im Review · Start nur per Klick')) ?></p></div>
-    <span class="novnc-badge" data-novnc-state role="status" aria-live="polite"><?= $escape($novncMessages['loading']) ?></span>
+    <span class="novnc-badge" data-novnc-state role="status" aria-live="polite"><?= $escape($novncMessages['unconfirmed']) ?></span>
   </header>
   <p class="novnc-description"><?= $escape($t('Ein frischer Chromium-Kontext, ein aktiver Bediener. Wiederverbinden und Übernehmen behalten die Seite; die maximale Laufzeit beträgt 20 Minuten.')) ?></p>
   <p class="novnc-notice" data-novnc-notice role="status" aria-live="polite" hidden></p>

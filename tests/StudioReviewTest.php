@@ -25,6 +25,34 @@ use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
 final class StudioReviewTest extends DatabaseTestCase
 {
+    public function testGeneralCaseConfirmationDoesNotSelectOrAdoptAnUnchangedSqlClaim(): void
+    {
+        $finding = $this->finding('classifier claim is separate from case verdict');
+        $this->image($finding);
+        $claims = new \App\Service\CribrumClaimService($this->entityManager);
+        $claim = $claims->apply($finding, 'sql_injection', 'suspected', false, 'classifier');
+        $revision = $claim->revision;
+        $before = $this->entityManager->getConnection()->fetchAssociative('SELECT * FROM finding_claim WHERE finding_id=? AND claim=?', [$finding->getId(), 'sql_injection']);
+        $response = $this->request('/review');
+        self::assertSame(200, $response->getStatusCode());
+        $html = $response->getContent();
+        $xpath = $this->xpath($html);
+        self::assertSame(0, $xpath->query('//input[@name="claims[sql_injection][report]"][@checked]')->length);
+        self::assertSame(0, $xpath->query('//input[@name="claim_selection[sql_injection][selected]"][@checked]')->length);
+        self::assertSame(1, $xpath->query('//input[@name="claim_selection[sql_injection][selected]"][@disabled]')->length);
+        // A browser tab opened before the versioned selector still submits the
+        // legacy payload. Its unchanged classifier claim must not be adopted.
+        $legacyForm = $this->form($html);
+        unset($legacyForm['claim_selection_version'], $legacyForm['claim_selection_observation']);
+        $response = $this->submit($finding, array_merge($legacyForm, [
+            'assessment' => 'confirmed',
+            'claims' => ['sql_injection' => ['state' => 'suspected', 'revision' => (string) $revision]],
+        ]));
+        self::assertSame(303, $response->getStatusCode());
+        self::assertSame('confirmed', $this->state($finding)['manual_assessment']);
+        self::assertSame($before, $this->entityManager->getConnection()->fetchAssociative('SELECT * FROM finding_claim WHERE finding_id=? AND claim=?', [$finding->getId(), 'sql_injection']));
+    }
+
     public function testPermanentInteractiveEntryUsesNewestAvailableJobOnlyForItsRecommendation(): void
     {
         $finding = $this->finding('interactive-trigger-selection');

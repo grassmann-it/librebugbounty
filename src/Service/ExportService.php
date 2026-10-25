@@ -19,6 +19,7 @@ final class ExportService
         private readonly RetestRunRepository $retestRuns,
         private readonly ValidationService $validation,
         private readonly FindingPocService $poc,
+        private readonly ?StudioExportService $selectionExport = null,
     ) {
     }
 
@@ -61,6 +62,18 @@ final class ExportService
             'domains' => $domainRows,
             'findings' => $rows,
         ];
+    }
+
+    /** Shared inventory selection and ordering for explicitly filtered CLI exports. */
+    public function exportSelection(\App\Dto\FindingReadFilter $filter): array
+    {
+        if ($this->selectionExport === null) {
+            throw new \LogicException('The inventory export service is required for filtered exports.');
+        }
+        $json = '';
+        $this->selectionExport->writeDownload($filter, true, static function (string $part) use (&$json): void { $json .= $part; });
+
+        return json_decode($json, true, 512, JSON_THROW_ON_ERROR);
     }
 
     private function serializeFinding(Finding $finding): array

@@ -65,6 +65,159 @@ final class ClassifierTest extends TestCase
         $this->assertClaims($result, ['xss' => 'observed']);
     }
 
+    public function testNativeDialogWithExactShortMarkerObservesXss(): void
+    {
+        $result = $this->classifier()->classify(new ObservationInput(
+            'https://fixture.test/xss?q=%3Cscript%3Ealert%283%29%3C%2Fscript%3E',
+            '<input value="<script>alert(3)</script>">',
+            'Search',
+            'text/html',
+            200,
+            null,
+            null,
+            '3',
+            true,
+            '3',
+        ));
+        $this->assertClaims($result, ['xss' => 'observed']);
+    }
+
+    public function testShortMarkerSubstringInUnrelatedDialogDoesNotObserveXss(): void
+    {
+        $result = $this->classifier()->classify(new ObservationInput(
+            'https://fixture.test/xss?q=%3Cscript%3Ealert%283%29%3C%2Fscript%3E',
+            '<p>Search failed with error 5003</p>',
+            'Search failed with error 5003',
+            'text/html',
+            200,
+            null,
+            null,
+            '3',
+            true,
+            'Search failed with error 5003',
+        ));
+        $this->assertSame([], $result->suggestions);
+    }
+
+    public function testRequestSpecificSqlQueryEchoIsDisclosureWithoutSqlInjectionClaim(): void
+    {
+        $query = "SELECT id, name FROM items WHERE name LIKE '%<script>alert(3)</script>%' AND active = 1";
+        $result = $this->classifier()->classify(new ObservationInput(
+            'https://fixture.test/search?s=%3Cscript%3Ealert%283%29%3C%2Fscript%3E',
+            '<p>'.$query.'</p>',
+            "SELECT id, name FROM items WHERE name LIKE '%alert(3)%' AND active = 1",
+            'text/html',
+            200,
+            null,
+            null,
+            '3',
+            false,
+            null,
+        ));
+        $this->assertClaims($result, ['information_disclosure' => 'observed']);
+        $this->assertContains('sql-query-echo', array_column($result->toArray()['signals'], 'rule'));
+        $this->assertNotContains('sql_injection', array_column($result->toArray()['suggestions'], 'claim'));
+    }
+
+    public function testRequestValueInSqlSyntaxErrorAtHttpStatus200IsSqlSuspicion(): void
+    {
+        $payload = '-->\'"><\/title><\/iframe><\/script><img src=0 onerror=alert(\'OPENBUGBOUNTY\')>';
+        $body = "SELECT * FROM STD_PAGES WHERE REC_STATE='CURRENT' AND NAME='{$payload}' AND FK_LANGUAGE_KEY = 3 "
+            .":: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version "
+            ."for the right syntax to use near '\"><\/title><\/iframe><\/script><img src=0 onerror=alert('OPENBUGBOUNTY')>' AND F...' at line 1";
+        $result = $this->classifier()->classify(new ObservationInput(
+            'https://fixture.test/?page='.rawurlencode($payload),
+            $body,
+            $body,
+            'text/html',
+            200,
+            null,
+            $payload,
+            'OPENBUGBOUNTY',
+            false,
+            null,
+        ));
+        $this->assertClaims($result, [
+            'error_disclosure' => 'observed',
+            'information_disclosure' => 'observed',
+            'sql_injection' => 'suspected',
+            'xss' => 'suspected',
+        ]);
+        $this->assertContains('sql-error-request-value', array_column($result->toArray()['signals'], 'rule'));
+    }
+
+    public function testReflectedNavigationWithOraInPlaceNameIsNotAnOracleDiagnostic(): void
+    {
+        $payload = '\'--><img src=0 onerror=alert(123)>';
+        $body = '<a href="hedemora-dack/tires?vehicle_type_id='.$payload.'">Tires</a>';
+        $result = $this->classifier()->classify(new ObservationInput(
+            'https://fixture.test/webshop?vehicle_type_id='.rawurlencode($payload),
+            $body, 'Tires', 'text/html', 200, null, $payload, null, false, null,
+        ));
+        self::assertNotContains('sql_injection', array_column($result->toArray()['suggestions'], 'claim'));
+        self::assertNotContains('sql-error-request-value', array_column($result->toArray()['signals'], 'rule'));
+    }
+
+    public function testNumberedOracleErrorStillRetainsRequestBoundSuspicion(): void
+    {
+        $body = "SELECT * FROM items WHERE id='OPENBUG' ORA-00933: SQL command not properly ended";
+        $result = $this->classifier()->classify(new ObservationInput(
+            'https://fixture.test/?id=OPENBUG', $body, $body, 'text/html', 200, null, 'OPENBUG', null, false, null,
+        ));
+        self::assertContains('sql_injection', array_column($result->toArray()['suggestions'], 'claim'));
+    }
+
+    public function testSqlDocumentationWithSeparateReflectionDoesNotBecomeSqlSuspicion(): void
+    {
+        $result = $this->classifier()->classify(new ObservationInput(
+            'https://fixture.test/docs?q=OPENBUG',
+            "Example: SELECT id FROM items WHERE name = 'example'\nSearch: OPENBUG\nDatabase error: You have an error in your SQL syntax",
+            "Example: SELECT id FROM items WHERE name = 'example' Search: OPENBUG Database error: You have an error in your SQL syntax",
+            'text/html',
+            200,
+            null,
+            null,
+            'OPENBUG',
+            false,
+            null,
+        ));
+        $this->assertNotContains('sql_injection', array_column($result->toArray()['suggestions'], 'claim'));
+    }
+
+    public function testShortSqlQueryWithRequestValueIsDisclosure(): void
+    {
+        $result = $this->classifier()->classify(new ObservationInput(
+            'https://fixture.test/search?q=OPENBUG',
+            "<p>SELECT id FROM items WHERE name = 'OPENBUG'</p>",
+            "SELECT id FROM items WHERE name = 'OPENBUG'",
+            'text/html',
+            200,
+            null,
+            null,
+            null,
+            false,
+            null,
+        ));
+        $this->assertClaims($result, ['information_disclosure' => 'observed']);
+    }
+
+    public function testGenericSqlDocumentationDoesNotBecomeDisclosure(): void
+    {
+        $result = $this->classifier()->classify(new ObservationInput(
+            'https://fixture.test/docs?q=OPENBUG',
+            '<p>Example: SELECT id FROM items WHERE name = \'example\'</p>',
+            "Example: SELECT id FROM items WHERE name = 'example'",
+            'text/html',
+            200,
+            null,
+            null,
+            'OPENBUG',
+            false,
+            null,
+        ));
+        $this->assertSame([], $result->suggestions);
+    }
+
     public function testPlainReflectionWithoutDialogIsOnlyXssSuspicion(): void
     {
         $result = $this->classifier()->classify(new ObservationInput(

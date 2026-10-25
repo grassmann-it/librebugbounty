@@ -1,4 +1,5 @@
 <div class="studio-contact-route" data-contact-route>
+  <p class="studio-follow-up-step"><?= $escape($t('Schritt 2 · Meldeweg wählen')) ?></p>
   <h3><?= $escape($t('Gewählter Meldeweg')) ?></h3>
   <p class="studio-detail-hint"><?= $escape($t('Ein Meldeweg pro Fall. Neue Kontaktabfragen ändern deine Auswahl nicht. Die Auswahl versendet nichts und hebt keine Sperren auf.')) ?></p>
   <?php if (!$contactRoute['available']): ?>
@@ -17,7 +18,7 @@
           <?php if (!\App\Service\ContactRouteService::suggestionCurrent(['status' => 'found', 'expires' => $selectedRoute['provenance']['expires']])): ?><p><?= $escape($t('Die gewählte Quelle ist inzwischen abgelaufen. Bitte vor einer Kontaktaufnahme erneut prüfen.')) ?></p><?php endif; ?>
         <?php endif; ?>
       </div>
-    <?php else: ?><p data-no-contact-route><?= $escape($t('Noch kein Meldeweg gewählt.')) ?></p><?php endif; ?>
+    <?php else: ?><p class="studio-follow-up-empty" data-no-contact-route><?= $escape($t('Noch kein Meldeweg gewählt. Vorschläge werden nicht automatisch übernommen.')) ?></p><?php endif; ?>
     <details class="studio-detail-fold" data-contact-route-manual-fold>
       <summary><?= $escape($t('Kontakt manuell hinzufügen')) ?></summary>
       <p class="studio-detail-hint"><?= $escape($t('Speichern ersetzt den bisherigen Meldeweg. E-Mail oder HTTP(S)-Formular-/Portal-URL; HTTPS ist empfohlen.')) ?></p>

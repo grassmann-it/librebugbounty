@@ -21,6 +21,8 @@
   <title><?= $escape($t('Einstellungen')) ?> · <?= $escape(\App\AppInfo::NAME.' '.\App\AppInfo::RELEASE_NAME) ?></title>
   <?php require __DIR__.'/styles.php'; ?>
   <link rel="stylesheet" href="/css/studio-settings.css">
+  <link rel="stylesheet" href="/css/studio-about.css">
+  <link rel="stylesheet" href="/css/studio-follow-up.css">
   <script src="/js/i18n.js" defer></script>
 </head>
 <body data-studio data-studio-settings>
@@ -36,7 +38,7 @@
           <div>
             <p class="studio-eyebrow"><?= $escape($t('Arbeitsumgebung')) ?></p>
             <h1><?= $escape($t('Einstellungen')) ?></h1>
-            <p><?= $escape($t('Vorgaben und Sperren für diese Installation.')) ?></p>
+            <p><?= $escape($t('Standardwerte für künftige Aktionen. Sie ändern keine bestehende Fallentscheidung.')) ?></p>
           </div>
         </header>
 
@@ -76,7 +78,7 @@
               </label>
               <div class="studio-settings-timeout">
                 <input id="settings-review-timeout" name="review_timeout_ms" value="<?= $escape($reviewTimeout) ?>" inputmode="numeric" pattern="[0-9]+" min="1000" max="120000" aria-describedby="settings-review-timeout-hint<?= isset($errors['review_timeout_ms']) ? ' settings-review-timeout-error' : '' ?>"<?= isset($errors['review_timeout_ms']) ? ' aria-invalid="true"' : '' ?>>
-                <span>ms</span>
+                <span aria-hidden="true">ms</span>
               </div>
               <p class="studio-settings-field-hint" id="settings-review-timeout-hint"><?= $escape($t('Ein höherer Wert hilft langsamen Zielseiten, bindet die jeweilige Browserprüfung aber länger.')) ?></p>
               <?php if (isset($errors['review_timeout_ms'])): ?><p class="studio-settings-field-error" id="settings-review-timeout-error"><?= $escape($errors['review_timeout_ms']) ?></p><?php endif; ?>
@@ -109,14 +111,14 @@
               <label for="settings-recheck-interval"><?= $escape($t('Recheck-Intervall')) ?>
                 <span><?= $escape($t('Tage nach einem abgeschlossenen Check. Verkürzen zieht bereits geplante Checks vor; Fehler-Backoffs bleiben unverändert.')) ?></span>
               </label>
-              <input id="settings-recheck-interval" name="recheck_interval_days" value="<?= $escape($recheckIntervalDays) ?>" inputmode="numeric" pattern="[0-9]+" min="1" max="90" aria-describedby="settings-recheck-interval-hint<?= isset($errors['recheck_interval_days']) ? ' settings-recheck-interval-error' : '' ?>"<?= isset($errors['recheck_interval_days']) ? ' aria-invalid="true"' : '' ?>>
+              <div class="studio-settings-unit"><input id="settings-recheck-interval" name="recheck_interval_days" value="<?= $escape($recheckIntervalDays) ?>" inputmode="numeric" pattern="[0-9]+" min="1" max="90" aria-describedby="settings-recheck-interval-hint<?= isset($errors['recheck_interval_days']) ? ' settings-recheck-interval-error' : '' ?>"<?= isset($errors['recheck_interval_days']) ? ' aria-invalid="true"' : '' ?>><span aria-hidden="true"><?= $escape($t('Tage')) ?></span></div>
               <p class="studio-settings-field-hint" id="settings-recheck-interval-hint"><?= $escape($t('Standard sind 14 Tage. Zulässig sind 1 bis 90 Tage.')) ?></p>
               <?php if (isset($errors['recheck_interval_days'])): ?><p class="studio-settings-field-error" id="settings-recheck-interval-error"><?= $escape($errors['recheck_interval_days']) ?></p><?php endif; ?>
 
               <label for="settings-recheck-error-backoff"><?= $escape($t('Wiederholung nach Fehlern')) ?>
                 <span><?= $escape($t('Tage, bevor ein Fehlerergebnis erneut automatisch geprüft wird.')) ?></span>
               </label>
-              <input id="settings-recheck-error-backoff" name="recheck_error_backoff_days" value="<?= $escape($recheckErrorBackoffDays) ?>" inputmode="numeric" pattern="[0-9]+" min="1" max="30" aria-describedby="settings-recheck-error-backoff-hint<?= isset($errors['recheck_error_backoff_days']) ? ' settings-recheck-error-backoff-error' : '' ?>"<?= isset($errors['recheck_error_backoff_days']) ? ' aria-invalid="true"' : '' ?>>
+              <div class="studio-settings-unit"><input id="settings-recheck-error-backoff" name="recheck_error_backoff_days" value="<?= $escape($recheckErrorBackoffDays) ?>" inputmode="numeric" pattern="[0-9]+" min="1" max="30" aria-describedby="settings-recheck-error-backoff-hint<?= isset($errors['recheck_error_backoff_days']) ? ' settings-recheck-error-backoff-error' : '' ?>"<?= isset($errors['recheck_error_backoff_days']) ? ' aria-invalid="true"' : '' ?>><span aria-hidden="true"><?= $escape($t('Tage')) ?></span></div>
               <p class="studio-settings-field-hint" id="settings-recheck-error-backoff-hint"><?= $escape($t('Standard sind 3 Tage. Zulässig sind 1 bis 30 Tage.')) ?></p>
               <?php if (isset($errors['recheck_error_backoff_days'])): ?><p class="studio-settings-field-error" id="settings-recheck-error-backoff-error"><?= $escape($errors['recheck_error_backoff_days']) ?></p><?php endif; ?>
               </fieldset>
@@ -164,9 +166,11 @@
 
           <section class="studio-settings-panel" aria-labelledby="settings-cribrum-title">
             <div class="studio-settings-panel-heading">
-              <div><h2 id="settings-cribrum-title">Cribrum</h2></div>
+              <div><h2 id="settings-cribrum-title"><?= $escape($t('Cribrum-Klassifikator')) ?></h2><span class="studio-settings-readonly"><?= $escape($t('Nur lesend')) ?></span></div>
             </div>
+            <p class="studio-settings-field-hint"><?= $escape($t('Schwerpunkt von {version} „{release}“: nachvollziehbare Befundhinweise aus gespeicherten Browser-Beobachtungen.', ['version' => \App\AppInfo::VERSION, 'release' => \App\AppInfo::RELEASE_NAME])) ?> <a href="/about#release-notes-title"><?= $escape($t('Neu in {version}', ['version' => \App\AppInfo::VERSION])) ?> →</a></p>
             <p class="studio-settings-field-hint"><?= $escape($t('Lokale, versionierte Klassifikation der gespeicherten Browser-Observations. Vorschläge ersetzen keine manuelle Bewertung; private Pakete liegen unter {directory}.', ['directory' => $cribrum['privateDirectory']])) ?></p>
+            <p class="studio-settings-field-hint"><a href="/settings/cribrum/rule-review"><?= $escape($t('Regelprüfliste öffnen')) ?> →</a> <?= $escape($t('Im Review abgewählte Vorschläge mit ihren auslösenden Regeln prüfen.')) ?></p>
             <dl class="studio-health-metrics">
               <div><dt><?= $escape($t('Speicherlimit je Observation')) ?></dt><dd><?= $escape($formatNumber($cribrum['limits']['compressedBytes'] / 1048576, 0)) ?> MiB</dd></div>
               <div><dt><?= $escape($t('Aufbewahrte Ausschnitte bei Überschreitung')) ?></dt><dd><?= $escape($formatNumber($cribrum['limits']['retainedRawBytes'] / 1024, 0)) ?> / <?= $escape($formatNumber($cribrum['limits']['retainedDomBytes'] / 1024, 0)) ?> KiB</dd></div>

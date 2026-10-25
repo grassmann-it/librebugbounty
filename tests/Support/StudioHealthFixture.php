@@ -19,10 +19,12 @@ final class StudioHealthFixture
             if ($path === '/vnc-control/state') {
                 return new MockResponse($scenario === 'gateway-down' ? '{"error":"unavailable"}' : '{"activeGeneration":null,"sockets":[]}', ['http_code' => $scenario === 'gateway-down' ? 503 : 200]);
             }
-            if ($scenario === 'interactive-down' && parse_url($url, PHP_URL_HOST) === 'interactive.test') {
+            if ($scenario === 'interactive-down' && parse_url($url, PHP_URL_HOST) === '127.0.0.1' && parse_url($url, PHP_URL_PORT) === 2) {
                 return new MockResponse('{"ok":false}', ['http_code' => 503]);
             }
-            $down = $scenario === 'browser-down' && in_array(parse_url($url, PHP_URL_HOST), ['127.0.0.1', 'playwright-shot-2'], true);
+            $host = parse_url($url, PHP_URL_HOST);
+            $port = parse_url($url, PHP_URL_PORT);
+            $down = $scenario === 'browser-down' && (($host === '127.0.0.1' && $port === 1) || $host === 'playwright-shot-2');
             return new MockResponse($down ? '{"ok":false}' : '{"ok":true}', ['http_code' => $down ? 503 : 200]);
         });
     }

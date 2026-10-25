@@ -13,6 +13,7 @@
     const urlInput = form.elements.namedItem('url');
     const payloadInput = form.elements.namedItem('payload');
     const notesInput = form.elements.namedItem('annotate');
+    const declaredTypeInput = form.elements.namedItem('declaredType');
     const submitButton = form.querySelector('button[type="submit"]');
     const list = root.querySelector('#intake-history-list');
     const notice = root.querySelector('#intake-notice');
@@ -69,7 +70,8 @@
     const restored = new Set();
     const text = (value) => typeof value === 'string' ? value : '';
     const findingLink = (id) => uuidPattern.test(text(id)) ? '/findings/' + encodeURIComponent(id) : null;
-    const draft = () => ({ url: urlInput.value, payload: payloadInput.value, defaultPayload: payloadInput.defaultValue, notes: notesInput.value });
+    const declaredType = (value) => declaredTypeInput && Array.from(declaredTypeInput.options).some((option) => option.value === value) ? value : 'unclassified';
+    const draft = () => ({ url: urlInput.value, payload: payloadInput.value, defaultPayload: payloadInput.defaultValue, notes: notesInput.value, declaredType: declaredType(declaredTypeInput?.value) });
     const updatePayloadLabel = () => { if (payloadLabel) payloadLabel.textContent = payloadInput.value.trim() || payloadInput.placeholder; };
     const observationLabelKeys = {
       still_vulnerable: 'Nachweis (still_vulnerable)',
@@ -142,7 +144,7 @@
               ? 'Die Eingabe wurde nicht gespeichert. Bitte prüfen oder die Seite neu laden.' : '');
             restored.add(entry.localId);
             return {
-              localId: entry.localId, url: entry.url, notes: text(entry.notes), payload: text(entry.payload),
+              localId: entry.localId, url: entry.url, notes: text(entry.notes), payload: text(entry.payload), declaredType: declaredType(entry.declaredType),
               sessionId: text(entry.sessionId) || null,
               legacy: entry.legacy === true || !Object.prototype.hasOwnProperty.call(entry, 'sessionId'),
               pendingHistoryScope: text(entry.pendingHistoryScope),
@@ -161,6 +163,7 @@
           if (stored.draft && typeof stored.draft.url === 'string') {
             urlInput.value = stored.draft.url;
             notesInput.value = text(stored.draft.notes);
+            if (declaredTypeInput) declaredTypeInput.value = declaredType(stored.draft.declaredType);
             if (typeof stored.draft.payload === 'string') {
               // Follow changed settings when the saved marker was the default.
               // Legacy idle drafts have no reliable evidence of a per-case edit.
@@ -226,6 +229,7 @@
         urlInput.value = entry.url;
         notesInput.value = entry.notes;
         payloadInput.value = entry.payload;
+        if (declaredTypeInput) declaredTypeInput.value = declaredType(entry.declaredType);
         persist();
         urlInput.focus();
         form.scrollIntoView({ block: 'nearest' });
@@ -707,7 +711,7 @@
       const entry = {
         localId: globalThis.crypto?.randomUUID?.() || Date.now() + '-' + Math.random().toString(16).slice(2),
         sessionId: activitySnapshot?.activeSession?.id || null, legacy: false,
-        url: submitted.url.trim(), notes: submitted.notes, payload: submitted.payload,
+        url: submitted.url.trim(), notes: submitted.notes, payload: submitted.payload, declaredType: submitted.declaredType,
         submittedAt: new Date().toISOString(), saveState: 'saving', findingId: null,
         outcome: null, status: null, missing: false, errorKey: '', error: '',
       };
@@ -730,7 +734,7 @@
       const statusRead = ++statusReadSequence;
       const timeout = setTimeout(() => controller.abort(), 15000);
       try {
-        const body = new URLSearchParams({ url: entry.url, payload: entry.payload, annotate: entry.notes, browserIntake: '1', _token: form.elements.namedItem('_token').value });
+        const body = new URLSearchParams({ url: entry.url, payload: entry.payload, annotate: entry.notes, declaredType: entry.declaredType || 'unclassified', browserIntake: '1', _token: form.elements.namedItem('_token').value });
         const response = await fetch(createEndpoint, { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, credentials: 'same-origin', body, signal: controller.signal });
         const data = await response.json();
         if (requestLifecycle !== lifecycle) return;
@@ -766,7 +770,7 @@
         if (notesInput.value === submitted.notes) notesInput.value = '';
         notice.textContent = t(data.outcome === 'duplicate' ? 'Bereits vorhanden. Der bestehende Fall bleibt erhalten.'
           : 'Gespeichert. Bereit für die nächste URL.');
-        if (![urlInput, payloadInput, notesInput].includes(activeField)) urlInput.focus();
+        if (![urlInput, payloadInput, notesInput, declaredTypeInput].includes(activeField)) urlInput.focus();
       } catch (_) {
         if (requestLifecycle !== lifecycle) return;
         entry.saveState = 'unconfirmed';
@@ -826,6 +830,7 @@
     }
 
     form.addEventListener('input', persist);
+    declaredTypeInput?.addEventListener('change', persist);
     const refreshVisible = () => {
       if (document.visibilityState !== 'visible') {
         clearTimeout(pollTimer);

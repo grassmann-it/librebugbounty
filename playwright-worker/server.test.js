@@ -4,10 +4,15 @@ const { EventEmitter } = require('node:events');
 const http = require('node:http');
 const net = require('node:net');
 const { randomBytes } = require('node:crypto');
+const { writeFile } = require('node:fs/promises');
 const {
   DEFAULT_CHALLENGE_WAIT_MS,
   DEFAULT_SCREENSHOT_SETTLE_MS,
+  DESKTOP_CAPTURE_ATTEMPTS,
+  DESKTOP_CAPTURE_RETRY_DELAY_MS,
+  DESKTOP_CAPTURE_TIMEOUT_MS,
   INTERACTIVE_SESSION_TTL_MS,
+  INTERACTIVE_DIALOG_CAPTURE_TIMEOUT_MS,
   INTERACTIVE_SWEEP_MS,
   MAX_BODY_BYTES,
   MAX_INTERACTIVE_SESSIONS,
@@ -21,6 +26,8 @@ const {
   closeInteractiveSessionById,
   challengeSnapshotIsActive,
   captureInteractiveSession,
+  captureDesktopScreenshot,
+  describeCaptureError,
   interactiveSessions,
   runInteractiveInput,
   runInteractiveDialog,
@@ -116,6 +123,97 @@ function createScreenshotHarness(options = {}) {
 
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a2ioAAAAASUVORK5CYII=', 'base64');
 const URL = 'https://fixture.test/challenge';
+
+test('desktop capture failures retain process and ffmpeg diagnostics', () => {
+  assert.equal(
+    describeCaptureError({ code: 1, signal: null, killed: false, stderr: ':99: No such file\n' }),
+    'ffmpeg desktop capture failed (exit 1): :99: No such file',
+  );
+  assert.equal(
+    describeCaptureError({ code: null, signal: 'SIGTERM', killed: true, stderr: '' }),
+    'ffmpeg desktop capture failed (signal SIGTERM)',
+  );
+  assert.equal(
+    describeCaptureError({ code: null, signal: null, killed: true, stderr: '' }),
+    'ffmpeg desktop capture failed (timed out)',
+  );
+});
+
+test('the complete desktop retry budget fits the interactive dialog deadline', () => {
+  const budget = (DESKTOP_CAPTURE_ATTEMPTS * DESKTOP_CAPTURE_TIMEOUT_MS) + DESKTOP_CAPTURE_RETRY_DELAY_MS;
+  assert.ok(budget < INTERACTIVE_DIALOG_CAPTURE_TIMEOUT_MS, `retry budget ${budget}ms is not bounded`);
+});
+
+test('a transient ffmpeg failure is retried once before reporting diagnostics', async () => {
+  const calls = [];
+  const waits = [];
+  const result = await captureDesktopScreenshot(null, {
+    execFileAsync: async (file, args) => {
+      calls.push([file, args]);
+      if (calls.length === 1) {
+        throw Object.assign(new Error('Command failed: ffmpeg'), { code: 1, stderr: 'transient X11 error' });
+      }
+      await writeFile(args.at(-1), PNG);
+    },
+    wait: async (ms) => { waits.push(ms); },
+    captureTimeoutMs: 25,
+  });
+
+  assert.equal(calls.length, 2);
+  assert.deepEqual(waits, [150]);
+  assert.equal(Buffer.from(result, 'base64').equals(PNG), true);
+});
+
+test('a configured desktop capture attempt count is honored', async () => {
+  const calls = [];
+  await captureDesktopScreenshot(null, {
+    execFileAsync: async (file, args, options) => {
+      calls.push(options.timeout);
+      if (calls.length < 3) throw Object.assign(new Error('Command failed: ffmpeg'), { code: 1 });
+      await writeFile(args.at(-1), PNG);
+    },
+    wait: async () => {},
+    captureTimeoutMs: 25,
+    captureAttempts: 3,
+  });
+  assert.deepEqual(calls, [25, 25, 25]);
+});
+
+test('desktop capture does not retry an aborted caller', async () => {
+  const calls = [];
+  const controller = new AbortController();
+  controller.abort();
+  await assert.rejects(
+    captureDesktopScreenshot(controller.signal, {
+      execFileAsync: async () => {
+        calls.push(calls.length);
+        throw Object.assign(new Error('Command failed: ffmpeg'), { killed: true });
+      },
+      wait: async () => { throw new Error('retry wait must not run'); },
+      captureTimeoutMs: 25,
+    }),
+    /timed out/,
+  );
+  assert.equal(calls.length, 1);
+});
+
+test('desktop capture does not start another ffmpeg process when aborted during the retry pause', async () => {
+  const calls = [];
+  const controller = new AbortController();
+  await assert.rejects(
+    captureDesktopScreenshot(controller.signal, {
+      execFileAsync: async () => {
+        calls.push(calls.length);
+        throw Object.assign(new Error('Command failed: ffmpeg'), { code: 1, stderr: 'first failure' });
+      },
+      wait: async () => { controller.abort(); },
+      captureTimeoutMs: 25,
+    }),
+    /first failure/,
+  );
+  assert.equal(calls.length, 1);
+});
+
 function deferred() {
   let resolve;
   const promise = new Promise((done) => { resolve = done; });
@@ -457,8 +555,15 @@ test('a dialog racing with the normal capture replaces that image', async () => 
 
 test('a failed dialog capture is returned as the request failure', async () => {
   const dialog = createDialog('failing fixture dialog');
+  const fixture = createObservationResponse({
+    status: 500,
+    headers: { 'content-type': 'text/html; charset=utf-8' },
+    text: '<html>database error</html>',
+  });
   const harness = createScreenshotHarness({
     onGoto: (page) => setImmediate(() => page.emit('dialog', dialog)),
+    response: fixture.response,
+    domText: 'database error',
     wait: (milliseconds) => milliseconds === 250
       ? new Promise(() => {})
       : Promise.resolve(),
@@ -467,10 +572,20 @@ test('a failed dialog capture is returned as the request failure', async () => {
     },
   });
 
-  await assert.rejects(runScreenshot({
-    url: 'https://fixture.test',
-    settleMs: 250,
-  }, harness.dependencies), /fixture capture failed/);
+  let failure = null;
+  try {
+    await runScreenshot({ url: 'https://fixture.test', settleMs: 250 }, harness.dependencies);
+    assert.fail('The failed capture must reject.');
+  } catch (error) {
+    failure = error;
+  }
+  assert.match(failure?.message, /fixture capture failed/);
+
+  assert.equal(failure.observation.schema, OBSERVATION_SCHEMA);
+  assert.equal(failure.observation.httpStatus, 500);
+  assert.equal(failure.observation.rawHtml, '<html>database error</html>');
+  assert.equal(failure.dialogSeen, true);
+  assert.equal(failure.dialogText, 'failing fixture dialog');
 
   assert.equal(dialog.isDismissed(), true);
   assert.equal(harness.dialogListenersAtContextClose(), 1);

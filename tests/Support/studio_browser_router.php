@@ -15,8 +15,8 @@ foreach ([
     'DATABASE_URL' => 'sqlite:///'. $root.'/database.sqlite',
     'EVIDENCE_STORAGE_DIR' => $root.'/artifacts',
     'PLAYWRIGHT_WORKER_URL' => 'http://127.0.0.1:1',
-    'PLAYWRIGHT_INTERACTIVE_URL' => 'http://interactive.test:3000',
-    'PLAYWRIGHT_GATEWAY_TOKEN' => 'isolated-studio-health-gateway-token',
+    'PLAYWRIGHT_INTERACTIVE_URL' => 'http://127.0.0.1:2',
+    'PLAYWRIGHT_GATEWAY_TOKEN' => 'isolated-studio-health-gateway-token-1271',
     'RETEST_DEFAULT_TIMEOUT_MS' => '10000',
 ] as $key => $value) {
     putenv($key.'='.$value);
@@ -97,6 +97,27 @@ if (!is_file($root.'/database.sqlite')) {
 }
 
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+if (in_array($path, ['/__studio_acceptance_help_snapshot', '/__studio_acceptance_help_marker'], true)) {
+    $database = new PDO('sqlite:'.$root.'/database.sqlite');
+    if ($path === '/__studio_acceptance_help_marker') {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['marker']) || !is_string($_POST['marker'])) { http_response_code(400); exit; }
+        $statement = $database->prepare('INSERT INTO setting (id, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET value = excluded.value');
+        $statement->execute(['intake.default_payload', $_POST['marker'], gmdate('Y-m-d H:i:s')]);
+        header('Content-Type: application/json');
+        echo json_encode(['isolated' => true], JSON_THROW_ON_ERROR);
+        return;
+    }
+    if ($_SERVER['REQUEST_METHOD'] !== 'GET') { http_response_code(405); exit; }
+    $database->exec('PRAGMA query_only=ON');
+    $rows = [];
+    foreach ($database->query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")->fetchAll(PDO::FETCH_COLUMN) as $table) {
+        $rows[$table] = $database->query('SELECT * FROM "'.str_replace('"', '""', $table).'" ORDER BY rowid')->fetchAll(PDO::FETCH_ASSOC);
+    }
+    header('Content-Type: application/json');
+    header('Cache-Control: no-store');
+    echo json_encode(['isolated' => true, 'fingerprint' => hash('sha256', json_encode($rows, JSON_THROW_ON_ERROR)), 'settings' => $rows['setting'] ?? [], 'counts' => array_map('count', $rows)], JSON_THROW_ON_ERROR);
+    return;
+}
 if (in_array($path, ['/__studio_acceptance_release', '/__studio_acceptance_release_state'], true)) {
     $cacheDirectory = $root.'/cache/release-update';
     if ($path === '/__studio_acceptance_release') {

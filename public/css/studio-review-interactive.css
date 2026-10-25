@@ -44,6 +44,9 @@
 }
 
 .interactive-session-controls legend { padding: 0; margin-bottom: 8px; font-weight: 600; }
+.interactive-stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 330px); align-items: start; gap: 14px; min-width: 0; }
+.interactive-side { display: grid; gap: 14px; min-width: 0; max-height: min(75vh, 900px); overflow: auto; padding-right: 3px; scrollbar-width: thin; }
+.interactive-side .interactive-actions { grid-template-columns: minmax(0, 1fr); }
 .interactive-frame-panel { min-width: 0; border: 1px solid var(--studio-line); border-radius: 10px; background: #090a0b; overflow: hidden; }
 .interactive-frame-scroll { overflow: auto; max-height: min(70vh, 760px); }
 .interactive-click-form,
@@ -75,6 +78,10 @@
   .interactive-shell { padding: 12px; }
   .interactive-header { flex-direction: column; }
   .interactive-actions { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 1100px) {
+  .interactive-stage { grid-template-columns: minmax(0, 1fr); }
+  .interactive-side { max-height: none; overflow: visible; }
 }
 
 /* noVNC is shared by the embedded Review surface and the standalone page.

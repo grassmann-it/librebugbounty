@@ -24,6 +24,7 @@ final class RetestService
         private readonly EvidenceStorageInterface $storage,
         private readonly RecheckPolicy $recheckPolicy,
         private readonly ?CribrumProcessingService $cribrum = null,
+        private readonly ?ReportProjectionService $reportProjection = null,
     ) {
     }
 
@@ -65,8 +66,8 @@ final class RetestService
         $capturedEvidence = $finding->getExpectedEvidence();
         $context = $this->captureContext($finding);
         $result = $this->browserRetestClient->retest(new BrowserRetestRequest(
-            url: $finding->getPocUrl(),
-            expectedEvidence: $finding->getExpectedEvidence(),
+            url: $context['active_poc_url'],
+            expectedEvidence: $context['expected_evidence'],
             timeoutMs: $timeoutMs,
             screenshot: $screenshot,
             headless: $headless,
@@ -75,6 +76,7 @@ final class RetestService
 
         $this->applyResult($run, $finding, $result, $screenshot, $noStatusUpdate, $context['active_poc_url'], $context['poc_revision'], $context);
         $this->processCribrum($finding, $result, $run, $context['active_poc_url'], $context['poc_revision'], $capturedPayload, $capturedEvidence);
+        $this->reportProjection?->refresh($finding);
 
         return $run;
     }
@@ -107,6 +109,7 @@ final class RetestService
             $finding->getPayload(),
             $finding->getExpectedEvidence(),
         );
+        $this->reportProjection?->refresh($finding);
 
         return $run;
     }
@@ -129,6 +132,7 @@ final class RetestService
             $expectedEvidence,
             $result->dialogText !== null && $result->dialogText !== '',
             $result->dialogText,
+            $raw['proofContext']['requestContextSha256'] ?? null,
         );
     }
 
@@ -142,6 +146,7 @@ final class RetestService
 
         return [
             'id' => $finding->getId(),
+            'proofContext' => WorkerProofResolver::captureContext($finding),
             'status' => $finding->getStatus(),
             'review_state' => $finding->getReviewState(),
             'manual_assessment' => $finding->getManualAssessment(),
@@ -222,6 +227,8 @@ final class RetestService
         $deferred = !$recovery && ReviewDispositionService::isDeferred($connection, $finding->getId());
         $blocked = !$recovery && !(new FindingWorkPolicy($connection))->checksAllowed($finding);
         $run->setRawResult(array_merge($result->raw, [
+            // Only a context pinned before dispatch is trusted; a worker cannot supply it.
+            'proofContext' => is_array($expectedFindingContext['proofContext'] ?? null) ? $expectedFindingContext['proofContext'] : null,
             'screenshotRequested' => $screenshot,
             'pocUrl' => $expectedPocUrl,
             'pocRevision' => $expectedPocRevision,

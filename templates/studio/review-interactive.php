@@ -95,6 +95,7 @@ $messages = [
     <fieldset class="interactive-session-controls"<?= $expired ? ' disabled' : '' ?>>
       <legend><?= $escape($t('Browser-Steuerung')) ?></legend>
       <p class="interactive-hint"><?= $escape($t('Klicke im Bild, um die Seite zu bedienen. Mit JavaScript wird nur das Bild alle drei Sekunden aktualisiert; dein eingegebener Text bleibt erhalten. Löse den Schutz manuell in diesem Wiederholungsversuch.')) ?></p>
+      <div class="interactive-stage">
       <section class="interactive-frame-panel" aria-label="<?= $escape($t('Live-Browseransicht')) ?>">
         <div class="interactive-frame-scroll">
           <form method="post" action="<?= $escape($inputPath) ?>" class="interactive-click-form" data-interactive-input>
@@ -105,6 +106,7 @@ $messages = [
         </div>
       </section>
 
+      <div class="interactive-side">
       <section class="interactive-controls" aria-label="<?= $escape($t('Browser-Steuerung')) ?>">
         <?php foreach ([['reload', 'Neu laden'], ['back', 'Zurück']] as [$action, $label]): ?>
           <form method="post" action="<?= $escape($inputPath) ?>" data-interactive-input>
@@ -145,6 +147,8 @@ $messages = [
           <button class="review-button" type="submit"><?= $escape($t('Session beenden')) ?></button>
         </form>
       </section>
+      </div>
+      </div>
     </fieldset>
   </main>
   <script>

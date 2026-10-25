@@ -21,7 +21,10 @@ final class StatisticsService
     ];
     private const MAX_BUCKETS = 730;
 
-    public function __construct(private readonly StatisticsRepository $statistics)
+    public function __construct(
+        private readonly StatisticsRepository $statistics,
+        private readonly ?\App\Repository\FindingReadRepository $findings = null,
+    )
     {
     }
 
@@ -220,6 +223,9 @@ final class StatisticsService
         unset($row);
         $claimCounts = $this->statistics->claimCounts($filters['tld']);
         foreach ($claimCounts as &$row) {
+            $row['label'] = \App\Value\CribrumBadgeCatalog::entry($row['claim'])['label'];
+            $row['stateLabel'] = \App\Value\CribrumBadgeCatalog::stateLabel($row['state']);
+            $row['scope'] = 'active';
             $row['url'] = $this->listUrl(['scope' => 'active', 'claim' => $row['claim'], 'claim_state' => $row['state']], $filters['tld']);
         }
         unset($row);
@@ -234,8 +240,26 @@ final class StatisticsService
             'filters' => $filters, 'tldOptions' => $tldOptions,
             'kpis' => $kpis, 'series' => $series, 'calendarYear' => $calendarYear, 'calendar' => array_values($calendar),
             'tlds' => ['cases' => $this->tldSegments($tldCases, 'cases', $from, $to), 'hosts' => $this->tldSegments(array_map('count', $tldHosts), 'hosts', $from, $to), 'caseTotal' => $counts['reported'], 'hostTotal' => count($hosts)],
+            'cribrum' => $this->cribrumCounts($filters['tld']),
             'claims' => $claimCounts, 'snapshot' => $snapshot, 'snapshotCounts' => $snapshotCounts, 'aging' => $aging, 'totals' => $totals, 'coverage' => $coverage, 'history' => $history, 'notes' => $notes,
         ];
+    }
+
+    /** Current active cases, counted once per group. Groups overlap and are never summed. */
+    private function cribrumCounts(string $tld): array
+    {
+        $items = [];
+        if ($this->findings !== null) {
+            foreach (\App\Value\CribrumBadgeCatalog::entries() as $entry) {
+                if (!$entry['filterable']) continue;
+                $count = $this->findings->count(new FindingReadFilter(tld: $tld, cribrumCodes: [$entry['code']]));
+                if ($count === 0) continue;
+                $items[] = ['code' => $entry['code'], 'label' => $entry['label'], 'count' => $count,
+                    'url' => $this->listUrl(['scope' => 'active', 'cribrum' => [$entry['code']]], $tld)];
+            }
+        }
+        return ['scope' => 'active', 'freshness' => 'current', 'overlapping' => true,
+            'countLabel' => 'Aktive Fälle pro Aussage; Gruppen überschneiden sich.', 'items' => $items];
     }
 
     private function filters(array $query): array

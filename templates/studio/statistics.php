@@ -136,14 +136,14 @@ $isEmpty = array_sum(array_map(static fn (string $metric): int => $view['kpis'][
 
         <section class="stat-controls" aria-label="<?= $escape($t('Zeitraum und Filter')) ?>">
           <div class="stat-period-bar">
-            <nav class="stat-segmented" aria-label="<?= $escape($t('Statistikzeitraum')) ?>">
+            <nav class="stat-segmented" aria-label="<?= $escape($t('Zeitraum für Aktivität auswählen')) ?>">
               <?php foreach (['week' => 'Woche', 'month' => 'Monat', 'last_3_months' => 'Letzte 3 Monate', 'year' => 'Jahr', 'all' => 'Gesamt'] as $kind => $label): ?>
                 <a data-period="<?= $escape($kind) ?>" href="<?= $escape($statisticsUrl(['period' => $kind])) ?>"<?= $period['kind'] === $kind ? ' aria-current="page"' : '' ?>><?= $escape($t($label)) ?></a>
               <?php endforeach; ?>
             </nav>
             <div class="stat-period-navigation">
               <?php if ($period['previousUrl'] !== null): ?><a class="stat-icon-button" data-period-previous href="<?= $escape($period['previousUrl']) ?>" aria-label="<?= $escape($t('Vorheriger Zeitraum')) ?>">←</a><?php else: ?><span class="stat-icon-button" aria-disabled="true" aria-label="<?= $escape($t('Kein vorheriger Zeitraum')) ?>">←</span><?php endif; ?>
-              <div class="stat-period-label"><?= $escape($periodLabel) ?><small><?= $period['ongoing'] ? $escape($t('Laufender Zeitraum · ')) : '' ?>Europe/Berlin</small></div>
+              <div class="stat-period-label"><span><?= $escape($t('Aktiver Zeitraum für Aktivität')) ?></span><strong><?= $escape($periodLabel) ?></strong><small><?= $period['ongoing'] ? $escape($t('Laufender Zeitraum · ')) : '' ?>Europe/Berlin</small></div>
               <?php if ($period['nextUrl'] !== null): ?><a class="stat-icon-button" data-period-next href="<?= $escape($period['nextUrl']) ?>" aria-label="<?= $escape($t('Nächster Zeitraum')) ?>">→</a><?php else: ?><span class="stat-icon-button" aria-disabled="true" aria-label="<?= $escape($t('Kein nächster Zeitraum')) ?>">→</span><?php endif; ?>
             </div>
           </div>
@@ -155,7 +155,7 @@ $isEmpty = array_sum(array_map(static fn (string $metric): int => $view['kpis'][
               <button class="stat-button" type="submit"><?= $escape($t('Anwenden')) ?></button>
             </form>
             <details class="stat-custom"<?= $period['kind'] === 'custom' ? ' open' : '' ?>>
-              <summary><?= $escape($t('Eigener Zeitraum')) ?></summary>
+              <summary<?= $period['kind'] === 'custom' ? ' aria-current="true"' : '' ?>><?= $escape($t('Eigener Zeitraum')) ?><?= $period['kind'] === 'custom' ? ' · '.$escape($t('aktiv')) : '' ?></summary>
               <form method="get" action="/statistics" id="statistics-custom-period">
                 <input type="hidden" name="period" value="custom">
                 <?php foreach ($baseQuery as $name => $value): ?><?php if (!in_array($name, ['period', 'from', 'to'], true)): ?><input type="hidden" name="<?= $escape($name) ?>" value="<?= $escape($value) ?>"><?php endif; ?><?php endforeach; ?>
@@ -168,7 +168,8 @@ $isEmpty = array_sum(array_map(static fn (string $metric): int => $view['kpis'][
           <?php if ($filters['tld'] !== ''): ?><p class="stat-filter-summary"><?= $escape($t('Domain-Endung {tld} in allen Auswertungen', ['tld' => $filters['tld']])) ?> <a href="<?= $escape($statisticsUrl(['tld' => ''])) ?>"><?= $escape($t('Filter entfernen')) ?></a></p><?php endif; ?>
         </section>
 
-        <section class="stat-kpis" aria-label="<?= $escape($t('Kennzahlen im gewählten Zeitraum')) ?>">
+        <div class="stat-section-intro" id="statistics-activity-section"><p class="stat-card-eyebrow"><?= $escape($t('Folgt dem Zeitraum')) ?></p><h2><?= $escape($t('Aktivität im Zeitraum')) ?></h2><p><?= $escape($t('Eingänge, Kontaktmarkierungen und manuelle Behebungen werden an ihrem jeweiligen Datum gezählt.')) ?></p></div>
+        <section class="stat-kpis" aria-labelledby="statistics-activity-section">
           <?php foreach (['reported', 'contacted', 'fixed', 'hosts'] as $metric): ?>
             <?php $kpi = $view['kpis'][$metric]; $tag = $kpi['url'] === null ? 'div' : 'a'; $hint = match ($metric) { 'reported' => 'Neue Fälle im Eingang', 'contacted' => 'Gespeicherte Kontaktmarkierungen', 'fixed' => 'Manuell als behoben bewertet', default => 'Verschiedene Hosts neuer Fälle' }; ?>
             <<?= $tag ?> class="stat-kpi" data-stat-kpi="<?= $escape($metric) ?>" data-count="<?= $escape($kpi['count']) ?>" style="--metric-color: <?= $escape($metricColors[$metric]) ?>"<?= $kpi['url'] === null ? '' : ' href="'.$escape($kpi['url']).'"' ?>>
@@ -234,11 +235,20 @@ $isEmpty = array_sum(array_map(static fn (string $metric): int => $view['kpis'][
             <p class="stat-card-note" data-tld-note><?= $escape($t($measure === 'hosts' ? 'Jeder vollständige Hostname zählt einmal. Mehrere Fälle auf demselben Host erhöhen die Hostzahl nicht.' : 'Ein Fall zählt einmal. Die fünf häufigsten TLDs werden einzeln gezeigt; IP-Adressen und lokale Hosts stehen separat.')) ?></p>
           </section>
 
+          <div class="stat-section-intro stat-stock-intro" id="statistics-stock-section"><p class="stat-card-eyebrow"><?= $escape($t('Unabhängig vom Zeitraum')) ?></p><h2><?= $escape($t('Bestand und gespeicherte Befunde')) ?></h2><p><?= $escape($t('Diese Bestandszahlen folgen dem TLD-Filter, nicht dem Aktivitätszeitraum. Die Karten kennzeichnen ihren jeweiligen Zählumfang; jede Gruppe verlinkt genau ihre gezählten Fälle.')) ?></p></div>
+
+          <?php if (($view['cribrum']['items'] ?? []) !== []): ?>
+          <section class="stat-card" aria-labelledby="statistics-cribrum-title" data-cribrum-statistics>
+            <div class="stat-card-heading"><div><h2 id="statistics-cribrum-title"><?= $escape($locale === 'de' ? 'Cribrum-Erkenntnisse' : 'Cribrum findings') ?></h2><p><?= $escape($view['cribrum']['countLabel'] ?? ($locale === 'de' ? 'Aktive Fälle · aktuelle Erkenntnisse · unabhängig vom Zeitraum' : 'Active cases · current findings · independent of period')) ?></p></div></div>
+            <p class="stat-overlap-note"><?= $escape($t('Ein Fall kann in mehreren Befundgruppen erscheinen. Die Gruppen werden nicht zu einer Fallzahl addiert.')) ?></p>
+            <ul class="stat-snapshot-list"><?php foreach ($view['cribrum']['items'] as $row): ?><li><a data-cribrum-code="<?= $escape($row['code']) ?>" data-count="<?= $escape($row['count']) ?>" href="<?= $escape($row['url']) ?>"><span class="stat-row-label cribrum-badge"><?= $escape(\App\Value\CribrumBadgeCatalog::entry($row['code'], $locale)['label']) ?></span><strong class="stat-row-count"><?= $escape($formatNumber($row['count'])) ?></strong></a></li><?php endforeach; ?></ul>
+          </section>
+          <?php endif; ?>
           <?php if (($view['claims'] ?? []) !== []): ?>
           <section class="stat-card" aria-labelledby="statistics-claims-title">
-            <div class="stat-card-heading"><div><h2 id="statistics-claims-title"><?= $escape($t('Cribrum-Claims')) ?></h2><p><?= $escape($t('Aktiver Bestand · unabhängig vom Zeitraum')) ?></p></div></div>
-            <p><?= $escape($t('Ein Fall kann mehrere Claims haben. Die Gruppen werden nicht summiert.')) ?></p>
-            <ul class="stat-snapshot-list"><?php foreach ($view['claims'] as $row): ?><li><a data-claim="<?= $escape($row['claim']) ?>" data-state="<?= $escape($row['state']) ?>" data-count="<?= $escape($row['count']) ?>" href="<?= $escape($row['url']) ?>"><span class="stat-row-label"><?= $escape($t(\App\Value\ClaimLabels::CLAIMS[$row['claim']])) ?> · <?= $escape($t(\App\Value\ClaimLabels::STATES[$row['state']])) ?></span><strong class="stat-row-count"><?= $escape($formatNumber($row['count'])) ?></strong></a></li><?php endforeach; ?></ul>
+            <div class="stat-card-heading"><div><h2 id="statistics-claims-title"><?= $escape($t('Cribrum-Claims nach Zustand')) ?></h2><p><?= $escape($t('Aktive Fälle · gespeicherte Claim-Zustände · unabhängig vom Zeitraum')) ?></p></div></div>
+            <p class="stat-overlap-note"><?= $escape($t('Ein Fall kann in mehreren Befundgruppen erscheinen. Die Gruppen werden nicht zu einer Fallzahl addiert.')) ?></p>
+            <ul class="stat-snapshot-list"><?php foreach ($view['claims'] as $row): ?><li><a data-claim="<?= $escape($row['claim']) ?>" data-state="<?= $escape($row['state']) ?>" data-count="<?= $escape($row['count']) ?>" href="<?= $escape($row['url']) ?>"><span class="stat-row-label cribrum-badge"><?= $escape(\App\Value\CribrumBadgeCatalog::entry($row['claim'], $locale)['label']) ?> · <?= $escape(\App\Value\CribrumBadgeCatalog::stateLabel($row['state'], $locale)) ?></span><strong class="stat-row-count"><?= $escape($formatNumber($row['count'])) ?></strong></a></li><?php endforeach; ?></ul>
           </section>
           <?php endif; ?>
           <section class="stat-card" aria-labelledby="statistics-snapshot-title">

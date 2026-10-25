@@ -1,0 +1,43 @@
+{
+  "schema": 2,
+  "id": "behavior-triage",
+  "version": "1.5.1",
+  "rules": [
+    {
+      "id": "sql-triage-v1",
+      "detector": "sql-triage-v1",
+      "outputs": [
+        "sql_error_observed",
+        "input_in_sql_error",
+        "sql_input_structure_indication"
+      ]
+    },
+    {
+      "id": "file-triage-v1",
+      "detector": "file-triage-v1",
+      "outputs": [
+        "file_include_diagnostic",
+        "lfi_suspected",
+        "rfi_suspected",
+        "sensitive_file_content_observed"
+      ]
+    },
+    {
+      "id": "context-triage-v1",
+      "detector": "context-triage-v1",
+      "outputs": [
+        "internal_information_exposed",
+        "error_response",
+        "coverage_limited",
+        "product_context"
+      ]
+    },
+    {
+      "id": "reflection-triage-v1",
+      "detector": "reflection-triage-v1",
+      "outputs": [
+        "input_reflected"
+      ]
+    }
+  ]
+}

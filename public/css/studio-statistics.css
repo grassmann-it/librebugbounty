@@ -20,6 +20,8 @@
 .stat-segmented a:hover, .stat-segmented button:hover { color: #eff5ff; background: #263343; }
 .stat-period-navigation { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .stat-period-label { text-align: center; color: #cbd5e4; font-size: 12px; font-variant-numeric: tabular-nums; }
+.stat-period-label > span { display: block; margin-bottom: 3px; color: #91a8c5; font-size: 10px; }
+.stat-period-label > strong { display: block; color: #edf5ff; font-weight: 650; }
 .stat-period-label small { display: block; margin-top: 1px; color: #92a2b8; font-size: 10px; }
 .stat-icon-button { display: inline-grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; border: 1px solid #3b4656; border-radius: 6px; background: #1c232d; color: #b7c8df; font-size: 17px; }
 .stat-icon-button[href]:hover { border-color: #6585b2; background: #263348; }
@@ -32,6 +34,13 @@
 .stat-button:hover { border-color: #7390ba; background: #304561; }
 .stat-custom { margin-left: auto; font-size: 11px; }
 .stat-custom summary { padding: 8px 1px; color: #adc0da; cursor: pointer; }
+.stat-custom summary[aria-current] { color: #c0e9d8; font-weight: 650; }
+.stat-section-intro { margin: 17px 0 12px; padding: 13px 16px; border: 1px solid #37514a; border-radius: 8px; background: #192925; }
+.stat-section-intro h2 { margin: 3px 0 0; color: #eef8f4; font-size: 16px; }
+.stat-section-intro p { margin: 5px 0 0; color: #b8d1c8; font-size: 11px; }
+.stat-stock-intro { grid-column: 1 / -1; margin: 0; border-color: #3c4b62; background: #1d2735; }
+.stat-stock-intro p { color: #b9c9de; }
+.stat-overlap-note { margin: -5px 0 15px; color: #a9bbd2; font-size: 11px; line-height: 1.5; }
 .stat-custom form { display: flex; flex-wrap: wrap; align-items: end; gap: 9px; padding-top: 6px; }
 .stat-custom input { width: 142px; }
 .stat-filter-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 0; color: #a9bad1; font-size: 11px; }

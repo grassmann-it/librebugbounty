@@ -35,7 +35,27 @@ final readonly class FindingReadFilter
         public string $review = '',
         public string $claim = '',
         public string $claimState = '',
+        public string $reportKind = '',
+        public array $cribrumCodes = [],
+        public string $extraFindings = '',
+        public string $newFindings = '',
+        public string $cribrumFreshness = '',
+        public bool $cribrumHistory = false,
+        public string $sort = 'default',
     ) {
+        self::validate('additional findings', $extraFindings, ['', 'yes', 'no']);
+        self::validate('new findings', $newFindings, ['', 'yes', 'no']);
+        self::validate('Cribrum freshness', $cribrumFreshness, ['', 'current', 'missing', 'stale']);
+        self::validate('sort', $sort, ['default', 'additional_first', 'cribrum_changed', 'additional_count']);
+        if (!array_is_list($cribrumCodes) || count($cribrumCodes) > 100) {
+            throw new \InvalidArgumentException('Ungültige Cribrum-Auswahl.');
+        }
+        foreach ($cribrumCodes as $code) {
+            if (!is_string($code) || !preg_match('/^[a-z][a-z0-9_.:-]{0,127}$/D', $code)) {
+                throw new \InvalidArgumentException('Ungültiger Cribrum-Code.');
+            }
+        }
+        self::validate('report kind', $reportKind, ['', 'pure_xss', 'only_information_disclosure', 'pure_information_disclosure', 'mixed', 'unknown', 'mixed_or_unknown', 'xss_containing']);
         self::validate('claim', $claim, ['', ...\App\Entity\FindingClaim::CLAIMS]);
         self::validate('claim state', $claimState, ['', ...\App\Entity\FindingClaim::STATES]);
         self::validate('review', $review, ['', 'all', 'open', 'deferred']);

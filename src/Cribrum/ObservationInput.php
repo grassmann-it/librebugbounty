@@ -15,6 +15,7 @@ final readonly class ObservationInput
         public ?string $expectedEvidence,
         public bool $dialogSeen,
         public ?string $dialogText,
+        public array $coverage = [],
     ) {
         if ($rawHtml !== null && strlen($rawHtml) > 1048576) {
             throw new \InvalidArgumentException('Raw HTML exceeds the Cribrum input limit.');
@@ -47,6 +48,7 @@ final readonly class ObservationInput
             $string($data['expectedEvidence'] ?? null, 'expectedEvidence'),
             ($data['dialogSeen'] ?? false) === true,
             $string($data['dialogText'] ?? null, 'dialogText'),
+            is_array($data['coverage'] ?? []) ? ($data['coverage'] ?? []) : throw new \InvalidArgumentException('coverage must be an array.'),
         );
     }
 
@@ -63,6 +65,7 @@ final readonly class ObservationInput
             'expectedEvidence' => $this->expectedEvidence,
             'dialogSeen' => $this->dialogSeen,
             'dialogText' => $this->dialogText,
+            ...($this->coverage === [] ? [] : ['coverage' => $this->coverage]),
         ];
     }
 }

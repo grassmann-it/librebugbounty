@@ -35,7 +35,7 @@ final class RecheckScheduleServiceTest extends DatabaseTestCase
 
         self::assertSame(2, $shortened, 'Both future normal slots move; claims, error backoffs and manual review do not.');
         self::assertLessThanOrEqual($now->format('Y-m-d H:i:s'), $this->slot($oldSchedule));
-        self::assertSame((new \DateTimeImmutable('-5 days'))->modify('+7 days')->format('Y-m-d H:i:s'), substr($this->slot($normalSchedule), 0, 19));
+        self::assertSame($normalSchedule->getLastRetestedAt()->modify('+7 days')->format('Y-m-d H:i:s'), substr($this->slot($normalSchedule), 0, 19));
         foreach ([$errorBackoff, $claimed, $manualChecking] as $finding) {
             self::assertSame($before[$finding->getTitle()], $this->slot($finding));
         }

@@ -30,7 +30,7 @@ $pageUrl = static fn (int $page): string => '/errors?'.http_build_query(array_re
     </header>
     <main class="studio-list-main">
       <div class="studio-list-heading"><div><p class="studio-eyebrow"><?= $escape($t('Betriebsübersicht')) ?></p><h1><?= $escape($t('Fehlerübersicht')) ?></h1></div><a class="studio-list-button" href="/settings#health"><?= $escape($t('Status & Gesundheit')) ?></a></div>
-      <p class="studio-list-hint"><?= $escape($t('Ein Eintrag pro Fall, einschließlich Archiv. Aufnahme- und technische Fehler betreffen jeweils den neuesten Auftrag oder Lauf; ältere Fehler bleiben im Verlauf.')) ?></p>
+      <p class="studio-list-hint"><?= $escape($t('Aufnahme-, Bilddatei- und technische Fehler je Fall, einschließlich Archiv. Fehler sind keine Schwachstellenbewertung; ältere Fehler bleiben im Verlauf.')) ?></p>
       <p class="studio-list-hint"><?= $escape($t('Bilddateien werden beim Öffnen dieser Übersicht auf Lesbarkeit und unterstützte Bildheader geprüft, nicht vollständig dekodiert. Es werden keine Aufträge eingereiht oder Zielseiten aufgerufen.')) ?></p>
       <p class="studio-list-hint"><?= $escape($t('Stand: {date}', ['date' => $formatTime($problems['checkedAt'], true)])) ?></p>
       <p class="studio-list-hint"><?= $escape($t('Ein lesbares Bild zur aktiven PoC erledigt das Bildproblem. Historische Dateien und Bewertungen bleiben erhalten. Zurückgestellte, verworfene oder gesperrte Fälle werden übersprungen.')) ?></p>
@@ -52,7 +52,7 @@ $pageUrl = static fn (int $page): string => '/errors?'.http_build_query(array_re
         </form>
       </section>
       <section class="studio-error-results" aria-label="<?= $escape($t('Betroffene Fälle')) ?>">
-        <p class="studio-list-hint" data-error-total><?= $escape($t('{count} betroffene Fälle', ['count' => $formatNumber($problems['total'])])) ?></p>
+        <p class="studio-error-summary" data-error-total><?= $escape($t('{count} betroffene Fälle', ['count' => $formatNumber($problems['total'])])) ?></p>
         <?php if ($problems['missingTotal'] > 0): ?>
         <form method="post" action="/errors/missing-images/recover" data-recovery-filtered>
           <?php $recoveryFields(); ?>
@@ -60,7 +60,7 @@ $pageUrl = static fn (int $page): string => '/errors?'.http_build_query(array_re
           <p class="studio-list-hint"><?= $escape($t('Gilt für alle Ergebnisse des aktuellen Filters, über alle Seiten. Die Aufnahme erfolgt über die vorhandene Queue.')) ?></p>
         </form>
         <?php endif; ?>
-        <?php if ($problems['rows'] === []): ?><p class="studio-list-hint" data-error-empty><?= $escape($t('Keine betroffenen Fälle für diese Auswahl.')) ?></p><?php endif; ?>
+        <?php if ($problems['rows'] === []): ?><div class="studio-error-empty" data-error-empty><strong><?= $escape($t('Keine betroffenen Fälle')) ?></strong><p><?= $escape($t('Keine betroffenen Fälle für diese Auswahl. Das Öffnen dieser Übersicht startet keine Aufnahme.')) ?></p></div><?php endif; ?>
         <?php foreach ($problems['rows'] as $row): $detailPath = '/findings/'.$row['id'].'?'.http_build_query(['return_to' => $returnPath], '', '&', PHP_QUERY_RFC3986); ?>
         <article class="studio-error-case" data-error-case="<?= $escape($row['id']) ?>">
           <header><a href="<?= $escape($detailPath) ?>" data-error-detail><?= $escape($row['hostname']) ?> · <?= $escape($row['title']) ?></a><span><?= $escape($t(\App\Value\FindingReadLabels::assessment($row['manual_assessment'], null))) ?> · <?= $escape($row['status']) ?></span></header>

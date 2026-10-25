@@ -1,0 +1,1 @@
+Warning: include(https://cdn.fixture.test/demo.php): failed to open stream: HTTP request failed in /srv/demo/app.php on line 8

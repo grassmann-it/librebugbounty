@@ -46,6 +46,16 @@ abstract class DatabaseTestCase extends KernelTestCase
 
     private function resetSchema(): void
     {
+        // DBAL-only immutable report tables are deliberately outside ORM
+        // metadata. Clear them with their triggers between isolated cases too.
+        $connection = $this->entityManager->getConnection();
+        foreach ($connection->fetchFirstColumn("SELECT name FROM sqlite_master WHERE type='trigger' AND (name LIKE 'report_basis_%' OR name IN ('finding_behavior_fact_immutable','finding_report_revision_immutable'))") as $name) {
+            $connection->executeStatement('DROP TRIGGER '.$connection->quoteIdentifier($name));
+        }
+        $connection->executeStatement('DROP VIEW IF EXISTS finding_report_current');
+        foreach (['finding_report_revision','finding_behavior_fact','finding_report_context','report_source_contract'] as $table) {
+            $connection->executeStatement('DROP TABLE IF EXISTS '.$table);
+        }
         $metadata = $this->entityManager->getMetadataFactory()->getAllMetadata();
         $schemaTool = new SchemaTool($this->entityManager);
 

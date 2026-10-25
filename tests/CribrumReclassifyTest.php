@@ -38,7 +38,7 @@ final class CribrumReclassifyTest extends DatabaseTestCase
     {
         $finding = self::getContainer()->get(FindingService::class)->createFinding('https://fixture.test/reclassify');
         $processor = new CribrumProcessingService($this->entityManager, new CribrumClassifier($this->packs), $this->store, $this->claims);
-        $original = $processor->process($finding, $this->transport());
+        $original = $processor->process($finding, $this->transport(), requestContextSha256: \App\Service\WorkerProofResolver::requestContextSha256($finding));
         $originalResult = $original->getClassification();
         $this->pack('v1');
         $summary = $this->service()->reclassify($finding->getId(), true);
@@ -65,7 +65,7 @@ final class CribrumReclassifyTest extends DatabaseTestCase
     public function testManualClaimsIncludingSameStateRemainUntouched(): void
     {
         $finding = self::getContainer()->get(FindingService::class)->createFinding('https://fixture.test/manual');
-        $observation = $this->store->store($finding, $this->transport());
+        $observation = $this->store->store($finding, $this->transport(), requestContextSha256: \App\Service\WorkerProofResolver::requestContextSha256($finding));
         $manual = $this->claims->apply($finding, 'information_disclosure', 'observed', false, 'manual', [], 'Reviewed', $observation->getId());
         $this->claims->apply($finding, 'sql_injection', 'rejected', false, 'manual');
         $this->pack('v1');
@@ -80,17 +80,37 @@ final class CribrumReclassifyTest extends DatabaseTestCase
     {
         $findingService = self::getContainer()->get(FindingService::class);
         $broken = $findingService->createFinding('https://fixture.test/broken');
-        $observation = $this->store->store($broken, $this->transport());
+        $observation = $this->store->store($broken, $this->transport(), requestContextSha256: \App\Service\WorkerProofResolver::requestContextSha256($broken));
         self::getContainer()->get(EvidenceStorageInterface::class)->deleteFile($observation->getArtifactPath());
         $good = $findingService->createFinding('https://fixture.test/good');
-        $this->store->store($good, $this->transport());
+        $this->store->store($good, $this->transport(), requestContextSha256: \App\Service\WorkerProofResolver::requestContextSha256($good));
         $old = $findingService->createFinding('https://fixture.test/old');
-        $this->store->store($old, $this->transport(), pocRevision: $old->getPocRevision() + 1);
+        $this->store->store($old, $this->transport(), pocRevision: $old->getPocRevision() + 1, requestContextSha256: \App\Service\WorkerProofResolver::requestContextSha256($old));
         $summary = $this->service()->reclassify();
         self::assertSame(1, $summary['processed']);
         self::assertSame(1, $summary['skipped']);
         self::assertCount(1, $summary['errors']);
         self::assertStringContainsString($observation->getId(), $summary['errors'][0]);
+    }
+
+    public function testSinceLimitRestrictsTheBackfillToRecentFindings(): void
+    {
+        $findingService = self::getContainer()->get(FindingService::class);
+        $old = $findingService->createFinding('https://fixture.test/since-old');
+        $recent = $findingService->createFinding('https://fixture.test/since-recent');
+        $this->store->store($old, $this->transport('OLD'));
+        $this->store->store($recent, $this->transport('RECENT'));
+        $this->entityManager->getConnection()->executeStatement(
+            "UPDATE finding SET created_at = datetime('now', '-2 days') WHERE id = ?",
+            [$old->getId()],
+        );
+        $this->pack('v1');
+
+        $summary = $this->service()->reclassify(since: new \DateTimeImmutable('1 day ago'));
+
+        self::assertSame(1, $summary['processed']);
+        self::assertSame(0, $summary['skipped']);
+        self::assertSame([], $summary['errors']);
     }
 
     public function testOnlyLatestCaptureAffectsClaimsAndDialogContextIsRetained(): void
@@ -99,8 +119,8 @@ final class CribrumReclassifyTest extends DatabaseTestCase
         $finding->setExpectedEvidence('CRIBRUM');
         $this->entityManager->flush();
         $processor = new CribrumProcessingService($this->entityManager, new CribrumClassifier($this->packs), $this->store, $this->claims);
-        $processor->process($finding, $this->transport('You have an error in your SQL syntax CRIBRUM'));
-        $processor->process($finding, $this->transport(), dialogSeen: true, dialogText: str_repeat('x', 9000).'CRIBRUM');
+        $processor->process($finding, $this->transport('You have an error in your SQL syntax CRIBRUM'), requestContextSha256: \App\Service\WorkerProofResolver::requestContextSha256($finding));
+        $processor->process($finding, $this->transport(), dialogSeen: true, dialogText: str_repeat('x', 9000).'CRIBRUM', requestContextSha256: \App\Service\WorkerProofResolver::requestContextSha256($finding));
         $this->pack('v1');
         self::assertSame(1, $this->service()->reclassify($finding->getId())['processed']);
         $states = $this->entityManager->getConnection()->fetchAllKeyValue('SELECT claim, state FROM finding_claim');
@@ -116,8 +136,8 @@ final class CribrumReclassifyTest extends DatabaseTestCase
         $finding = self::getContainer()->get(FindingService::class)->createFinding('https://fixture.test/late');
         $finding->setPocUrl($finding->getPocUrl(), 1);
         $this->entityManager->flush();
-        $current = $this->store->store($finding, $this->transport());
-        $this->store->store($finding, $this->transport('Old error'), pocRevision: 0);
+        $current = $this->store->store($finding, $this->transport(), requestContextSha256: \App\Service\WorkerProofResolver::requestContextSha256($finding));
+        $this->store->store($finding, $this->transport('Old error'), pocRevision: 0, requestContextSha256: \App\Service\WorkerProofResolver::requestContextSha256($finding));
         $this->pack('v1');
         $summary = $this->service()->reclassify($finding->getId());
         self::assertSame(1, $summary['processed']);
@@ -144,6 +164,72 @@ final class CribrumReclassifyTest extends DatabaseTestCase
             self::assertSame('rejected', $claim->state);
             self::assertSame(2, $claim->revision);
             self::assertSame('rejected', $connection->fetchOne("SELECT state FROM finding_claim WHERE finding_id = ? AND claim = 'sql_injection'", [$finding->getId()]));
+        }
+    }
+
+    public function testHistoryOnlyReplayShadowsEvaluationRunsAndPreservesQualifiedEvidence(): void
+    {
+        $classifier = new CribrumClassifier($this->packs, dirname(__DIR__).'/resources/cribrum/candidates', 'active');
+        $service = new CribrumReclassifyService($this->entityManager, $classifier, $this->store, $this->claims);
+        foreach (['mismatched', 'unpinned'] as $binding) {
+            $finding = self::getContainer()->get(FindingService::class)->createFinding('https://fixture.test/history-'.$binding);
+            $finding->setPayload('CRIBRUM');
+            $this->entityManager->flush();
+            $context = ['url' => $finding->getPocUrl(), 'payload' => 'CRIBRUM', 'expectedEvidence' => null, 'dialogSeen' => false, 'dialogText' => null];
+            $transport = $this->transport(str_repeat('CRIBRUM ', 25).'Fatal error: broken in /var/www/private/index.php on line 42');
+            $observation = $this->store->store($finding, $transport, classificationContext: $context,
+                requestContextSha256: $binding === 'unpinned' ? null : \App\Service\WorkerProofResolver::requestContextSha256($finding));
+            $input = \App\Cribrum\ObservationInput::fromArray([
+                ...$context, ...$this->store->load($observation), 'contentType' => 'text/html', 'httpStatus' => 500,
+                'finalUrl' => $transport['finalUrl'], 'coverage' => ['status' => 'complete', 'truncated' => false],
+            ]);
+            $original = $classifier->classify($input)->toArray();
+            $this->claims->attachClassification($observation, $original);
+            self::assertSame('partial', $original['coverage']['status']);
+            self::assertNotEmpty($original['signals']);
+            self::assertCount(4, $original['coverage']['evaluation']['runs']);
+            if ($binding === 'mismatched') {
+                $finding->setPayload('different-current-payload');
+                $this->entityManager->flush();
+            }
+            self::assertFalse($this->store->matchesCurrentRequest($finding, $observation));
+            $connection = $this->entityManager->getConnection();
+            $historicalJson = $connection->fetchOne('SELECT classification FROM http_observation WHERE id = ?', [$observation->getId()]);
+            $claimsBefore = $connection->fetchAllAssociative('SELECT * FROM finding_claim WHERE finding_id = ?', [$finding->getId()]);
+            $summary = $service->reclassify($finding->getId());
+            self::assertSame([], $summary['errors']);
+            self::assertSame(1, $summary['processed']);
+            $this->entityManager->refresh($observation);
+            self::assertSame($original, $observation->getClassification());
+            self::assertSame($historicalJson, $connection->fetchOne('SELECT classification FROM http_observation WHERE id = ?', [$observation->getId()]));
+            self::assertSame($claimsBefore, $connection->fetchAllAssociative('SELECT * FROM finding_claim WHERE finding_id = ?', [$finding->getId()]));
+            $revisions = $this->entityManager->getRepository(HttpObservation::class)->findBy(['finding' => $finding]);
+            self::assertCount(2, $revisions);
+            $revision = array_values(array_filter($revisions, static fn (HttpObservation $candidate): bool => $candidate->getId() !== $observation->getId()))[0];
+            self::assertSame($observation->getId(), $revision->getMetadata()['reclassifiedFrom']);
+            self::assertSame($observation->getArtifactSha256(), $revision->getArtifactSha256());
+            $replayed = $revision->getClassification();
+            self::assertSame('shadow', $replayed['coverage']['mode']);
+            self::assertSame('unknown', $replayed['coverage']['status']);
+            self::assertContains('capture_context_changed_or_unpinned_history_only', $replayed['diagnostics']);
+            self::assertSame(1, $replayed['coverage']['evaluation']['schemaVersion']);
+            foreach ($original['coverage']['evaluation']['runs'] as $index => $originalRun) {
+                self::assertSame('active', $originalRun['mode']);
+                $originalRun['mode'] = 'shadow';
+                // Includes every family outcome, issue, counter, pack/rule and output selection.
+                self::assertSame($originalRun, $replayed['coverage']['evaluation']['runs'][$index]);
+            }
+            self::assertCount(count($original['signals']), $replayed['signals']);
+            foreach ($original['signals'] as $index => $signal) {
+                if (($signal['kind'] ?? null) !== 'observation_evidence') {
+                    self::assertSame($signal, $replayed['signals'][$index]);
+                    continue;
+                }
+                self::assertSame('active', $signal['mode']);
+                $shadow = \App\Cribrum\EvidenceSignal::make($signal['code'], $input, $signal['spans'], $signal['attributes'], $signal['relations'], $signal['producer'], 'shadow');
+                self::assertSame($shadow, $replayed['signals'][$index]);
+                \App\Cribrum\EvidenceSignal::validateAgainstInput($replayed['signals'][$index], $input);
+            }
         }
     }
 

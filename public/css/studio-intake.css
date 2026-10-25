@@ -1,0 +1,59 @@
+/* Intake-only presentation. The shared studio shell remains owned by UX0. */
+[data-intake] .studio-intake-intro {
+  margin: 9px 0 0;
+  max-width: 67ch;
+  color: #b7c4d2;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+[data-intake] .studio-intake-save-hint {
+  margin: 8px 0 0;
+  color: #aab8c8;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+[data-intake] .studio-intake-assessment-note {
+  flex-shrink: 0;
+  margin: 10px 0 16px;
+  padding: 10px 12px;
+  border: 1px solid #414b57;
+  border-radius: 6px;
+  background: #20262c;
+  color: #b9c6d5;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* Open optional fields can exceed the fixed-height shell with a filled session. */
+@media (min-width: 480px) {
+  .studio-shell:has([data-intake] .studio-details[open]) {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .studio-shell:has([data-intake] .studio-details[open]) .studio-history {
+    min-height: 260px;
+  }
+
+  .studio-shell:has([data-intake] .studio-details[open]) .studio-history-content {
+    flex: initial;
+    min-height: 180px;
+  }
+
+  .studio-shell:has([data-intake] .studio-details[open]) .studio-history-list {
+    max-height: 360px;
+  }
+}
+
+[data-intake] .studio-details-fields .studio-optional {
+  color: #91a0b2;
+  font-weight: 400;
+}
+
+@media (max-width: 640px) {
+  [data-intake] .studio-intake-intro { font-size: 12px; }
+  [data-intake] .studio-intake-save-hint { font-size: 10px; }
+}

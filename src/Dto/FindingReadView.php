@@ -39,6 +39,9 @@ final readonly class FindingReadView
         public bool $reviewDeferred = false,
         public ?\DateTimeImmutable $reviewDeferredUntil = null,
         public string $originalUrl = '',
+        public ?array $reportProjection = null,
+        public array $cribrumClaims = [],
+        public ?bool $reportProjectionCurrent = null,
     ) {
     }
 }

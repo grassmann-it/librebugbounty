@@ -113,11 +113,20 @@ if (PHP_SAPI === 'cli') {
     $kernel->boot();
     $manager = $kernel->getContainer()->get('doctrine')->getManager();
     (new Doctrine\ORM\Tools\SchemaTool($manager))->createSchema($manager->getMetadataFactory()->getAllMetadata());
+    if (getenv('STUDIO_CLAIM_SELECTION_FIXTURE') === '1') {
+        require_once dirname(__DIR__, 2).'/migrations/Version20261022000000.php';
+        $migration = new \DoctrineMigrations\Version20261022000000($manager->getConnection(), new \Psr\Log\NullLogger());
+        $migration->up(new \Doctrine\DBAL\Schema\Schema());
+        foreach ($migration->getSql() as $sql) $manager->getConnection()->executeStatement($sql->getStatement(), $sql->getParameters(), $sql->getTypes());
+    }
     $domain = (new App\Entity\Domain())->setHostname('127.0.0.1')->setScheme('http')->setAuthorized(true);
     $manager->persist($domain);
     $fixtures = [];
     $findings = [];
     $names = ['main', 'readyError', 'readyUnchecked', 'readyNoJsFixed', 'readyNoJsConfirmed', 'readyTouchConfirm', 'noImage', 'missing', 'queued', 'confirmed', 'archived', 'duplicate', 'vulnerable', 'autoFixed', 'legacyManual'];
+    $claimSelectionFixture = getenv('STUDIO_CLAIM_SELECTION_FIXTURE') === '1';
+    $selectionNames = ['claimSelection', 'claimSelectionKeyboard', 'claimSelectionSwipe', 'claimSelectionNoJs'];
+    if ($claimSelectionFixture) array_push($names, ...$selectionNames);
     foreach ($names as $index => $name) {
         $finding = (new App\Entity\Finding())->setDomain($domain)
             ->setTitle($name === 'main' ? 'Lokaler Review-Fall · <script>window.__reviewFixtureExecuted=true</script>' : 'Lokaler Review-Fall: '.$name)
@@ -125,7 +134,7 @@ if (PHP_SAPI === 'cli') {
             ->setMethod($name === 'main' ? 'POST' : 'GET')
             ->setRequestParams($name === 'main' ? ['q' => 'encoded & <fixture>', 'nested' => ['page' => 2, 'space' => 'a+b c']] : null)
             ->setPayload($name === 'main' ? '<script>window.__reviewFixtureExecuted = true</script>\n& marker' : null)
-            ->setExpectedEvidence('LOCAL-REVIEW-ONLY')
+            ->setExpectedEvidence(in_array($name, $selectionNames, true) && $claimSelectionFixture ? '<OPENBUGBOUNTY>' : 'LOCAL-REVIEW-ONLY')
             ->setPrivateNotes($name === 'main' ? 'Synthetic private note retained across Review resets.' : null)
             ->setSubmittedAt(new DateTimeImmutable(sprintf('2026-10-03T08:%02d:00+00:00', $index)));
         if ($name === 'confirmed') $finding->setManualAssessment('confirmed', null, new DateTimeImmutable('2026-10-03T09:00:00+00:00'));
@@ -174,6 +183,7 @@ if (PHP_SAPI === 'cli') {
     foreach (['readyError', 'readyUnchecked', 'readyNoJsFixed', 'readyNoJsConfirmed', 'readyTouchConfirm', 'confirmed', 'archived', 'duplicate', 'vulnerable', 'autoFixed', 'legacyManual'] as $name) {
         $addImage($name, 'local.png', $png(2));
     }
+    if ($claimSelectionFixture) foreach ($selectionNames as $name) $addImage($name, 'mixed.png', $png(1));
     $addImage('missing', 'gone.png', null);
     foreach (['main' => 'inconclusive', 'readyError' => 'error', 'readyNoJsFixed' => 'error', 'readyNoJsConfirmed' => 'inconclusive', 'noImage' => 'inconclusive', 'missing' => 'error', 'confirmed' => 'inconclusive', 'archived' => 'error', 'duplicate' => 'inconclusive', 'vulnerable' => 'still_vulnerable', 'autoFixed' => 'not_vulnerable'] as $name => $result) {
         $run = (new App\Entity\RetestRun())->setFinding($findings[$name])->setMode('browser')->setResult($result)
@@ -194,6 +204,32 @@ if (PHP_SAPI === 'cli') {
     $manager->persist($job);
     $manager->persist((new App\Entity\ScreenshotJob())->setFinding($findings['queued'])->setUrl($findings['queued']->getUrl())->setStatus('queued')->setActiveKey($findings['queued']->getId()));
     $manager->flush();
+    if ($claimSelectionFixture) {
+        $claims = new App\Service\CribrumClaimService($manager);
+        $processor = new App\Service\CribrumProcessingService(
+            $manager,
+            new App\Cribrum\CribrumClassifier('/nonexistent-private-cribrum-packs', dirname(__DIR__, 2).'/resources/cribrum/candidates', 'active'),
+            new App\Service\CribrumObservationStore($manager, new App\Service\LocalEvidenceStorage($root.'/artifacts')),
+            $claims,
+        );
+        foreach ($selectionNames as $name) {
+            $finding = $findings[$name];
+            $manager->getConnection()->executeStatement('INSERT OR IGNORE INTO finding_report_context(finding_id) VALUES (?)', [$finding->getId()]);
+            $observed = $processor->process($finding, [
+                'schema' => 1, 'contentType' => 'text/html', 'httpStatus' => 500,
+                'finalUrl' => $finding->getUrl(), 'redirectChain' => [], 'headers' => ['server' => 'fixture'],
+                'rawHtml' => '<p>You have an error in your SQL syntax &lt;OPENBUGBOUNTY&gt;</p>',
+                'rawHtmlBytes' => 65, 'rawHtmlTruncated' => false,
+                'domText' => 'You have an error in your SQL syntax <OPENBUGBOUNTY>',
+                'domTextBytes' => 52, 'domTextTruncated' => false,
+            ], requestContextSha256: App\Service\WorkerProofResolver::requestContextSha256($finding));
+            if ($observed === null) throw new RuntimeException('Mixed review fixture observation failed.');
+            $fixtures[$name]['claimObservationId'] = $observed->getId();
+            foreach (['xss' => 'confirmed', 'sql_injection' => 'suspected', 'local_file_inclusion' => 'suspected', 'remote_file_inclusion' => 'suspected', 'stack_trace' => 'observed'] as $claim => $state) {
+                $claims->apply($finding, $claim, $state, true, 'manual', ['review-fixture'], 'Local mixed review fixture', $observed->getId());
+            }
+        }
+    }
     file_put_contents($root.'/worker-challenge.png', studio_worker_png(false));
     file_put_contents($root.'/worker-target.png', studio_worker_png(true));
     file_put_contents($root.'/worker-state.json', '');
@@ -347,6 +383,11 @@ if ($path === '/__studio_review_fixture') {
     foreach (['domain', 'finding', 'screenshot_job', 'retest_run', 'evidence', 'finding_assessment', 'finding_review_acknowledgement', 'finding_assessment_reset', 'finding_assessment_cancellation'] as $table) {
         $order = $table === 'finding_assessment_cancellation' ? 'assessment_id' : 'id';
         $snapshot[$table] = $database->query('SELECT * FROM '.$table.' ORDER BY '.$order)->fetchAll(PDO::FETCH_ASSOC);
+    }
+    if (getenv('STUDIO_CLAIM_SELECTION_FIXTURE') === '1') {
+        foreach (['finding_claim', 'cribrum_review_selection', 'cribrum_review_selection_event', 'cribrum_rule_review_hint', 'finding_report_context'] as $table) {
+            $snapshot[$table] = $database->query('SELECT * FROM '.$table.' ORDER BY rowid')->fetchAll(PDO::FETCH_ASSOC);
+        }
     }
     header('Content-Type: application/json');
     header('Cache-Control: no-store');

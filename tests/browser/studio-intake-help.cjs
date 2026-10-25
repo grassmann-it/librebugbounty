@@ -1,7 +1,7 @@
 /*
  * Isolated intake-help acceptance. Initialize and serve a fresh fixture first:
- *   STUDIO_BROWSER_ROOT=/tmp/librebugbounty-studio-help-UNIQUE php -d extension=pdo_sqlite tests/Support/studio_browser_router.php init
- *   STUDIO_BROWSER_ROOT=/tmp/librebugbounty-studio-help-UNIQUE php -d extension=pdo_sqlite -S 127.0.0.1:8097 -t public tests/Support/studio_browser_router.php
+ *   STUDIO_BROWSER_ROOT=/tmp/librebugbounty-studio-help-UNIQUE php tests/Support/studio_browser_router.php init
+ *   STUDIO_BROWSER_ROOT=/tmp/librebugbounty-studio-help-UNIQUE php -S 127.0.0.1:8097 -t public tests/Support/studio_browser_router.php
  * Then run with the same STUDIO_BROWSER_ROOT and STUDIO_BROWSER_BASE=http://127.0.0.1:8097.
  * Never point this script at the live app. It compares every persisted table,
  * blocks external requests and does not submit any URL or run a worker.
@@ -11,7 +11,6 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
 const { chromium } = require('../../playwright-worker/node_modules/playwright');
 
 const root = process.env.STUDIO_BROWSER_ROOT || '';
@@ -23,29 +22,21 @@ const dialogSelector = '#studio-intake-help';
 const openerSelector = '.studio-intake-title-row [data-intake-help-open]';
 const markerPreviewSelector = '#intake-form summary [data-intake-payload-label]';
 const configuredMarker = 'CONFIGURED "Marker" <demo>';
-
-function databaseSnapshot() {
-  return JSON.parse(execFileSync('php', ['-d', 'extension=pdo_sqlite', '-r', `
-    $db = new PDO('sqlite:'.$argv[1].'/database.sqlite');
-    $db->exec('PRAGMA query_only=ON');
-    $rows = [];
-    foreach ($db->query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")->fetchAll(PDO::FETCH_COLUMN) as $table) {
-      $rows[$table] = $db->query('SELECT * FROM "'.str_replace('"', '""', $table).'" ORDER BY rowid')->fetchAll(PDO::FETCH_ASSOC);
-    }
-    echo json_encode(['fingerprint' => hash('sha256', json_encode($rows, JSON_THROW_ON_ERROR)), 'settings' => $rows['setting'] ?? [], 'counts' => array_map('count', $rows)], JSON_THROW_ON_ERROR);
-  `, root], { encoding: 'utf8' }));
+async function databaseSnapshot() {
+  const response = await fetch(base + '/__studio_acceptance_help_snapshot');
+  assert.equal(response.status, 200);
+  const snapshot = await response.json();
+  assert.equal(snapshot.isolated, true);
+  return snapshot;
 }
 
 async function main() {
   await fs.mkdir(output, { recursive: true });
   // Give this isolated fixture a recognizable nondefault marker before taking
   // the immutable baseline; the live database is never opened by this script.
-  execFileSync('php', ['-d', 'extension=pdo_sqlite', '-r', `
-    $db = new PDO('sqlite:'.$argv[1].'/database.sqlite');
-    $statement = $db->prepare('INSERT INTO setting (id, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET value = excluded.value');
-    $statement->execute(['intake.default_payload', $argv[2], gmdate('Y-m-d H:i:s')]);
-  `, root, configuredMarker]);
-  const initial = databaseSnapshot();
+  const markerResponse = await fetch(base + '/__studio_acceptance_help_marker', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ marker: configuredMarker }) });
+  assert.equal(markerResponse.status, 200);
+  const initial = await databaseSnapshot();
   for (const table of ['finding', 'screenshot_job', 'retest_run', 'evidence', 'intake_browser', 'intake_session', 'intake_session_entry']) {
     assert.equal(initial.counts[table], 0, 'Fresh isolated fixture required: ' + table);
   }
@@ -104,14 +95,14 @@ async function main() {
 
   const draft = page => page.locator('#intake-form').evaluate(form => ({ url: form.elements.url.value, marker: form.elements.payload.value, notes: form.elements.annotate.value }));
   const isOpen = page => page.locator(dialogSelector).evaluate(dialog => dialog.open);
-  const assertUnchanged = () => assert.equal(databaseSnapshot().fingerprint, initial.fingerprint, 'Help must not mutate persisted data, including intake sessions');
+  const assertUnchanged = async () => assert.equal((await databaseSnapshot()).fingerprint, initial.fingerprint, 'Help must not mutate persisted data, including intake sessions');
   async function contentAssertions(page, locale) {
     const content = page.locator('[data-intake-help-content]').filter({ visible: true });
     assert.equal(await content.locator('section').count(), 4);
     const text = await content.innerText();
     for (const expected of locale === 'de'
-      ? ['vollständige, reproduzierbare URL', 'ergänzt keinen Payload', 'kein strenger Erfolgsfilter', 'im Hintergrund', 'keine Meldung', '2 Std. 30 Min. ohne Erfassung', 'Öffnen und Review verlängern sie nicht', 'Exakt dieselbe URL', 'Kennzeichen und Notiz bleiben unverändert', `${interval} Tagen`, `${backoff} Tagen`, 'Warteschlange', 'Behobene und verworfene']
-      : ['full, reproducible URL', 'does not add a payload', 'does not strictly determine', 'in the background', 'No report is sent', '2 hr 30 min without intake', 'Opening the page and reviewing cases do not extend it', 'exact same URL', 'marker and note remain unchanged', `${interval} days`, `${backoff} days`, 'queue', 'Fixed and discarded']) {
+      ? ['vollständige, reproduzierbare URL', 'ergänzt keinen Payload', 'kein strenger Erfolgsfilter', 'im Hintergrund', 'keine Meldung', '2 Std. 30 Min. ohne Erfassung', 'Öffnen und Review verlängern sie nicht', 'Exakt dieselbe URL', 'Kennzeichen, seine Notiz, Belege und Entscheidungen bleiben unverändert', `${interval} Tagen`, `${backoff} Tagen`, 'Warteschlange', 'Behobene und verworfene']
+      : ['full, reproducible URL', 'does not add a payload', 'does not strictly determine', 'in the background', 'No report is sent', '2 hr 30 min without intake', 'Opening the page and reviewing cases do not extend it', 'exact same URL', 'marker, note, evidence, and decisions remain unchanged', `${interval} days`, `${backoff} days`, 'queue', 'Fixed and discarded']) {
       assert.ok(text.includes(expected), `${locale}: Missing help content: ${expected}`);
     }
     assert.equal(await content.locator('a[href="/settings"]').count(), 1);
@@ -186,7 +177,7 @@ async function main() {
       assert.equal(await page.locator('#intake-form details').evaluate(node => node.open), false);
       assert.equal(await isOpen(page), false, 'No automatic help on first visit');
       for (const width of [960, 390, 320]) await layout(page, locale, width);
-      assertUnchanged();
+      await assertUnchanged();
 
       await page.setViewportSize({ width: 960, height: 900 });
       await page.locator('#intake-form summary').click();
@@ -223,7 +214,7 @@ async function main() {
       assert.equal(await isOpen(page), false);
       assert.deepEqual(await draft(page), before);
       assert.equal(posts.length, 0, 'Enter in help must not submit a finding');
-      assertUnchanged();
+      await assertUnchanged();
       mark(`${locale.toUpperCase()}: header help with open details via keyboard; unsafe marker remains text; background controls remain inert, Escape and Enter return focus; URL/marker/note drafts unchanged`);
 
       await page.locator('#studio-payload').fill('   ');
@@ -245,7 +236,7 @@ async function main() {
       assert.equal(await noScript.locator('a[href="/"]').count() > 0, true);
       assert.equal(await noScript.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       await noScript.screenshot({ path: path.join(output, `intake-help-${locale}-390-nojs.png`), fullPage: true });
-      assertUnchanged();
+      await assertUnchanged();
       mark(`${locale.toUpperCase()}: help link works without JavaScript and displays the same four sections and settings link`);
     }
 
@@ -272,7 +263,7 @@ async function main() {
       await page.reload();
       assert.deepEqual(await draft(page), { url: scenario.saved.url, marker: scenario.expected, notes: scenario.saved.notes });
       assert.equal(await page.locator('[data-intake-payload-label]').innerText(), scenario.expected);
-      assertUnchanged();
+      await assertUnchanged();
       mark(`Draft restore: ${scenario.name}; current default provenance persists and reload keeps the correct marker`);
     }
 
@@ -283,12 +274,12 @@ async function main() {
     assert.equal(await isOpen(storagePage), true);
     await storagePage.keyboard.press('Escape');
     assert.equal(await storagePage.locator('#studio-url').inputValue(), 'https://help-acceptance.example/unsaved');
-    assertUnchanged();
+    await assertUnchanged();
     mark('Unavailable browser storage does not prevent help or change the unsaved URL');
     assert.deepEqual(errors, []);
     assert.deepEqual(blockedExternal, []);
     assert.deepEqual(posts, []);
-    assertUnchanged();
+    await assertUnchanged();
     mark('All persisted tables remain byte-equivalent; no session/case/job changes, POSTs, external requests or JavaScript errors');
     await fs.rm(path.join(output, 'failure.json'), { force: true });
     await fs.writeFile(path.join(output, 'result.json'), JSON.stringify({ checks, intervals: { interval, backoff }, fingerprint: initial.fingerprint, counts: initial.counts, errors, blockedExternal, posts }, null, 2));

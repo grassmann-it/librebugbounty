@@ -41,6 +41,10 @@
 .studio-export-preview { border-color: #425269; background: linear-gradient(150deg, #202a37 0, var(--studio-panel) 45%); }
 .studio-export-format { padding: 3px 8px; border: 1px solid #4b5e77; border-radius: 4px; color: #b7cff2; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10px; letter-spacing: .5px; }
 .studio-export-current-scope { margin: 0 0 19px; color: #c6d6ed; font-size: 12px; }
+.studio-export-preview-state { margin: 13px 0 0; padding: 8px 10px; border: 1px solid #495665; border-radius: 5px; color: #cad5e3; background: #222b35; font-size: 11px; line-height: 1.5; }
+.studio-export-preview-state.is-current { border-color: #426c55; color: #b9e6c8; background: #1d3327; }
+.studio-export-preview-state.is-stale { border-color: #806b43; color: #f0d49a; background: #352c1d; }
+.studio-export-button-primary:disabled { opacity: .5; cursor: not-allowed; }
 .studio-export-current-scope[data-export-scope="discarded"],
 .studio-export-current-scope[data-export-scope="duplicates"],
 .studio-export-current-scope[data-export-scope="all"] { color: #e3c78f; }

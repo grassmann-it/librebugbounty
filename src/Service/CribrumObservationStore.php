@@ -7,7 +7,7 @@ use App\Entity\Finding;
 use App\Entity\HttpObservation;
 use Doctrine\ORM\EntityManagerInterface;
 
-/** Persists bounded, eligible response evidence produced by an existing browser run. */
+/** Persists every bounded response observation produced by an existing browser run. */
 final class CribrumObservationStore
 {
     public const MAX_COMPRESSED_BYTES = 2097152;
@@ -28,6 +28,7 @@ final class CribrumObservationStore
         ?int $pocRevision = null,
         ?string $contextUrl = null,
         ?array $classificationContext = null,
+        ?string $requestContextSha256 = null,
     ): HttpObservation {
         if ($screenshotJobId !== null) {
             $existing = $this->entityManager->getRepository(HttpObservation::class)->findOneBy(['screenshotJobId' => $screenshotJobId]);
@@ -39,13 +40,15 @@ final class CribrumObservationStore
         }
 
         $trusted = ObservationTransport::normalize($observation);
-        if ($trusted === null || !$this->eligible($trusted, $contextUrl ?? $finding->getPocUrl())) {
-            throw new \InvalidArgumentException('HTTP observation is not eligible for Cribrum storage.');
-        }
+        if ($trusted === null) throw new \InvalidArgumentException('HTTP observation is invalid for Cribrum storage.');
         $raw = $trusted['rawHtml'];
         $dom = $trusted['domText'];
         $metadata = [
             'classificationContext' => $classificationContext,
+            // Captured by the request owner before browser work, never reconstructed on replay.
+            'requestContextSha256' => $requestContextSha256,
+            'requestUrl' => $contextUrl ?? $finding->getPocUrl(),
+            'captureRef' => $screenshotJobId!==null ? ['kind'=>'screenshot_job','id'=>$screenshotJobId] : ($retestRunId!==null ? ['kind'=>'retest_run','id'=>$retestRunId] : null),
             'redirectChain' => $trusted['redirectChain'],
             'headers' => $trusted['headers'],
             'manifest' => [
@@ -150,28 +153,51 @@ final class CribrumObservationStore
         return ['rawHtml' => $raw, 'domText' => $dom];
     }
 
-    /** @param array<string,mixed> $observation */
-    private function eligible(array $observation, string $contextUrl): bool
+    /** Re-authenticate historical fact sources during a body-less projection refresh. */
+    public function authenticateFact(array $fact, ?Finding $currentFinding = null): void
     {
-        $contentType = strtolower(explode(';', (string) $observation['contentType'])[0] ?? '');
-        $htmlish = str_starts_with($contentType, 'text/html') || $contentType === 'application/xhtml+xml';
-        $errorish = is_int($observation['httpStatus']) && $observation['httpStatus'] >= 400;
-        if ($htmlish || $errorish) return true;
-
-        $textish = $contentType === 'text/plain' || $contentType === '';
-        if (!$textish || ($observation['rawHtml'] === null && $observation['domText'] === null)) return false;
-        $body = (string) ($observation['domText'] ?? $observation['rawHtml']);
-        $suspicious = (bool) preg_match('/(?:root:x:0:0:|\[extensions\]|BEGIN (?:RSA|OPENSSH) PRIVATE KEY)/i', $body);
-        $query = parse_url($contextUrl, PHP_URL_QUERY);
-        if (!is_string($query) || !$suspicious) return false;
-        $values = [];
-        parse_str($query, $values);
-        foreach ($values as $value) {
-            if (is_string($value) && (str_contains($value, '../') || str_contains($value, '..\\') || str_starts_with($value, '/'))) {
-                return true;
-            }
+        $ref = $fact['sourceRef'] ?? [];
+        $observation = $this->entityManager->find(HttpObservation::class, $ref['id'] ?? '');
+        if (!$observation instanceof HttpObservation) throw new \RuntimeException('Behavior source observation is unavailable.');
+        $this->entityManager->refresh($observation);
+        if ($observation->getFinding()->getId() !== ($fact['findingId'] ?? null) || $observation->getPocRevision() !== ($fact['pocRevision'] ?? null)
+            || $observation->getArtifactSha256() !== ($ref['artifactSha256'] ?? null)) throw new \RuntimeException('Behavior source binding changed.');
+        if ($currentFinding !== null && (!$this->matchesCurrentRequest($currentFinding,$observation) || ($fact['requestContextSha256'] ?? null)!==WorkerProofResolver::requestContextSha256($currentFinding))) throw new \RuntimeException('Behavior request context changed.');
+        $artifact = $this->load($observation);
+        foreach ($fact['spans'] ?? [] as $span) {
+            $raw = match ($span['representation']) { 'raw' => $artifact['rawHtml'], 'dom_text' => $artifact['domText'], default => null };
+            if ($raw === null || hash('sha256', $raw) !== $span['representationSha256'] || mb_substr($raw, $span['start'], $span['length'], 'UTF-8') !== $span['excerpt']) throw new \RuntimeException('Behavior source span changed.');
         }
-
-        return false;
     }
+
+    /** A missing old capture pin is unknown, never a credential for today's request. */
+    public function matchesCurrentRequest(Finding $finding, HttpObservation $observation): bool
+    {
+        $meta=$observation->getMetadata() ?? [];
+        return $observation->getFinding()->getId()===$finding->getId()
+            && $observation->getPocRevision()===$finding->getPocRevision()
+            && ($meta['requestUrl'] ?? $meta['classificationContext']['url'] ?? null)===$finding->getPocUrl()
+            && ($meta['requestContextSha256'] ?? null)===WorkerProofResolver::requestContextSha256($finding);
+    }
+
+    /** Reload coverage's independently retained observation, including zero-fact captures. */
+    public function coverageSource(Finding $finding, array $ref): ?HttpObservation
+    {
+        if (($ref['kind'] ?? null)!=='http_observation' || !is_string($ref['id'] ?? null)) return null;
+        $observation=$this->entityManager->find(HttpObservation::class,$ref['id']);
+        if (!$observation instanceof HttpObservation) return null;
+        $this->entityManager->refresh($observation);
+        if (!$this->matchesCurrentRequest($finding,$observation) || ($ref['artifactSha256'] ?? null)!==$observation->getArtifactSha256()) return null;
+        $json=$this->entityManager->getConnection()->fetchOne('SELECT classification FROM http_observation WHERE id=?',[$observation->getId()]);
+        if (!is_string($json) || ($ref['classificationSha256'] ?? null)!==hash('sha256',$json)) return null;
+        return $observation;
+    }
+
+    public function coverageReference(HttpObservation $observation): array
+    {
+        $json=$this->entityManager->getConnection()->fetchOne('SELECT classification FROM http_observation WHERE id=?',[$observation->getId()]);
+        if (!is_string($json)) throw new \RuntimeException('Coverage classification is unavailable.');
+        return ['kind'=>'http_observation','id'=>$observation->getId(),'artifactSha256'=>$observation->getArtifactSha256(),'classificationSha256'=>hash('sha256',$json)];
+    }
+
 }

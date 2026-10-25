@@ -198,7 +198,12 @@ function render(locale = 'en', embedded = false) {
     // Join an existing poll, then request the fixture state set by this test.
     await mountInteractivePanel(document.querySelector('[data-review-novnc]')).refresh();
   });
-  const waitState = (page, value) => page.waitForFunction(value => document.querySelector('[data-review-novnc]').dataset.state === value, value);
+  const waitState = async (page, value) => {
+    if (await page.locator('[data-review-novnc][data-state="unconfirmed"]').count()) {
+      await page.locator('[data-novnc-action="refresh"]').click();
+    }
+    return page.waitForFunction(expected => document.querySelector('[data-review-novnc]').dataset.state === expected, value);
+  };
   async function context(options = {}) {
     const ctx = await browser.newContext({ viewport: { width: 1360, height: 1000 }, serviceWorkers: 'block', ...options });
     contexts.push(ctx); ctx.setDefaultTimeout(8000);
@@ -224,7 +229,9 @@ function render(locale = 'en', embedded = false) {
     await fs.mkdir(output, { recursive: true });
     browser = await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}) });
     const ctx = await context(); const page = await ctx.newPage();
-    await page.goto(origin + basePath + '?embedded=1'); await waitState(page, 'available');
+    await page.goto(origin + basePath + '?embedded=1');
+    assert.equal(statuses.length, 0, 'Passive mount must not query worker status');
+    await waitState(page, 'available');
     assert.equal(posts.length, 0); assert.equal(sockets.length, 0);
     const channel = statuses.at(-1).channel; assert.match(channel, /^[a-f0-9]{48}$/);
     assert.ok(statuses.every(item => !item.url.includes(channel)));
@@ -453,7 +460,7 @@ function render(locale = 'en', embedded = false) {
     assert.equal(await page.locator('[data-novnc-dialog-message]').textContent(), '<script>untrusted dialog</script>');
     assert.ok((await page.locator('[data-novnc-dialog]').textContent()).includes('does not confirm a vulnerability'));
     const actions = await page.locator('[data-novnc-action]:visible').evaluateAll(nodes => nodes.map(n => n.dataset.novncAction));
-    assert.deepEqual(actions.sort(), ['release', 'save']);
+    assert.deepEqual(actions.sort(), ['refresh', 'release', 'save']);
     assert.equal(await page.locator('[data-novnc-screen]').isVisible(), false);
     assert.equal(posts.at(-1).url, basePath + '/save');
     assert.equal(posts.at(-1).body.expectedCandidateId, '', 'Current-page saves are explicitly selected');

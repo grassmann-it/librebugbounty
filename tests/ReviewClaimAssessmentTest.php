@@ -85,9 +85,33 @@ final class ReviewClaimAssessmentTest extends DatabaseTestCase
         self::assertSame('fixed', $finding->getManualAssessment());
     }
 
+    #[\PHPUnit\Framework\Attributes\DataProvider('unchangedClaimSubmissions')]
+    public function testGeneralConfirmationPreservesClassifierClaimsAndReportSelection(bool $includeFields): void
+    {
+        $finding = $this->case();
+        $before = [];
+        $decisions = [];
+        foreach ($this->claims->currentClaims($finding) as $claim) {
+            $before[$claim->claim] = [$claim->state, $claim->source, $claim->reportSelected, $claim->revision, $claim->observationId];
+            if ($includeFields) $decisions[] = ['claim' => $claim->claim, 'state' => $claim->state, 'report' => $claim->reportSelected, 'revision' => $claim->revision];
+        }
+        $this->queue->assess($finding->getId(), 'confirmed', null, null, null, $this->token($finding), true, $decisions);
+        foreach ($this->claims->currentClaims($finding) as $claim) {
+            self::assertSame($before[$claim->claim], [$claim->state, $claim->source, $claim->reportSelected, $claim->revision, $claim->observationId]);
+        }
+        $this->entityManager->refresh($finding);
+        self::assertSame('confirmed', $finding->getManualAssessment());
+    }
+
+    public static function unchangedClaimSubmissions(): array
+    {
+        return ['no claim fields' => [false], 'unchanged form defaults' => [true]];
+    }
+
     private function case(): \App\Entity\Finding
     {
         $finding = $this->findings->createFinding('https://review-claims.example.test/a');
+        $this->claims->apply($finding, 'xss', 'observed', true, 'migration');
         $finding->setExpectedEvidence('<OPENBUGBOUNTY>');
         $this->entityManager->flush();
         $this->processor->process($finding, [
@@ -103,7 +127,7 @@ final class ReviewClaimAssessmentTest extends DatabaseTestCase
             'domText' => 'You have an error in your SQL syntax <OPENBUGBOUNTY>',
             'domTextBytes' => 52,
             'domTextTruncated' => false,
-        ]);
+        ], requestContextSha256: \App\Service\WorkerProofResolver::requestContextSha256($finding));
         $this->entityManager->refresh($finding);
 
         return $finding;

@@ -40,6 +40,8 @@ final class StudioController
         private readonly \App\Service\DisclosureRecordService $disclosureRecords,
         private readonly \App\Service\FollowUpStatisticsService $followUpStatistics,
         private readonly \App\Service\ReviewQueueService $reviewQueue,
+        private readonly ?\App\Service\ReportProjectionService $reportProjections = null,
+        private readonly ?\App\Service\CribrumClaimService $cribrumClaims = null,
     ) {
     }
 
@@ -189,6 +191,12 @@ final class StudioController
         }
 
         $view = $this->findingDetail->get($id);
+        $reportProjection = $this->reportProjections?->current($view->finding);
+        $reportProjectionCurrent = $this->reportProjections?->isCurrent($view->finding);
+        $cribrumClaims = $this->cribrumClaims?->readClaims($view->finding) ?? [];
+        $reportEvidence = $this->reportProjections?->evidence($view->finding) ?? [];
+        $reportProofCandidates = $this->reportProjections?->workerProofCandidates($view->finding) ?? [];
+        $reportHistory = $this->reportProjections?->history($view->finding) ?? [];
         $reviewContextToken = $this->reviewQueue->contextToken($id, $this->reviewQueue->fingerprint($id));
         $workState = $this->followUp->state($view->finding);
         $workHistory = $this->followUp->history($view->finding);

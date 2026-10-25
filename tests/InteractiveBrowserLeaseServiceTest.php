@@ -443,6 +443,32 @@ final class InteractiveBrowserLeaseServiceTest extends TestCase
         return $connection;
     }
 
+    public function testAcquirePinsServerMarkerBeforeNavigationAndAttachCannotReplaceIt(): void
+    {
+        $this->connection->executeStatement('CREATE TABLE finding (id TEXT PRIMARY KEY, url TEXT, poc_url TEXT, poc_revision INTEGER, expected_evidence TEXT, method TEXT DEFAULT \'GET\', request_params TEXT, payload TEXT)');
+        $this->connection->insert('finding', ['id' => 'finding-a', 'url' => 'https://fixture.invalid/', 'poc_revision' => 0, 'expected_evidence' => 'START-MARKER']);
+        $binding = $this->binding();
+        $binding['proofContext'] = ['expectedMarker' => 'CLIENT-FORGED'];
+        $lease = $this->leases->acquire($binding, 'owner-a', 'tab-a');
+        $proof = $lease['binding']['proofContext'];
+        self::assertSame(['findingId' => 'finding-a', 'pocUrl' => 'https://fixture.invalid/', 'pocRevision' => 0,
+            'pocSha256' => hash('sha256', 'https://fixture.invalid/'), 'expectedMarker' => 'START-MARKER',
+            'requestContextSha256' => \App\Service\WorkerProofResolver::requestContextHashFromValues('GET', null, null, 'START-MARKER')], $proof);
+        $this->connection->update('finding', ['expected_evidence' => 'LATER-MARKER'], ['id' => 'finding-a']);
+        $attached = $this->leases->attach(1, 'worker-a', 100, 1300);
+        self::assertSame($proof, $attached['binding']['proofContext']);
+        $this->assertConflict(fn () => $this->leases->attach(1, 'worker-a', 100, 1300, ['proofContext' => array_replace($proof, ['expectedMarker' => 'LATER-MARKER'])]));
+        self::assertSame($proof, $this->leases->current()['binding']['proofContext']);
+    }
+
+    public function testAcquireRejectsStalePocBeforeAnyBrowserWork(): void
+    {
+        $this->connection->executeStatement('CREATE TABLE finding (id TEXT PRIMARY KEY, url TEXT, poc_url TEXT, poc_revision INTEGER, expected_evidence TEXT, method TEXT DEFAULT \'GET\', request_params TEXT, payload TEXT)');
+        $this->connection->insert('finding', ['id' => 'finding-a', 'url' => 'https://fixture.invalid/', 'poc_revision' => 2, 'expected_evidence' => 'MARKER']);
+        $this->assertConflict(fn () => $this->leases->acquire($this->binding(), 'owner-a', 'tab-a'));
+        self::assertSame('available', $this->leases->current()['state']);
+    }
+
     private function migrate(): void
     {
         require_once dirname(__DIR__).'/migrations/Version20261017000000.php';

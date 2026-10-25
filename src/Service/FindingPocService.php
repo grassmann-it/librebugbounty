@@ -69,6 +69,8 @@ final class FindingPocService
 
         // The conditional write acquires the SQLite writer before reading and
         // rejects stale browser sessions even when the submitted URL is equal.
+        // Its migration-installed finding trigger also invalidates report basis
+        // before this statement returns; the owner's rollback restores both.
         $changed = $this->connection->executeStatement(
             'UPDATE finding SET poc_url = ?, poc_revision = poc_revision + 1 WHERE id = ? AND poc_revision = ? AND COALESCE(poc_url, url) <> ?',
             [$url, $finding->getId(), $expectedRevision, $url],

@@ -27,6 +27,28 @@ OpenBugBounty.
 LibreBugBounty currently concentrates on reflected XSS triage. It does not send
 disclosure emails or submit reports for you.
 
+## Cribrum 2.2.0: classifier focus (candidate)
+
+The focus of **2.2.0 “Cribrum”** is the local classifier. It evaluates HTTP/DOM
+observations already captured by browser work, records the rulepack versions and
+evidence excerpts, and separates observed behavior, suspicion and confirmation.
+Local diagnostics and offline reclassification make those suggestions traceable
+without another target request. Manual assessment remains authoritative.
+
+Several claims can belong to one case. Shared badges, inventory filters, saved
+views, statistics and exports carry their meaning through Review and reporting;
+SQLi, LFI and RFI suggestions remain suspicions. Private HTTP artifacts stay out
+of reports unless explicitly selected. See the [Cribrum user guide](USAGE.md#cribrum-claims-and-local-observations)
+and the [prepared changelog](CHANGELOG.md) for the candidate's scope.
+
+## Classifier contributions
+
+Cribrum supports versioned, offline rule packs and registered detectors for SQL,
+file-include, disclosure, reflection and WAF evidence. Start with the
+[contributor guide and contracts](docs/cribrum/README.md). Candidate packs are
+explicitly selected and default to shadow evaluation; report policy and
+[activation](docs/cribrum/activation.md) stay separate.
+
 ## Quick start
 
 You need [Docker](https://docs.docker.com/engine/install/),
@@ -180,7 +202,7 @@ also available offline under **About LibreBugBounty → Documentation**.
    [changelog](CHANGELOG.md).
 4. If your existing installation uses custom database or artifact paths, carry
    both into `DATABASE_URL` and `EVIDENCE_STORAGE_DIR` under `web_environment` in
-   `.ddev/config.yaml`, using paths inside the container. Moneta explicitly sets
+   `.ddev/config.yaml`, using paths inside the container. DDEV explicitly sets
    these variables there, so previous `.env` values alone no longer select your
    storage. Keep the database and artifact tree from the same workspace together.
    The backup tool needs their corresponding host paths; see
@@ -204,6 +226,29 @@ Classifier suggestions remain separate from manual decisions. SQLi, LFI and RFI
 heuristics start as suspicion. Private observation artifacts are excluded from
 reports unless explicitly selected. Keep private rulepacks with the workspace;
 see [backup instructions](BACKUP.md).
+
+The additive report migration (`Version20261022000000`) adds immutable evidence
+facts and versioned report projections. It does not activate candidate detector
+packs, enroll historical cases into a legacy cohort, or reclassify the inventory.
+Candidate packs require explicit selection and default to shadow evaluation;
+see the [activation guide](docs/cribrum/activation.md). Missing or stale report
+projections remain explicit. Preview a selected case with
+`php bin/console app:report:refresh --finding=CASE_ID --dry-run` before refreshing
+its projection from retained local evidence.
+
+The Review migration (`Version20261025000000`) adds case-specific finding
+selections, rule-review hints and immutable decision events. Deselecting a
+proposal rejects it only for the reviewed evidence. The originating rule remains
+active; reviewing the hint does not change detector activation. DDEV now selects
+PHP 8.4; PHP 8.3 remains the supported minimum.
+
+Use the startup migrations to upgrade. Some tables, indexes, checks and immutable
+triggers are managed directly by SQL migrations, so Doctrine's ORM schema-sync
+check can report differences on a correctly migrated database. Do not apply
+`doctrine:schema:update --force` to resolve those differences: its suggested SQL
+can remove report tables or protections. Check the migration ledger with
+`php bin/console doctrine:migrations:up-to-date` and inspect retained files with
+`php bin/console app:artifacts:audit` instead.
 
 The earlier 2.1.1 upgrade adds intake-session tracking (`Version20261018000000`), active
 PoC history (`Version20261018010000`), and review deferral

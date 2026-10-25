@@ -58,7 +58,10 @@ final class CribrumClassifyCommandTest extends TestCase
         self::assertSame(0, $tester->execute(['--response' => $this->file(self::BODY), '--format' => 'json']));
         $report = json_decode($tester->getDisplay(), true, 512, JSON_THROW_ON_ERROR);
         self::assertNull($report['source']['httpStatus']);
-        self::assertSame([], $report['classification']['suggestions']);
+        // A concrete diagnostic is observable without a status or URL; neither
+        // SQL injection nor XSS execution can be inferred from this body alone.
+        self::assertSame(['error_disclosure' => 'observed'],
+            array_column($report['classification']['suggestions'], 'state', 'claim'));
         self::assertStringContainsString('No URL context supplied', implode(' ', $report['warnings']));
         self::assertStringContainsString('HTTP status is unknown', implode(' ', $report['warnings']));
     }
@@ -187,6 +190,42 @@ final class CribrumClassifyCommandTest extends TestCase
         $tester = new CommandTester(new CribrumClassifyCommand(new CribrumClassifier($directory), new CribrumProbeSource(new MockHttpClient())));
         self::assertSame(1, $tester->execute(['--response' => $this->file('No findings'), '--format' => 'json']));
         self::assertNotEmpty(json_decode($tester->getDisplay(), true, 512, JSON_THROW_ON_ERROR)['classification']['diagnostics']);
+    }
+
+    public function testCandidateLimitReturnsFullJsonAndTextWarningWithSuccessfulInvocation(): void
+    {
+        $file = $this->file(str_repeat("Failed opening required '/var/www/private/view.php' (include_path='.:/usr/lib/php')\n", 13));
+        $options = ['--response' => $file, '--candidate-packs' => dirname(__DIR__).'/resources/cribrum/candidates', '--candidate-mode' => 'active', '--capture-complete' => true];
+        $tester = $this->tester();
+        self::assertSame(0, $tester->execute($options + ['--format' => 'json']));
+        $report = json_decode($tester->getDisplay(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('partial', $report['classification']['coverage']['status']);
+        self::assertSame([], $report['classification']['diagnostics']);
+        self::assertNotEmpty($report['classification']['signals']);
+        self::assertStringContainsString('match_budget', json_encode($report['classification']['coverage']['evaluation']));
+        self::assertSame(0, $tester->execute($options));
+        self::assertStringContainsString('Incomplete evaluation', $tester->getDisplay());
+        self::assertStringContainsString('Coverage: partial', $tester->getDisplay());
+    }
+
+    public function testCandidateRegexErrorReturnsStructuredPartialResultAndFailureExit(): void
+    {
+        $module = "Module example.app, line 1, in foo\n  Module example.next, line 2, in bar";
+        $file = $this->file($module."\nFailed opening required '/var/www/private/view.php' (include_path='.:/usr/lib/php')".str_repeat(' ', 500).'x Cloudflare HTTP 500');
+        $previous = ini_get('pcre.backtrack_limit');
+        try {
+            ini_set('pcre.backtrack_limit', '30');
+            $tester = $this->tester();
+            self::assertSame(1, $tester->execute(['--response' => $file, '--candidate-packs' => dirname(__DIR__).'/resources/cribrum/candidates', '--capture-complete' => true, '--format' => 'json']));
+            $report = json_decode($tester->getDisplay(), true, 512, JSON_THROW_ON_ERROR);
+        } finally {
+            ini_set('pcre.backtrack_limit', $previous);
+        }
+        self::assertSame('partial', $report['classification']['coverage']['status']);
+        self::assertNotEmpty($report['classification']['diagnostics']);
+        self::assertNotEmpty($report['classification']['signals']);
+        self::assertStringContainsString('regex_error', json_encode($report['classification']['coverage']['evaluation']));
+        self::assertStringNotContainsString('/var/www/private/view.php', implode(' ', $report['classification']['diagnostics']));
     }
 
     private function tester(?MockHttpClient $client = null): CommandTester

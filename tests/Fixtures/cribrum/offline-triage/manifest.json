@@ -1,0 +1,192 @@
+{
+  "schemaVersion": 1,
+  "id": "synthetic-offline-triage-v1",
+  "limitations": [
+    "Synthetic LFI/RFI attempts validate bounded semantics, not real-world detection performance.",
+    "Explicitly selected regression corpus; no global recall or precision claim."
+  ],
+  "records": [
+    {
+      "id": "http200-access",
+      "body": "http200-access.body",
+      "metadata": "http200-access.json",
+      "bodySha256": "72504f9ce8e4379013afbe1d6886f1a7dabb795f8906310e38ea5b6bf86670d6",
+      "metadataSha256": "014b7ba5e3bb122ecd50fa45fd2bcb319f6751129b30a3c8e44d264fd6d8fb46",
+      "httpStatus": 200,
+      "contentType": "text/html; charset=UTF-8",
+      "bodyTruncated": false,
+      "templateFamily": "http200-access",
+      "split": "synthetic-regression",
+      "labelProvenance": "Handwritten semantic case, frozen before runner output",
+      "expect": {
+        "requiredCodes": [
+          "sql_error_observed",
+          "input_in_sql_error",
+          "sql_input_structure_indication"
+        ],
+        "forbiddenCodes": []
+      },
+      "expectLegacyCollision": false
+    },
+    {
+      "id": "baseline-positive-sql",
+      "body": "baseline-positive-sql.body",
+      "metadata": "baseline-positive-sql.json",
+      "bodySha256": "45d5e04656d0d7627617171724237b6e4d3b82173f91484cfd1983070987dae5",
+      "metadataSha256": "8e740c1cd654a812513289cb311063b585b1e24d96eac2516081a2ccef1b5424",
+      "httpStatus": 500,
+      "contentType": "text/html; charset=UTF-8",
+      "bodyTruncated": false,
+      "templateFamily": "baseline-positive-sql",
+      "split": "synthetic-regression",
+      "labelProvenance": "Handwritten semantic case, frozen before runner output",
+      "expect": {
+        "requiredCodes": [
+          "sql_error_observed",
+          "input_in_sql_error"
+        ],
+        "forbiddenCodes": [
+          "sql_input_structure_indication"
+        ]
+      },
+      "expectLegacyCollision": true
+    },
+    {
+      "id": "global-echo-collision",
+      "body": "global-echo-collision.body",
+      "metadata": "global-echo-collision.json",
+      "bodySha256": "dc1801a3179127e1f04838dcb4a272611682cbf81b0837bd1649e1d75af59fae",
+      "metadataSha256": "f062970acb0efef4e4b726dc9f9a1a50d4f2097e2fa42ba735c4ae6007b3e338",
+      "httpStatus": 500,
+      "contentType": "text/html; charset=UTF-8",
+      "bodyTruncated": false,
+      "templateFamily": "global-echo-collision",
+      "split": "synthetic-regression",
+      "labelProvenance": "Handwritten semantic case, frozen before runner output",
+      "expect": {
+        "requiredCodes": [
+          "sql_error_observed"
+        ],
+        "forbiddenCodes": [
+          "input_in_sql_error",
+          "sql_input_structure_indication"
+        ]
+      },
+      "expectLegacyCollision": true
+    },
+    {
+      "id": "documentation-collision",
+      "body": "documentation-collision.body",
+      "metadata": "documentation-collision.json",
+      "bodySha256": "8893dfd3644992d84a1da82abfe0fdd6aa7c596a484fbd838dc14325cd3a9bac",
+      "metadataSha256": "28c4a7c72e42e964c44ab45d493bcfd948edca206ce768d7ba5ea75c634ca18e",
+      "httpStatus": 500,
+      "contentType": "text/html; charset=UTF-8",
+      "bodyTruncated": false,
+      "templateFamily": "documentation-collision",
+      "split": "synthetic-regression",
+      "labelProvenance": "Handwritten semantic case, frozen before runner output",
+      "expect": {
+        "requiredCodes": [],
+        "forbiddenCodes": [
+          "sql_error_observed",
+          "input_in_sql_error",
+          "sql_input_structure_indication"
+        ]
+      },
+      "expectLegacyCollision": true
+    },
+    {
+      "id": "bound-type-collision",
+      "body": "bound-type-collision.body",
+      "metadata": "bound-type-collision.json",
+      "bodySha256": "25c87b2e2f8567f6c48e2f80c25525712c7d27056ec6df131b36cff5cae79cbc",
+      "metadataSha256": "e9fb3d93c6419c4a9dcb85d19637825619de681d1cc16d8c2ddefb0c511060e9",
+      "httpStatus": 500,
+      "contentType": "text/html; charset=UTF-8",
+      "bodyTruncated": false,
+      "templateFamily": "bound-type-collision",
+      "split": "synthetic-regression",
+      "labelProvenance": "Handwritten semantic case, frozen before runner output",
+      "expect": {
+        "requiredCodes": [
+          "sql_error_observed",
+          "input_in_sql_error"
+        ],
+        "forbiddenCodes": [
+          "sql_input_structure_indication"
+        ]
+      },
+      "expectLegacyCollision": true
+    },
+    {
+      "id": "incomplete-block",
+      "body": "incomplete-block.body",
+      "metadata": "incomplete-block.json",
+      "bodySha256": "afb934283da45e1e7b6959c41807b80c10cf382a7eaa9715c948ef3108cf1dc2",
+      "metadataSha256": "8abf5c36f0483d2baab31a69d8ed38d590725c9eda9b99ec509ef23945f57884",
+      "httpStatus": 500,
+      "contentType": "text/html; charset=UTF-8",
+      "bodyTruncated": true,
+      "templateFamily": "incomplete-block",
+      "split": "synthetic-regression",
+      "labelProvenance": "Handwritten semantic case, frozen before runner output",
+      "expect": {
+        "requiredCodes": [
+          "sql_error_observed"
+        ],
+        "forbiddenCodes": [
+          "input_in_sql_error",
+          "sql_input_structure_indication"
+        ]
+      },
+      "expectLegacyCollision": false
+    },
+    {
+      "id": "local-include-attempt",
+      "body": "local-include-attempt.body",
+      "metadata": "local-include-attempt.json",
+      "bodySha256": "b10272c127dd2ddcff86d3a115ef0373c441c285d1a4dad97c766c5f5779b991",
+      "metadataSha256": "2f860df6c14c73f3a16c705c3194a4a09b5d6dbe742af7aaf65961d37a64de2d",
+      "httpStatus": 500,
+      "contentType": "text/html; charset=UTF-8",
+      "bodyTruncated": false,
+      "templateFamily": "local-include-attempt",
+      "split": "synthetic-regression",
+      "labelProvenance": "Handwritten semantic case, frozen before runner output",
+      "expect": {
+        "requiredCodes": [
+          "file_include_diagnostic",
+          "lfi_suspected"
+        ],
+        "forbiddenCodes": [
+          "rfi_suspected"
+        ]
+      },
+      "expectLegacyCollision": false
+    },
+    {
+      "id": "remote-include-attempt",
+      "body": "remote-include-attempt.body",
+      "metadata": "remote-include-attempt.json",
+      "bodySha256": "f2a63f1c8085d5a145406b2a89f805dc275bed24102376a7b1d3e92cfe22d0cd",
+      "metadataSha256": "28bf3ca4e189435277a2636a1498c45bbaf32e1ce6ab0289641624892aedea70",
+      "httpStatus": 500,
+      "contentType": "text/html; charset=UTF-8",
+      "bodyTruncated": false,
+      "templateFamily": "remote-include-attempt",
+      "split": "synthetic-regression",
+      "labelProvenance": "Handwritten semantic case, frozen before runner output",
+      "expect": {
+        "requiredCodes": [
+          "file_include_diagnostic",
+          "rfi_suspected"
+        ],
+        "forbiddenCodes": [
+          "lfi_suspected"
+        ]
+      },
+      "expectLegacyCollision": false
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+/* The About view shares the utility shell but owns its reading layout. */
+.studio-about-panel { display: grid; grid-template-columns: minmax(300px, 38%) minmax(0, 1fr); gap: 18px; align-items: start; border: 0; padding: 0; background: transparent; box-shadow: none; }
+.studio-about-identity,
+.studio-about-updates,
+.studio-about-release-notes,
+.studio-about-history,
+.studio-about-project,
+.studio-about-support,
+.studio-about-panel .studio-settings-docs { min-width: 0; padding: 22px; border: 1px solid var(--settings-border, #343d47); border-radius: 9px; background: var(--settings-panel, #1b2026); }
+.studio-about-identity { display: flex; flex-wrap: wrap; align-items: center; gap: 17px; }
+.studio-about-identity > div { flex: 1 1 190px; min-width: 0; }
+.studio-about-identity h2 { margin: 0; font-size: 24px; }
+.studio-about-identity .studio-about-lead { margin: 7px 0 0; }
+.studio-about-identity .studio-about-version { flex-basis: 100%; width: fit-content; margin: 0 0 0 73px; }
+.studio-about-updates { grid-column: 1; }
+.studio-about-update-heading { display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+.studio-about-update-heading h3,
+.studio-about-panel section h3 { margin-top: 0; font-size: 16px; }
+.studio-about-update-heading form { margin: 0; }
+.studio-about-update-heading button { min-height: 38px; padding: 8px 13px; border: 1px solid #76cbaa; border-radius: 5px; background: #59c499; color: #08261b; font: inherit; font-weight: 650; cursor: pointer; }
+.studio-about-update-heading button:hover { background: #82dcaf; }
+.studio-about-updates > p { font-size: 13px; line-height: 1.55; }
+.studio-about-updates > p:first-of-type { margin: 18px 0; padding: 13px 15px; border-radius: 6px; background: #11171b; color: #dce8f0; }
+.studio-about-update-meta { color: var(--studio-muted); font-size: 11px !important; }
+.studio-about-update-instructions { margin: 12px 0; }
+.studio-about-update-instructions summary { cursor: pointer; }
+.studio-about-update-instructions pre { overflow-x: auto; }
+.studio-about-columns { grid-column: 2; grid-row: 1 / span 3; display: grid; gap: 18px; min-width: 0; }
+.studio-about-main,
+.studio-about-sidebar { display: grid; gap: 18px; min-width: 0; }
+.studio-about-release-notes { order: 1; }
+.studio-about-history { order: 2; }
+.studio-about-sidebar { grid-row: 1; }
+.studio-about-sidebar .studio-settings-docs { order: -2; margin: 0; border-top: 1px solid var(--settings-border, #343d47); }
+.studio-about-sidebar .studio-settings-docs nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.studio-about-sidebar .studio-settings-docs nav a:last-child { grid-column: 1 / -1; }
+.studio-about-project { order: 2; }
+.studio-about-support { order: 3; margin: 0; }
+.studio-about-history { border-top: 1px solid var(--settings-border, #343d47); }
+.studio-about-history-entries article { padding: 11px 0 11px 13px; }
+.studio-about-history-entries h4 { margin: 0 0 5px; font-size: 13px; }
+.studio-about-history-entries h4 span { color: var(--studio-muted); font-weight: 400; }
+.studio-about-vibe { grid-column: 1 / -1; margin: 0; color: var(--studio-muted); font-size: 11px; text-align: right; }
+@media (max-width: 1000px) {
+  .studio-about-panel { grid-template-columns: minmax(0, 1fr); }
+  .studio-about-updates,
+  .studio-about-columns,
+  .studio-about-vibe { grid-column: 1; grid-row: auto; }
+}
+@media (max-width: 580px) {
+  .studio-about-identity,
+  .studio-about-updates,
+  .studio-about-release-notes,
+  .studio-about-history,
+  .studio-about-project,
+  .studio-about-support,
+  .studio-about-panel .studio-settings-docs { padding: 17px; }
+  .studio-about-identity .studio-about-version { margin-left: 0; }
+  .studio-about-sidebar .studio-settings-docs nav { grid-template-columns: 1fr; }
+  .studio-about-sidebar .studio-settings-docs nav a:last-child { grid-column: auto; }
+}

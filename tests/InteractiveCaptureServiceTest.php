@@ -185,6 +185,52 @@ final class InteractiveCaptureServiceTest extends DatabaseTestCase
         self::assertSame(1, $this->entityManager->getRepository(Evidence::class)->count([]));
     }
 
+    public function testInteractiveResponseIsClassifiedAfterCaptureCommit(): void
+    {
+        [$finding, $context] = $this->fixture('interactive-cribrum');
+        $finding->setPayload('OPENBUGBOUNTY');
+        $finding->setExpectedEvidence('OPENBUGBOUNTY');
+        $this->entityManager->flush();
+        $observation = [
+            'schema' => 1,
+            'contentType' => 'text/html',
+            'httpStatus' => 200,
+            'finalUrl' => $finding->getUrl(),
+            'redirectChain' => [],
+            'headers' => ['content-type' => 'text/html'],
+            'rawHtml' => "<p>You have an error in your SQL syntax OPENBUGBOUNTY</p>",
+            'rawHtmlBytes' => 57,
+            'rawHtmlTruncated' => false,
+            'domText' => 'You have an error in your SQL syntax OPENBUGBOUNTY',
+            'domTextBytes' => 50,
+            'domTextTruncated' => false,
+        ];
+        $client = $this->createMock(BrowserInteractiveClientInterface::class);
+        $client->method('captureInteractive')->with(self::SESSION)->willReturn(new BrowserScreenshotResult(
+            self::PNG,
+            new \DateTimeImmutable(),
+            200,
+            $finding->getUrl(),
+            true,
+            'alert',
+            'OPENBUGBOUNTY',
+            'interactive-desktop-dialog',
+            [],
+            $observation,
+        ));
+
+        $saved = $this->service($client)->save($finding, self::SESSION, $context);
+
+        $stored = $this->entityManager->getRepository(\App\Entity\HttpObservation::class)
+            ->findOneBy(['screenshotJobId' => $saved->job->getId()]);
+        self::assertNotNull($stored);
+        $classification = $stored->getClassification();
+        self::assertSame('cribrum-1.3.2', $classification['classifierVersion'] ?? null);
+        $claims = array_column($classification['suggestions'] ?? [], 'claim');
+        self::assertContains('xss', $claims);
+        self::assertContains('sql_injection', $claims);
+    }
+
     public static function databaseFailureStages(): iterable
     {
         yield 'job insert' => ["CREATE TRIGGER reject_interactive BEFORE INSERT ON screenshot_job BEGIN SELECT RAISE(ABORT, 'forced interactive failure'); END"];
@@ -734,10 +780,73 @@ final class InteractiveCaptureServiceTest extends DatabaseTestCase
             'initial_http_status' => 403], $trigger, $basis];
     }
 
+    #[DataProvider('proofCaptureCases')]
+    public function testProofUsesPinnedContextAndNativeEventsWithoutMergedTextInference(string $case, bool $proven): void
+    {
+        [$finding, $context] = $this->fixture();
+        $finding->setExpectedEvidence('START-MARKER');
+        $this->entityManager->flush();
+        $pinned = \App\Service\WorkerProofResolver::captureContext($finding);
+        $context['proofContext'] = $pinned;
+        $worker = ['sourceURL' => $finding->getPocUrl(), 'dialogCandidateId' => 'candidate-a',
+            'dialogEvents' => [['type' => 'alert', 'message' => 'START-MARKER']],
+            'hookedDialogEvents' => [['type' => 'alert', 'message' => 'HOOK-MARKER']]];
+        if ($case === 'marker changed') {
+            $finding->setExpectedEvidence('NEW-MARKER');
+            $this->entityManager->flush();
+        } elseif (in_array($case, ['method changed', 'body changed', 'payload changed'], true)) {
+            $change = match ($case) {
+                'method changed' => ['method' => 'POST'],
+                'body changed' => ['request_params' => json_encode(['body' => 'changed'], JSON_THROW_ON_ERROR)],
+                'payload changed' => ['payload' => 'changed payload'],
+            };
+            $this->entityManager->getConnection()->update('finding', $change, ['id' => $finding->getId()]);
+        } elseif ($case === 'missing request hash') {
+            unset($context['proofContext']['requestContextSha256']);
+        } elseif ($case === 'merged only') {
+            unset($worker['dialogEvents']);
+        } elseif ($case === 'hook mislabeled') {
+            $worker['dialogEvents'][0]['origin'] = 'hook';
+        } elseif ($case === 'other page') {
+            $worker['sourceURL'] = 'https://elsewhere.invalid/';
+        } elseif ($case === 'missing context') {
+            unset($context['proofContext']);
+        } elseif ($case === 'selected new PoC') {
+            $context['poc_selection'] = ['mode' => 'manual', 'url' => $finding->getPocUrl().'&new=1', 'revision' => $finding->getPocRevision()];
+        }
+        // Worker-supplied bindings must never replace the server's start binding.
+        $worker['proofContext'] = array_replace($pinned, ['expectedMarker' => 'WORKER-FORGED']);
+        $client = $this->createMock(BrowserInteractiveClientInterface::class);
+        $client->method('captureInteractive')->willReturn(new BrowserScreenshotResult(self::PNG, new \DateTimeImmutable(),
+            dialogSeen: true, dialogType: 'alert', dialogText: 'START-MARKER', metadata: $worker));
+        $saved = $this->service($client)->save($finding, self::SESSION, $context);
+        $metadata = $saved->job->getCaptureMetadata();
+        self::assertSame($context['proofContext'] ?? null, $metadata['proofContext']);
+        self::assertSame($worker['dialogEvents'] ?? [], $metadata['dialogEvents']);
+        self::assertSame($worker['hookedDialogEvents'], $metadata['hookedDialogEvents']);
+        self::assertSame('unknown', $metadata['dialogOrigin']);
+        self::assertSame($proven ? 'bound_native_events' : 'unproven', $metadata['proofAttribution']);
+        $proof = (new \App\Service\WorkerProofResolver($this->entityManager->getConnection()))->resolve($finding, 'test-source');
+        self::assertSame($proven, $proof['verified'] ?? false);
+        if ($proven) self::assertSame(\App\Service\WorkerProofResolver::requestContextSha256($finding), $metadata['proofContext']['requestContextSha256']);
+        if ($case === 'selected new PoC') {
+            self::assertSame($pinned, $metadata['proofContext']);
+            self::assertSame(1, $finding->getPocRevision());
+            self::assertSame(0, $metadata['proofContext']['pocRevision']);
+        }
+    }
+
+    public static function proofCaptureCases(): iterable
+    {
+        yield 'native bound' => ['native bound', true];
+        foreach (['marker changed', 'method changed', 'body changed', 'payload changed', 'missing request hash', 'merged only', 'hook mislabeled', 'other page', 'missing context', 'selected new PoC'] as $case) yield $case => [$case, false];
+    }
+
     private function service(BrowserInteractiveClientInterface $client, ?EvidenceStorageInterface $storage = null): InteractiveCaptureService
     {
         return new InteractiveCaptureService($client, $storage ?? $this->storage(), self::getContainer()->get(ManagerRegistry::class),
-            self::getContainer()->get(SettingsService::class), self::getContainer()->get(FindingWorkPolicy::class));
+            self::getContainer()->get(SettingsService::class), self::getContainer()->get(FindingWorkPolicy::class),
+            null, self::getContainer()->get(\App\Service\CribrumProcessingService::class));
     }
 
     private function storage(): EvidenceStorageInterface

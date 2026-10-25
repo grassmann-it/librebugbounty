@@ -12,6 +12,7 @@
 
 # Personal architecture and design notes stay local.
 /architecture/
+/.architecture-sparring/
 
 # DDEV generated files, keep the project config itself in git.
 /.ddev/.dbimageBuild/
@@ -19,3 +20,7 @@
 /.ddev/.ddev-docker-compose*.yaml
 /.ddev/traefik/certs/*
 /.ddev/traefik/config/*.yaml
+/.architecture-sparring/
+# Python validation caches are generated locally, never release sources.
+__pycache__/
+*.py[cod]

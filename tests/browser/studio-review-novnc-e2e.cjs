@@ -197,7 +197,10 @@ async function main() {
     };
     page = await open(operator, 'tab-a');
     const panel = target => target.locator('[data-review-novnc]');
-    const state = async (target, expected) => target.waitForFunction(value => document.querySelector('[data-review-novnc]')?.dataset.state === value, expected);
+    const state = async (target, expected) => {
+      if (await target.locator('[data-review-novnc][data-state="unconfirmed"]').count()) await target.locator('[data-novnc-action="refresh"]').click();
+      return target.waitForFunction(value => document.querySelector('[data-review-novnc]')?.dataset.state === value, expected);
+    };
     const act = async (target, action) => {
       await target.locator(`[data-novnc-action="${action}"]`).click();
       if (action !== 'acquire' && action !== 'refresh' && action !== 'reconnect') await target.locator('[data-novnc-confirm-yes]').click();
@@ -308,7 +311,8 @@ async function main() {
 
     for (const name of ['blocked', 'invalid']) {
       await other.goto(base + `/review/${f[name].id}/interactive`);
-      await other.waitForFunction(() => document.querySelector('[data-review-novnc]')?.dataset.state !== 'loading');
+      await other.locator('[data-novnc-action="refresh"]').click();
+      await other.waitForFunction(() => !['loading', 'unconfirmed'].includes(document.querySelector('[data-review-novnc]')?.dataset.state));
       assert.equal((await post(other, name, 'lease/acquire', saved.worker.generation + 1)).status(), 409);
     }
     assert.equal((await fixture()).worker.starts, 1);

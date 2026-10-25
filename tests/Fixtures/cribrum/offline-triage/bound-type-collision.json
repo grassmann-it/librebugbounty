@@ -1,0 +1,12 @@
+{
+  "input_url": "https://fixture.test/?q=marker",
+  "final_url": null,
+  "body_sha256": "25c87b2e2f8567f6c48e2f80c25525712c7d27056ec6df131b36cff5cae79cbc",
+  "request_pass": 2,
+  "capture_status": "captured",
+  "http_status": 500,
+  "content_type": "text/html; charset=UTF-8",
+  "body_truncated": false,
+  "capture_finished_at": "2026-01-01T00:00:00Z",
+  "provenance": "synthetic fixture, no target request"
+}

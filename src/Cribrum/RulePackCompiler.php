@@ -9,9 +9,9 @@ final class RulePackCompiler
     private const MAX_TOTAL_RULES = 2048;
     private const ALLOWED_CONTEXT = ['payloadPresent', 'payloadInText', 'payloadLooksUrl', 'payloadPathLike', 'fileError'];
 
-    public function compile(array $manifest, string $expectedId = null): RulePack
+    public function compile(array $manifest, ?string $expectedId = null): RulePack
     {
-        if (count($manifest) > 4096 || ($manifest['schema'] ?? null) !== 1) {
+        if (count($manifest) > 4096 || !in_array($manifest['schema'] ?? null, [1, 2], true)) {
             throw new \InvalidArgumentException('Rule pack manifest is invalid.');
         }
         $id = $manifest['id'] ?? null;
@@ -26,9 +26,13 @@ final class RulePackCompiler
             throw new \InvalidArgumentException('Rule pack rule count is invalid.');
         }
         $rules = [];
+        $ruleIds = [];
         foreach ($rawRules as $raw) {
             if (!is_array($raw)) throw new \InvalidArgumentException('Rule is invalid.');
-            $rule = Rule::fromArray($raw);
+            $rule = Rule::fromArray($raw, $manifest['schema']);
+            if (isset($ruleIds[$rule->id])) throw new \InvalidArgumentException('Duplicate rule id.');
+            $ruleIds[$rule->id] = true;
+            if ($rule->detector !== null) { $rules[] = $rule; continue; }
             foreach ($rule->context as $context) {
                 if (!in_array($context, self::ALLOWED_CONTEXT, true)) throw new \InvalidArgumentException('Unknown rule context.');
             }

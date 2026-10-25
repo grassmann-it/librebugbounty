@@ -9,6 +9,7 @@ use App\Service\ReviewNoticeService;
 use App\Service\AssessmentHistoryProjection;
 use App\Service\ReviewDispositionService;
 use App\Service\PocObservation;
+use App\Service\CribrumFindingQuery;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;
 
@@ -53,10 +54,9 @@ final class FindingReadRepository
             .'CASE WHEN '.\App\Service\FindingWorkPolicy::pursuitActiveSql($this->connection)." THEN 'active' ELSE 'closed' END AS pursuit, "
             .'CASE WHEN '.\App\Service\FindingWorkPolicy::checksAllowedSql($this->connection).' THEN 0 ELSE 1 END AS checks_blocked, '
             .'CASE WHEN '.\App\Service\FindingWorkPolicy::contactAllowedSql($this->connection).' THEN 0 ELSE 1 END AS contact_blocked, '
-            .'CASE WHEN '.self::DISCARDED.' THEN 1 ELSE 0 END AS discarded, '.$deferredColumns.$workColumns
+            .'CASE WHEN '.self::DISCARDED.' THEN 1 ELSE 0 END AS discarded, '.$this->reportColumns().$deferredColumns.$workColumns
             .$this->from().$workJoins.$deferredJoin.$where
-            .' ORDER BY '.($filter->view === 'workbasket' ? 'reminder_due_on ASC, ' : '')
-            .'f.submitted_at DESC, f.created_at DESC, f.rowid DESC LIMIT :limit OFFSET :offset';
+            .' ORDER BY '.$this->orderBy($filter).' LIMIT :limit OFFSET :offset';
         $rows = $this->connection->fetchAllAssociative(
             $sql,
             $parameters + ['limit' => $limit, 'offset' => $offset],
@@ -64,7 +64,8 @@ final class FindingReadRepository
         );
 
         $notices = $this->reviewNotices?->forFindings(array_column($rows, 'id')) ?? [];
-        return array_map(fn (array $row): FindingReadView => $this->view($row, $notices[$row['id']] ?? null), $rows);
+        $claims = \App\Service\CribrumClaimExport::forFindings($this->connection, array_column($rows, 'id'));
+        return array_map(fn (array $row): FindingReadView => $this->view($row, $notices[$row['id']] ?? null, $claims[$row['id']] ?? []), $rows);
     }
 
     public function count(FindingReadFilter $filter): int
@@ -123,6 +124,18 @@ final class FindingReadRepository
         return $counts;
     }
 
+    private function reportAvailable(): bool
+    {
+        return (bool) $this->connection->fetchOne("SELECT 1 FROM sqlite_master WHERE type = 'view' AND name = 'finding_report_current'");
+    }
+
+    private function reportColumns(): string
+    {
+        return $this->reportAvailable()
+            ? '(SELECT rp.snapshot_json FROM finding_report_current rp WHERE rp.finding_id = f.id) AS report_snapshot, (SELECT rp.is_current FROM finding_report_current rp WHERE rp.finding_id = f.id) AS report_current, '
+            : 'NULL AS report_snapshot, NULL AS report_current, ';
+    }
+
     private function from(): string
     {
         return str_replace('WHERE latest.finding_id = f.id', 'WHERE latest.finding_id = f.id AND '.PocObservation::currentSql($this->connection), self::FROM);
@@ -138,6 +151,46 @@ final class FindingReadRepository
             'all' => [],
         };
         $parameters = [];
+        $available = $this->reportAvailable();
+        if ($filter->cribrumCodes !== []) {
+            $rows = CribrumFindingQuery::badgeRows('f', $available, $filter->cribrumHistory, (bool) $this->connection->fetchOne("SELECT 1 FROM sqlite_master WHERE name = 'finding_report_revision'"), (bool) $this->connection->fetchOne("SELECT 1 FROM sqlite_master WHERE name = 'finding_claim_revision'"));
+            $slots = [];
+            foreach ($filter->cribrumCodes as $index => $code) {
+                $slots[] = ':cribrum_'.$index;
+                $parameters['cribrum_'.$index] = \App\Value\CribrumBadgeCatalog::canonicalCode($code);
+            }
+            $conditions[] = 'EXISTS (SELECT 1 FROM ('.$rows.') cb WHERE cb.code IN ('.implode(',', $slots).'))';
+        }
+        foreach (['extraFindings' => 'hasExtras'] as $property => $method) {
+            if ($filter->$property !== '') {
+                $expression = CribrumFindingQuery::$method('f', $available);
+                $conditions[] = ($filter->$property === 'no' ? 'NOT ' : '').'('.$expression.')';
+            }
+        }
+        if ($filter->newFindings !== '') {
+            $conditions[] = ($filter->newFindings === 'no' ? 'NOT ' : '').'('.\App\Service\CribrumNewFindingsQuery::predicate($this->connection).')';
+        }
+        if ($filter->cribrumFreshness !== '') {
+            $conditions[] = '('.CribrumFindingQuery::freshness('f', $available).') = :cribrum_freshness';
+            $parameters['cribrum_freshness'] = $filter->cribrumFreshness;
+        }
+        if ($filter->reportKind !== '') {
+            if (!$this->reportAvailable()) {
+                $conditions[] = in_array($filter->reportKind, ['unknown', 'mixed_or_unknown'], true) ? '1 = 1' : '1 = 0';
+            } else {
+                $current = 'SELECT 1 FROM finding_report_current rp WHERE rp.finding_id = f.id AND rp.is_current = 1';
+                $conditions[] = match ($filter->reportKind) {
+                    'unknown' => 'NOT EXISTS ('.$current.") OR EXISTS (".$current." AND rp.purity = 'unknown')",
+                    'mixed_or_unknown' => 'NOT EXISTS ('.$current.") OR EXISTS (".$current." AND rp.purity IN ('mixed', 'unknown'))",
+                    'mixed' => 'EXISTS ('.$current." AND rp.purity = 'mixed')",
+                    'xss_containing' => 'EXISTS ('.$current." AND EXISTS (SELECT 1 FROM json_each(rp.case_summary_json, '$.components') component WHERE component.value = 'xss_confirmed'))",
+                    default => 'EXISTS ('.$current.' AND rp.case_kind = :report_kind)',
+                };
+                // Preserve grouping when combined with archive/search dimensions.
+                $conditions[array_key_last($conditions)] = '('.$conditions[array_key_last($conditions)].')';
+                if (in_array($filter->reportKind, ['pure_xss', 'only_information_disclosure', 'pure_information_disclosure'], true)) $parameters['report_kind'] = $filter->reportKind === 'only_information_disclosure' ? 'pure_information_disclosure' : $filter->reportKind;
+            }
+        }
         if (in_array($filter->review, ['open', 'deferred'], true)) {
             $activeReview = ReviewDispositionService::activeSql($this->connection);
             $conditions[] = $filter->review === 'deferred' ? 'NOT ('.$activeReview.')' : '('.$activeReview.')';
@@ -294,7 +347,19 @@ final class FindingReadRepository
         return [implode(', ', array_map(static fn (string $alias, string $column): string => $column.' AS '.$alias, array_keys($columns), $columns)), $joins];
     }
 
-    private function view(array $row, ?\App\Dto\ReviewNoticeView $notice = null): FindingReadView
+    private function orderBy(FindingReadFilter $filter): string
+    {
+        $available = $this->reportAvailable();
+        $prefix = match ($filter->sort) {
+            'additional_first' => '('.CribrumFindingQuery::hasExtras('f', $available).') DESC, ',
+            'additional_count' => '('.CribrumFindingQuery::additionalCount('f', $available).') DESC, ',
+            'cribrum_changed' => 'julianday('.CribrumFindingQuery::changedAt('f', $available, (bool) $this->connection->fetchOne("SELECT 1 FROM sqlite_master WHERE name = 'finding_report_revision'"), (bool) $this->connection->fetchOne("SELECT 1 FROM sqlite_master WHERE name = 'finding_claim_revision'")).') DESC, ',
+            default => $filter->view === 'workbasket' ? 'reminder_due_on ASC, ' : '',
+        };
+        return $prefix.'f.submitted_at DESC, f.created_at DESC, f.rowid DESC, f.id ASC';
+    }
+
+    private function view(array $row, ?\App\Dto\ReviewNoticeView $notice = null, array $claims = []): FindingReadView
     {
         return new FindingReadView(
             id: $row['id'],
@@ -331,6 +396,9 @@ final class FindingReadRepository
             reviewDeferred: (bool) $row['review_deferred'],
             reviewDeferredUntil: $this->date($row['review_deferred_until']),
             originalUrl: $row['original_url'],
+            cribrumClaims: $claims,
+            reportProjectionCurrent: $row['report_current'] === null ? null : (bool) $row['report_current'],
+            reportProjection: $row['report_snapshot'] === null ? null : json_decode($row['report_snapshot'], true, 512, JSON_THROW_ON_ERROR),
         );
     }
 

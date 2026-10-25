@@ -4,15 +4,23 @@ namespace App\Cribrum;
 
 final class CribrumClassifier
 {
-    private const VERSION = 'cribrum-1.0.0';
+    private const VERSION = 'cribrum-1.3.2';
+
+    private const DETECTOR_FAMILIES = [
+        'reflection-triage-v1' => ['reflection'],
+        'sql-triage-v1' => ['sql'],
+        'file-triage-v1' => ['local_include', 'remote_include'],
+        'context-triage-v1' => ['disclosure', 'waf', 'error_response'],
+    ];
 
     private readonly string $privateDirectory;
     private readonly RulePackRepository $repository;
 
-    public function __construct(?string $privateDirectory = null)
+    public function __construct(?string $privateDirectory = null, ?string $candidateDirectory = null, private readonly string $candidateMode = 'shadow', ?array $candidatePacks = null)
     {
         $this->privateDirectory = $privateDirectory ?? dirname(__DIR__, 2).'/var/cribrum/packs';
-        $this->repository = new RulePackRepository($this->privateDirectory);
+        if (!in_array($candidateMode, ['shadow', 'active'], true)) throw new \InvalidArgumentException('Candidate mode must be shadow or active.');
+        $this->repository = new RulePackRepository($this->privateDirectory, $candidateDirectory === '' ? null : $candidateDirectory, $candidatePacks);
     }
 
     /** Active versions are available even when an observation artifact is missing. */
@@ -24,6 +32,11 @@ final class CribrumClassifier
         return ['classifierVersion' => self::VERSION, 'packs' => $packs, 'diagnostics' => $loaded['diagnostics']];
     }
 
+    public function matchesNativeDialogMarker(?string $expectedEvidence, ?string $dialogText): bool
+    {
+        return $this->nativeDialogMatchesMarker(trim((string) $expectedEvidence), $dialogText);
+    }
+
     /** Pass an empty evaluation array to collect read-only rule diagnostics. */
     public function classify(ObservationInput $input, ?array &$evaluations = null): ClassificationResult
     {
@@ -32,16 +45,96 @@ final class CribrumClassifier
         $packs = [];
         foreach ($loaded['packs'] as $pack) $packs[$pack->id] = $pack->version;
 
+        $selectedOutputs = [];
+        foreach ($loaded['packs'] as $pack) foreach ($pack->rules as $rule) {
+            if ($rule->detector !== null) $selectedOutputs[$rule->detector] = array_unique([...($selectedOutputs[$rule->detector] ?? []), ...$rule->outputs]);
+        }
+        $completeSelection = true;
+        foreach (Rule::detectorOutputs() as $id => $outputs) {
+            if (array_diff($outputs, $selectedOutputs[$id] ?? []) !== []) $completeSelection = false;
+        }
+        if ($this->candidateMode === 'active' && (!$completeSelection || $diagnostics !== [])) {
+            throw new \InvalidArgumentException('Active triage requires complete registered detector/output coverage and valid packs.');
+        }
         $raw = $input->rawHtml;
-        $text = $input->domText ?? ($raw === null ? null : trim((string) preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags($raw), ENT_QUOTES | ENT_HTML5, 'UTF-8'))));
+        $engineIssues = [];
+        $text = $input->domText;
+        if ($text === null && $raw !== null) {
+            try {
+                $text = trim(Detector\CheckedRegex::replace('/\s+/u', ' ', html_entity_decode(strip_tags($raw), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+            } catch (\Throwable $error) {
+                $engineIssues[] = $this->engineIssue('text_preparation', 'raw', $error);
+            }
+        }
         $signals = [];
         $merged = [];
-        $context = $this->context($input, $raw, $text);
+        $detectorsEvaluated = [];
+        $detectorFailure = false;
+        $evaluationRuns = [];
+        $queryValues = [...$this->queryValues($input->url, $engineIssues, 'input_url_query'), ...$this->queryValues($input->finalUrl ?? '', $engineIssues, 'final_url_query')];
+        $context = $this->context($input, $raw, $text, $engineIssues, $queryValues);
+        $coreMatches = [];
         foreach ($loaded['packs'] as $pack) {
+            $shareCoreMatches = $this->repository->isShippedCore($pack);
             foreach ($pack->rules as $rule) {
                 try {
+                    if ($rule->detector !== null) {
+                        $detector = match ($rule->detector) {
+                            'reflection-triage-v1' => new Detector\ReflectionTriageDetector(),
+                            'sql-triage-v1' => new Detector\SqlTriageDetector(),
+                            'file-triage-v1' => new Detector\FileTriageDetector(),
+                            'context-triage-v1' => new Detector\ContextTriageDetector(),
+                        };
+                        $detectorsEvaluated[$rule->detector] = true;
+                        $evaluation = $detector->evaluate($input, $this->candidateMode);
+                        $detected = $evaluation->signals;
+                        $run = [
+                            'pack' => $pack->id, 'version' => $pack->version, 'rule' => $rule->id,
+                            'mode' => $this->candidateMode, 'outputs' => $rule->outputs,
+                            ...$evaluation->toArray(),
+                        ];
+                        $diagnostics = [...$diagnostics, ...$evaluation->diagnostics];
+                        $selectedCount = 0;
+                        foreach ($detected as $signal) {
+                            if (!in_array($signal['code'], $rule->outputs, true)) continue;
+                            try {
+                                $emitted = EvidenceSignal::make($signal['code'], $input, $signal['spans'],
+                                    [...$signal['attributes'], 'rulePack' => $pack->id, 'rulePackVersion' => $pack->version, 'ruleId' => $rule->id],
+                                    $signal['relations'], $signal['producer'], $this->candidateMode);
+                                EvidenceSignal::validateAgainstInput($emitted, $input);
+                                $signals[] = $emitted;
+                                ++$selectedCount;
+                            } catch (\Throwable) {
+                                // A failed emission cannot invalidate earlier independently qualified signals.
+                                $this->recordRunFailure($run, 'engine_emission', 'invalid_evidence_candidate');
+                                $diagnostics[] = 'Rule '.$pack->id.'/'.$rule->id.' failed (invalid_evidence_candidate).';
+                            }
+                        }
+                        $evaluationRuns[] = $run;
+                        $evaluationStatus = Detector\DetectorEvaluation::aggregateStatus(array_column($run['familyOutcomes'], 'status'));
+                        if ($evaluationStatus !== 'completed') $detectorFailure = true;
+                        if ($evaluations !== null) $evaluations[] = [
+                            'pack' => $pack->id, 'version' => $pack->version, 'rule' => $rule->id,
+                            'detector' => $rule->detector, 'outcome' => $detected === [] ? 'excluded' : 'hit',
+                            'shadow' => $this->candidateMode === 'shadow', 'evidenceCount' => count($detected),
+                            'selectedEvidenceCount' => $selectedCount, 'evaluationStatus' => $evaluationStatus,
+                            'selectedOutcome' => $selectedCount === 0 ? 'excluded' : 'hit',
+                            'familyOutcomes' => $run['familyOutcomes'],
+                        ];
+                        continue;
+                    }
                     $exclusion = null;
-                    $match = $this->match($rule, $input, $raw, $text, $context, $exclusion);
+                    // Preserve ordered operands and gates; emission remains per original rule.
+                    $matcherKey = $shareCoreMatches ? serialize([
+                        $rule->representation, $rule->any, $rule->all, $rule->excludes, $rule->context, $rule->minStatus,
+                    ]) : null;
+                    if ($matcherKey !== null && array_key_exists($matcherKey, $coreMatches)) {
+                        [$match, $exclusion] = $coreMatches[$matcherKey];
+                    } else {
+                        $match = $this->match($rule, $input, $raw, $text, $context, $exclusion);
+                        // Exceptions follow each rule's existing catch path and are never cached.
+                        if ($matcherKey !== null) $coreMatches[$matcherKey] = [$match, $exclusion];
+                    }
                     if ($evaluations !== null) $evaluations[] = [
                         'pack' => $pack->id, 'version' => $pack->version, 'rule' => $rule->id,
                         'outcome' => $match === null ? 'excluded' : 'hit',
@@ -49,8 +142,22 @@ final class CribrumClassifier
                         'span' => $match === null ? null : $this->span($rule->representation, $rule->representation === 'raw' ? $raw : $text, $match['phrase']),
                     ];
                 } catch (\Throwable $error) {
-                    if ($evaluations !== null) $evaluations[] = ['pack' => $pack->id, 'version' => $pack->version, 'rule' => $rule->id, 'outcome' => 'error', 'error' => $error->getMessage()];
-                    $diagnostics[] = 'Rule '.$pack->id.'/'.$rule->id.' failed: '.$error->getMessage();
+                    if ($rule->detector !== null) {
+                        $detectorFailure = true;
+                        $detectorsEvaluated[$rule->detector] = true;
+                        $run = ['pack' => $pack->id, 'version' => $pack->version, 'rule' => $rule->id,
+                            'mode' => $this->candidateMode, 'outputs' => $rule->outputs,
+                            'detector' => $rule->detector, 'familyOutcomes' => []];
+                        foreach (self::DETECTOR_FAMILIES[$rule->detector] as $family) {
+                            $run['familyOutcomes'][] = ['family' => $family, 'status' => 'completed', 'stages' => [],
+                                'counters' => ['candidatesConsidered' => 0, 'signalsQualified' => 0, 'candidatesExcluded' => 0]];
+                        }
+                        $this->recordRunFailure($run, 'engine_invocation', 'engine_error');
+                        $evaluationRuns[] = $run;
+                    }
+                    $message = $rule->detector === null ? $error->getMessage() : 'Detector invocation failed.';
+                    if ($evaluations !== null) $evaluations[] = ['pack' => $pack->id, 'version' => $pack->version, 'rule' => $rule->id, 'outcome' => 'error', 'error' => $message];
+                    $diagnostics[] = 'Rule '.$pack->id.'/'.$rule->id.' failed: '.$message;
                     continue;
                 }
                 if ($match === null) continue;
@@ -64,6 +171,8 @@ final class CribrumClassifier
                     'shadow' => $rule->shadow,
                 ];
                 if ($rule->shadow) continue;
+                // Explicit active triage supersedes the old page-wide SQL/file suspicion heuristics.
+                if ($this->candidateMode === 'active' && in_array($rule->claim, [Taxonomy::SQL_INJECTION, Taxonomy::LOCAL_FILE_INCLUSION, Taxonomy::REMOTE_FILE_INCLUSION], true)) continue;
                 $span = $this->span($representation, $representation === 'raw' ? $raw : $text, $phrase);
                 $suggestion = new ClaimSuggestion($rule->claim, $rule->state, $rule->score, [$pack->id.'/'.$rule->id], [$rule->reason], $span === null ? [] : [$span]);
                 $key = $rule->claim;
@@ -82,6 +191,62 @@ final class CribrumClassifier
             unset($merged[Taxonomy::LOCAL_FILE_INCLUSION]);
         }
 
+        // Qualified diagnostics are meaningful even when a broken application
+        // returns HTTP 200. This does not activate candidate facts or certify
+        // candidate coverage, and never promotes a diagnostic to SQL injection.
+        $observedDiagnostics = (new DiagnosticClaimAdapter())->evaluate($input);
+        $engineIssues = [...$engineIssues, ...$observedDiagnostics['issues']];
+        foreach ($observedDiagnostics['suggestions'] as $suggestion) {
+            $previous = $merged[$suggestion->claim] ?? null;
+            if ($previous === null || $previous->state !== Taxonomy::OBSERVED || $suggestion->score > $previous->score) {
+                $merged[$suggestion->claim] = $suggestion;
+            } elseif ($suggestion->score === $previous->score) {
+                $merged[$suggestion->claim] = $this->merge($previous, $suggestion);
+            }
+            $rule = substr($suggestion->ruleIds[0], strlen('builtin/'));
+            $signals[] = ['pack' => 'builtin', 'version' => self::VERSION, 'rule' => $rule,
+                'representation' => $suggestion->spans[0]['representation'],
+                'phrase' => $suggestion->spans[0]['excerpt'], 'shadow' => false];
+            if ($evaluations !== null) $evaluations[] = ['pack' => 'builtin', 'version' => self::VERSION,
+                'rule' => $rule, 'outcome' => 'hit', 'shadow' => false, 'span' => $suggestion->spans[0]];
+        }
+
+        $sqlQuery = null;
+        try { $sqlQuery = $this->sqlQueryDisclosure($input, $raw, $text, $queryValues, $engineIssues); }
+        catch (\Throwable $error) { $engineIssues[] = $this->engineIssue('builtin_sql_query_echo', null, $error); }
+        if ($sqlQuery !== null) {
+            $previous = $merged[Taxonomy::INFORMATION_DISCLOSURE] ?? null;
+            $merged[Taxonomy::INFORMATION_DISCLOSURE] = $previous !== null && $previous->state === $sqlQuery->state
+                ? $this->merge($previous, $sqlQuery)
+                : $sqlQuery;
+            $signals[] = [
+                'pack' => 'builtin',
+                'version' => self::VERSION,
+                'rule' => 'sql-query-echo',
+                'representation' => $sqlQuery->spans[0]['representation'] ?? 'raw',
+                'phrase' => 'SELECT ... FROM',
+                'shadow' => false,
+            ];
+        }
+
+        $sqlError = null;
+        try { $sqlError = $this->candidateMode === 'active' ? null : $this->sqlErrorWithRequestValue($input, $raw, $text, $queryValues); }
+        catch (\Throwable $error) { $engineIssues[] = $this->engineIssue('builtin_sql_error_request_value', null, $error); }
+        if ($sqlError !== null) {
+            $previous = $merged[Taxonomy::SQL_INJECTION] ?? null;
+            $merged[Taxonomy::SQL_INJECTION] = $previous === null || $sqlError->score >= $previous->score
+                ? $sqlError
+                : $previous;
+            $signals[] = [
+                'pack' => 'builtin',
+                'version' => self::VERSION,
+                'rule' => 'sql-error-request-value',
+                'representation' => $sqlError->spans[0]['representation'] ?? 'raw',
+                'phrase' => 'database syntax error ... request value',
+                'shadow' => false,
+            ];
+        }
+
         foreach ($this->xss($input, $raw, $text) as $suggestion) {
             if (!isset($merged[$suggestion->claim]) || $suggestion->score >= $merged[$suggestion->claim]->score) {
                 $merged[$suggestion->claim] = $suggestion;
@@ -90,7 +255,14 @@ final class CribrumClassifier
         foreach ($this->xssSignals($input, $raw, $text) as $signal) $signals[] = $signal;
 
         if ($evaluations !== null) {
-            foreach (['dialog-marker', 'reflection', 'reflection/entity-encoded'] as $builtin) {
+            $builtinExclusions = [
+                'sql-query-echo' => 'No returned SQL query disclosure matched',
+                'sql-error-request-value' => 'No request-bound database syntax diagnostic matched',
+                'dialog-marker' => 'Marker or native-dialog conditions not met',
+                'reflection' => 'Marker or representation conditions not met',
+                'reflection/entity-encoded' => 'Encoded marker conditions not met',
+            ];
+            foreach (['sql-query-echo', 'sql-error-request-value', 'dialog-marker', 'reflection', 'reflection/entity-encoded'] as $builtin) {
                 $hit = null;
                 foreach ($merged as $suggestion) {
                     if (in_array('builtin/'.$builtin, $suggestion->ruleIds, true)) $hit = $suggestion;
@@ -99,7 +271,7 @@ final class CribrumClassifier
                 $evaluations[] = [
                     'pack' => 'builtin', 'version' => self::VERSION, 'rule' => $builtin,
                     'outcome' => $hit !== null || $encoded ? 'hit' : 'excluded',
-                    'exclusion' => $hit !== null || $encoded ? null : 'Marker, representation or native-dialog conditions not met',
+                    'exclusion' => $hit !== null || $encoded ? null : $builtinExclusions[$builtin],
                     'span' => $hit?->spans[0] ?? ($builtin === 'dialog-marker' && $hit !== null
                         ? $this->span('dialog', $input->dialogText, trim((string) $input->expectedEvidence))
                         : ($encoded ? $this->span('text', $text, trim((string) $input->expectedEvidence)) : null)),
@@ -112,10 +284,66 @@ final class CribrumClassifier
             return [$a->claim, $a->state, $b->score, implode("\n", $a->ruleIds)] <=> [$b->claim, $b->state, $a->score, implode("\n", $b->ruleIds)];
         });
         usort($signals, static fn (array $a, array $b): int => json_encode($a) <=> json_encode($b));
+        foreach ($engineIssues as $issue) {
+            if (($issue['status'] ?? 'failed') !== 'limited') $diagnostics[] = 'Engine stage '.$issue['stage'].' failed ('.$issue['code'].').';
+        }
         sort($diagnostics, SORT_STRING);
         $diagnostics = array_values(array_unique($diagnostics));
 
-        return new ClassificationResult($suggestions, $signals, $packs, $diagnostics, self::VERSION);
+        $coverage = [];
+        if ($detectorsEvaluated !== [] || $detectorFailure) {
+            $families = [];
+            foreach (self::DETECTOR_FAMILIES as $id => $supported) {
+                if (isset($detectorsEvaluated[$id]) && array_diff(Rule::detectorOutputs()[$id], $selectedOutputs[$id] ?? []) === []) $families = [...$families, ...$supported];
+            }
+            sort($families, SORT_STRING);
+            $required = ['disclosure', 'local_include', 'reflection', 'remote_include', 'sql', 'waf'];
+            // A successful scan of a fragment cannot establish full capture coverage.
+            $complete = $completeSelection && !$detectorFailure && $engineIssues === [] && $raw !== null && ($input->coverage['status'] ?? null) === 'complete'
+                && ($input->coverage['truncated'] ?? false) !== true
+                && array_diff($required, $families) === [];
+            $coverage = [
+                'profile' => 'behavior-triage-v1', 'version' => '1',
+                'classifierVersion' => self::VERSION, 'packs' => $packs,
+                'requiredFamilies' => $required, 'evaluatedFamilies' => $families,
+                'status' => $raw === null ? 'unknown' : ($complete ? 'complete' : 'partial'), 'mode' => $this->candidateMode,
+                'artifactSha256' => $raw === null ? null : hash('sha256', $raw),
+                'inputUrlSha256' => hash('sha256', $input->url),
+                'finalUrlSha256' => $input->finalUrl === null ? null : hash('sha256', $input->finalUrl),
+                'limitations' => ['Supported signatures only; no exclusion of unknown vulnerabilities.', 'No browser execution proof from response reflection.'],
+                'evaluation' => ['schemaVersion' => 1, 'runs' => $evaluationRuns, 'engineIssues' => $engineIssues],
+            ];
+        }
+        return new ClassificationResult($suggestions, $signals, $packs, $diagnostics, self::VERSION, $coverage);
+    }
+
+    /** Safe execution metadata; never expose a failed pattern, input or exception message. */
+    private function engineIssue(string $stage, ?string $representation, \Throwable $error): array
+    {
+        return ['code' => $error instanceof Detector\RegexFailure ? 'regex_error' : 'engine_error',
+            'stage' => $stage, 'representation' => $representation,
+            ...($error instanceof Detector\RegexFailure ? ['operation' => $error->operation, 'pcreCode' => $error->pcreCode] : [])];
+    }
+
+    private function recordRunFailure(array &$run, string $stage, string $code): void
+    {
+        foreach ($run['familyOutcomes'] as &$family) {
+            $family['status'] = 'failed';
+            $issue = [
+                'code' => $code, 'detector' => $run['detector'], 'family' => $family['family'],
+                'stage' => $stage, 'representation' => null,
+            ];
+            $existing = null;
+            foreach ($family['stages'] as $index => $entry) {
+                if ($entry['stage'] === $stage && $entry['representation'] === null) { $existing = $index; break; }
+            }
+            if ($existing === null) $family['stages'][] = ['stage' => $stage, 'representation' => null, 'status' => 'failed', 'issues' => [$issue]];
+            else {
+                $family['stages'][$existing]['status'] = 'failed';
+                $family['stages'][$existing]['issues'][] = $issue;
+            }
+        }
+        unset($family);
     }
 
     /** @return array{phrase:string,representation:string}|null */
@@ -145,10 +373,10 @@ final class CribrumClassifier
     }
 
     /** @return array<string,bool> */
-    private function context(ObservationInput $input, ?string $raw, ?string $text): array
+    private function context(ObservationInput $input, ?string $raw, ?string $text, array &$engineIssues, array $queryValues): array
     {
         $needles = [];
-        foreach ([...$this->queryValues($input->url), ...$this->queryValues($input->finalUrl ?? ''), $input->payload, $input->expectedEvidence] as $needle) {
+        foreach ([...$queryValues, $input->payload, $input->expectedEvidence] as $needle) {
             if (is_string($needle) && $needle !== '') $needles[] = $needle;
         }
         $haystacks = array_values(array_filter([$raw, $text], static fn (?string $value): bool => $value !== null));
@@ -169,26 +397,84 @@ final class CribrumClassifier
             }
         }
 
+        $optional = ['payloadLooksUrl' => false, 'payloadPathLike' => false];
+        foreach ([
+            'payloadLooksUrl' => static fn (): bool => array_any(array_filter($needles, static fn (string $needle): bool => Detector\CheckedRegex::match('/^(?:https?|ftp):\/\//iD', $needle) === 1), static fn (string $needle): bool => array_any($haystacks, static fn (string $haystack): bool => mb_strlen($needle) >= 3 && mb_stripos($haystack, $needle) !== false)),
+            'payloadPathLike' => static fn (): bool => array_any($needles, static fn (string $needle): bool => Detector\CheckedRegex::match('/(?:\.\.\/|\.\\\\|\/(?:etc|proc|var|usr)\/)/', $needle) === 1),
+        ] as $name => $check) {
+            try { $optional[$name] = $check(); }
+            catch (\Throwable $error) { $engineIssues[] = $this->engineIssue('context_'.$name, null, $error); }
+        }
         return [
             'payloadPresent' => $needles !== [],
             'payloadInText' => $needleInText,
-            'payloadLooksUrl' => array_any(array_filter($needles, static fn (string $needle): bool => preg_match('/^(?:https?|ftp):\/\//iD', $needle) === 1), static fn (string $needle): bool => array_any($haystacks, static fn (string $haystack): bool => mb_strlen($needle) >= 3 && mb_stripos($haystack, $needle) !== false)),
-            'payloadPathLike' => array_any($needles, static fn (string $needle): bool => preg_match('/(?:\.\.\/|\.\\\\|\/(?:etc|proc|var|usr)\/)/', $needle) === 1),
+            ...$optional,
             'fileError' => $fileError,
         ];
     }
 
     /** @return list<string> */
-    private function queryValues(?string $url): array
+    private function queryValues(?string $url, array &$engineIssues, string $stage): array
     {
         $query = parse_url((string) $url, PHP_URL_QUERY);
+        if ($query === false) $engineIssues[] = ['code' => 'parser_error', 'stage' => $stage, 'representation' => null];
         if (!is_string($query) || $query === '') return [];
         $values = [];
-        parse_str($query, $values);
+        // PHP reports these resource limits only through warnings. Preserve its
+        // parser/limits and partial values; capture only the known limit events.
+        $limits = [];
+        $previous = null;
+        $handler = static function (int $severity, string $message, string $file, int $line) use (&$limits, &$previous): bool {
+            if ($severity === E_WARNING && str_starts_with($message, 'parse_str(): Input variables exceeded ')) {
+                $limits['input_variable_budget'] = (int) ini_get('max_input_vars');
+                return true;
+            }
+            if ($severity === E_WARNING && str_starts_with($message, 'parse_str(): Input variable nesting level exceeded ')) {
+                $limits['input_nesting_budget'] = (int) ini_get('max_input_nesting_level');
+                return true;
+            }
+            return $previous === null ? false : (bool) $previous($severity, $message, $file, $line);
+        };
+        $previous = set_error_handler($handler, E_WARNING);
+        try { parse_str($query, $values); }
+        finally { restore_error_handler(); }
+        // PHP 8.3 silently drops over-deep variables. Observe only key shape
+        // for coverage; the native parser remains the sole source of values.
+        if (!isset($limits['input_nesting_budget']) && $this->queryNestingLimited($query)) {
+            $limits['input_nesting_budget'] = (int) ini_get('max_input_nesting_level');
+        }
+        foreach ($limits as $code => $limit) {
+            $engineIssues[] = ['code' => $code, 'stage' => $stage, 'representation' => null,
+                'status' => 'limited', 'counters' => ['limit' => max(0, $limit)]];
+        }
         $result = [];
         foreach ($values as $value) if (is_string($value) && $value !== '') $result[] = $value;
 
         return $result;
+    }
+
+    private function queryNestingLimited(string $query): bool
+    {
+        $separators = (string) ini_get('arg_separator.input');
+        $parts = $separators === '' ? [$query] : preg_split('/['.preg_quote($separators, '/').']/', $query);
+        $maxVariables = (int) ini_get('max_input_vars');
+        $maxDepth = (int) ini_get('max_input_nesting_level');
+        $variables = 0;
+        foreach ($parts as $part) {
+            if ($part === '') continue;
+            if ($maxVariables >= 0 && ++$variables > $maxVariables) break;
+            $key = ltrim(explode("\0", urldecode(explode('=', $part, 2)[0]), 2)[0], ' ');
+            $open = strpos($key, '[');
+            if ($open === false || $open === 0) continue;
+            $depth = 0;
+            do {
+                if (++$depth > $maxDepth) return true;
+                $close = strpos($key, ']', $open + 1);
+                if ($close === false || ($key[$close + 1] ?? '') !== '[') break;
+                $open = $close + 1;
+            } while (true);
+        }
+        return false;
     }
 
     /** @return array{representation:string,start:int,length:int,excerpt:string}|null */
@@ -229,14 +515,168 @@ final class CribrumClassifier
         return mb_strlen($marker) >= 3 && count(array_unique(mb_str_split($marker))) >= 2;
     }
 
+    private function nativeDialogMatchesMarker(string $marker, ?string $dialogText): bool
+    {
+        if ($marker === '' || $dialogText === null) return false;
+        if ($this->usableMarker($marker)) return mb_stripos($dialogText, $marker) !== false;
+
+        // Short markers such as alert(3)'s "3" are too weak for substring
+        // matching, but exact equality with the complete dialog is execution
+        // evidence supplied by the browser worker.
+        return trim($dialogText) !== '' && mb_strtolower(trim($dialogText)) === mb_strtolower($marker);
+    }
+
+    /** @return list<string> */
+    private function requestNeedles(ObservationInput $input, array $queryValues): array
+    {
+        $needles = $queryValues;
+        if (is_string($input->payload) && trim($input->payload) !== '') $needles[] = $input->payload;
+
+        return array_values(array_filter(
+            array_map(static fn (string $needle): string => trim($needle), $needles),
+            static fn (string $needle): bool => mb_strlen($needle) >= 3,
+        ));
+    }
+
+    private function sqlQueryDisclosure(ObservationInput $input, ?string $raw, ?string $text, array $queryValues, array &$engineIssues): ?ClaimSuggestion
+    {
+        $queryDetector = new Detector\SqlTriageDetector();
+        $queryEvidence = $queryDetector->evaluateQueryDisclosures($input, 'active');
+        foreach ($queryEvidence->familyOutcomes as $family) {
+            if (!in_array($family['status'], ['failed', 'limited'], true)) continue;
+            $engineIssues[] = ['code' => 'query_disclosure_'.$family['status'], 'stage' => 'builtin_sql_query_echo',
+                'representation' => $input->rawHtml !== null ? 'raw' : 'dom_text', 'status' => $family['status']];
+        }
+        if ($queryEvidence->signals !== []) {
+            // Legacy suggestions carry only their original compact span shape;
+            // typed evidence retains exact hashes, IDs, roles and relations.
+            $spans = array_map(static fn (array $span): array => [
+                'representation' => $span['representation'] === 'dom_text' ? 'text' : $span['representation'],
+                'start' => $span['start'], 'length' => $span['length'], 'excerpt' => $span['excerpt'],
+            ], $queryEvidence->signals[0]['spans']);
+            return new ClaimSuggestion(Taxonomy::INFORMATION_DISCLOSURE, Taxonomy::OBSERVED, 86,
+                ['builtin/sql-query-echo'], ['A SQL query was returned in a database diagnostic.'],
+                $spans);
+        }
+        // Independently accepted request-specific query echoes remain supported,
+        // including responses without a database-error wrapper. Their literal
+        // binding is separate from the new diagnostic-only disclosure above.
+        $needles = $this->requestNeedles($input, $queryValues);
+        if ($needles === []) return null;
+
+        foreach ([['raw', $raw], ['text', $text]] as [$representation, $subject]) {
+            if (!is_string($subject)) continue;
+            // Raw markup preserves the response's own line boundaries. The DOM
+            // fallback is only used when raw is unavailable, because collapsed
+            // DOM text can otherwise join an SQL example with a later reflection.
+            if ($representation === 'text' && is_string($raw)) continue;
+            try {
+                $candidates = $queryDetector->responseQueries($subject, $input->url);
+            } catch (Detector\RegexFailure) {
+                $engineIssues[] = ['code' => 'query_disclosure_failed', 'stage' => 'builtin_sql_query_echo',
+                    'representation' => $representation, 'status' => 'failed'];
+                continue;
+            }
+            foreach ($candidates as $candidate) {
+                $statement = $candidate['query'];
+                foreach ($needles as $needle) {
+                    if (!$this->needleInSqlContext($needle, $statement)) continue;
+                    $start = mb_strlen(substr($subject, 0, $candidate['byte']), 'UTF-8');
+                    $length = mb_strlen(substr($subject, $candidate['byte'], $candidate['rawLength'] ?? strlen($statement)), 'UTF-8');
+                    $span = ['representation' => $representation, 'start' => $start,
+                        'length' => $length, 'excerpt' => mb_substr($subject, $start, $length, 'UTF-8')];
+                    return new ClaimSuggestion(
+                        Taxonomy::INFORMATION_DISCLOSURE,
+                        Taxonomy::OBSERVED,
+                        86,
+                        ['builtin/sql-query-echo'],
+                        ['A request-specific SQL query was returned.'],
+                        $span === null ? [] : [$span],
+                    );
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function sqlErrorWithRequestValue(ObservationInput $input, ?string $raw, ?string $text, array $queryValues): ?ClaimSuggestion
+    {
+        static $diagnostics = [
+            'You have an error in your SQL syntax',
+            'MySQLSyntaxErrorException',
+            'SQLException',
+            'PostgreSQL ERROR:',
+            'syntax error at or near',
+            'SQLite3::query',
+            'SQLITE_ERROR',
+            'Unclosed quotation mark after the character string',
+            'Microsoft SQL Server',
+        ];
+        $needles = $this->requestNeedles($input, $queryValues);
+        if ($needles === []) return null;
+
+        foreach ([['raw', $raw], ['text', $text]] as [$representation, $subject]) {
+            if (!is_string($subject)) continue;
+            // Oracle diagnostics have a numeric error code. A bare ORA- also
+            // matches ordinary names such as hedemora-dack in reflected links.
+            $subjectDiagnostics = $diagnostics;
+            if (Detector\CheckedRegex::matchAll('/\bORA-\d{5}\b/i', $subject, $oracleCodes) > 0) {
+                $subjectDiagnostics = [...$diagnostics, ...array_unique($oracleCodes[0])];
+            }
+            foreach ($subjectDiagnostics as $diagnostic) {
+                $offset = 0;
+                while (($position = mb_stripos($subject, $diagnostic, $offset)) !== false) {
+                    // The SQL statement normally precedes its diagnostic on the
+                    // same rendered line. A reflection elsewhere on the page is
+                    // not enough to turn documentation into SQLi suspicion.
+                    $lineStart = (int) mb_strrpos(mb_substr($subject, 0, $position), "\n");
+                    $lineEnd = mb_strpos($subject, "\n", $position);
+                    $line = mb_substr($subject, $lineStart === 0 ? 0 : $lineStart + 1, ($lineEnd === false ? mb_strlen($subject) : $lineEnd) - ($lineStart === 0 ? 0 : $lineStart + 1));
+                    foreach ($needles as $needle) {
+                        if ($representation === 'raw' ? mb_stripos($line, $needle) === false : !$this->needleInSqlContext($needle, $line)) continue;
+                        $span = $this->span($representation, $subject, $line);
+                        return new ClaimSuggestion(
+                            Taxonomy::SQL_INJECTION,
+                            Taxonomy::SUSPECTED,
+                            90,
+                            ['builtin/sql-error-request-value'],
+                            ['A request value appeared inside a database syntax diagnostic.'],
+                            $span === null ? [] : [$span],
+                        );
+                    }
+                    $offset = $position + mb_strlen($diagnostic);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function needleInSqlContext(string $needle, string $statement): bool
+    {
+        $escaped = preg_quote($needle, '/');
+        // Prefer a quoted SQL literal. It binds the reflected request value to
+        // the emitted query instead of a nearby prose or documentation echo.
+        if (Detector\CheckedRegex::match('/(?:\'.{0,512}'.$escaped.'.{0,512}\'|".{0,512}'.$escaped.'.{0,512}")/is', $statement) === 1) {
+            return true;
+        }
+
+        // Numeric or identifier-like payloads can be valid unquoted SQL values.
+        // Keep this narrow: the complete needle must be one SQL token directly
+        // bound by a comparison, LIKE, or IN operator.
+        return Detector\CheckedRegex::match('/(?:=|LIKE|IN)\s*'.$escaped.'(?![A-Za-z0-9_])/i', $statement) === 1
+            && Detector\CheckedRegex::match('/^(?:-?\d+(?:\.\d+)?|[A-Za-z_][A-Za-z0-9_]*)$/D', $needle) === 1;
+    }
+
     /** @return list<ClaimSuggestion> */
     private function xss(ObservationInput $input, ?string $raw, ?string $text): array
     {
         $marker = trim((string) $input->expectedEvidence);
-        if (!$this->usableMarker($marker)) return [];
-        if ($input->dialogSeen && $input->dialogText !== null && mb_stripos($input->dialogText, $marker) !== false) {
+        if ($input->dialogSeen && $this->nativeDialogMatchesMarker($marker, $input->dialogText)) {
             return [new ClaimSuggestion(Taxonomy::XSS, Taxonomy::OBSERVED, 99, ['builtin/dialog-marker'], ['The expected marker appeared in a native dialog.'], [])];
         }
+        if (!$this->usableMarker($marker)) return [];
         $plainRaw = $raw !== null && mb_stripos($raw, $marker) !== false;
         $plainText = $text !== null && mb_stripos($text, $marker) !== false;
         $decodedRaw = $raw === null ? null : html_entity_decode($raw, ENT_QUOTES | ENT_HTML5, 'UTF-8');

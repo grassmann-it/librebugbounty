@@ -7,6 +7,7 @@ use App\Dto\ScreenshotEnqueueResult;
 use App\Entity\Evidence;
 use App\Entity\Finding;
 use App\Entity\ScreenshotJob;
+use App\Exception\BrowserScreenshotCaptureException;
 use App\Repository\ScreenshotJobRepository;
 use App\Value\EvidenceKind;
 use App\Value\ScreenshotJobStatus;
@@ -22,6 +23,7 @@ final class ScreenshotQueueService implements ScreenshotEnqueuerInterface
         private readonly SettingsService $settings,
         private readonly ScreenshotOperationLock $operationLock,
         private readonly ?CribrumProcessingService $cribrum = null,
+        private readonly ?ReportProjectionService $reportProjection = null,
     ) {
     }
 
@@ -182,8 +184,23 @@ final class ScreenshotQueueService implements ScreenshotEnqueuerInterface
             $this->assertCurrentReviewDisposition($job);
             $capturedFinding = $job->getFinding();
             $capturedUrl = $job->getUrl();
-            $capturedPayload = $capturedFinding->getPayload();
-            $capturedEvidence = $capturedFinding->getExpectedEvidence();
+            // Pin source and marker from the database before dispatch, not the potentially
+            // stale ORM object or the finding state when the response comes back.
+            $source = $this->entityManager()->getConnection()->fetchAssociative(
+                'SELECT COALESCE(poc_url, url) AS url, poc_revision, expected_evidence, method, request_params, payload FROM finding WHERE id = ?',
+                [$capturedFinding->getId()],
+            );
+            if ($source === false || !$this->matchesPoc($job, $source)) {
+                throw new \LogicException('The active PoC changed before screenshot dispatch.');
+            }
+            $proofContext = [
+                'findingId' => $capturedFinding->getId(), 'pocUrl' => $source['url'],
+                'pocRevision' => (int) $source['poc_revision'], 'pocSha256' => hash('sha256', $source['url']),
+                'expectedMarker' => $source['expected_evidence'],
+                'requestContextSha256' => WorkerProofResolver::requestContextHashFromValues($source['method'], $source['request_params'] === null ? null : json_decode($source['request_params'], true, 512, JSON_THROW_ON_ERROR), $source['payload'], $source['expected_evidence']),
+            ];
+            $capturedPayload = $source['payload'];
+            $capturedEvidence = $proofContext['expectedMarker'];
             $result = $this->client->capture(new BrowserScreenshotRequest(
                 url: $job->getUrl(),
                 timeoutMs: $this->settings->getReviewScanTimeoutMs(),
@@ -198,12 +215,12 @@ final class ScreenshotQueueService implements ScreenshotEnqueuerInterface
 
             $stored = $this->storage->storeContents($job->getFinding(), $binary, 'capture-'.$job->getId().'.png');
             $storedPath = $stored->relativePath;
-            $this->operationLock->synchronizedQueueMutation(function () use ($job, $stored, $result): void {
+            $this->operationLock->synchronizedQueueMutation(function () use ($job, $stored, $result, $proofContext): void {
                 // A browser request can outlive a manual PoC update. Validate
                 // inside a writer transaction, so a concurrent PoC update
                 // cannot commit between this check and the evidence commit.
                 $entityManager = $this->entityManager();
-                $entityManager->getConnection()->transactional(function () use ($entityManager, $job, $stored, $result): void {
+                $entityManager->getConnection()->transactional(function () use ($entityManager, $job, $stored, $result, $proofContext): void {
                     $entityManager->getConnection()->executeStatement('UPDATE finding SET id = id WHERE 1 = 0');
                     $this->assertNotDiscarded($job->getFinding());
                     $this->assertCurrentPoc($job);
@@ -222,6 +239,7 @@ final class ScreenshotQueueService implements ScreenshotEnqueuerInterface
                         ->setErrorMessage(null)
                         ->setScreenshotPath($stored->relativePath)
                         ->setCaptureMetadata(array_merge($job->getCaptureMetadata() ?? [], $result->metadata, [
+                            'proofContext' => $proofContext,
                             'queuedPocRevision' => $this->jobPocRevision($job),
                             'captureDispositionRevision' => (int) ($job->getCaptureMetadata()['captureDispositionRevision'] ?? 0),
                             'requestedUrl' => $job->getUrl(),
@@ -249,8 +267,31 @@ final class ScreenshotQueueService implements ScreenshotEnqueuerInterface
                 $capturedEvidence,
                 $result->dialogSeen,
                 $result->dialogText,
+                $proofContext['requestContextSha256'] ?? null,
             );
         } catch (\Throwable $error) {
+            if ($error instanceof BrowserScreenshotCaptureException && $error->observation !== null) {
+                try {
+                    $this->assertCurrentPoc($job);
+                    $this->assertCurrentReviewDisposition($job);
+                    $this->cribrum?->process(
+                        $job->getFinding(),
+                        $error->observation,
+                        $job->getId(),
+                        null,
+                        $this->jobPocRevision($job),
+                        $capturedUrl,
+                        $capturedPayload,
+                        $capturedEvidence,
+                        $error->dialogSeen,
+                        $error->dialogText,
+                        $proofContext['requestContextSha256'] ?? null,
+                    );
+                } catch (\Throwable) {
+                    // Screenshot failure remains the primary result. A stale or
+                    // unusable observation is never attributed to the current PoC.
+                }
+            }
             $failureMessage = $error->getMessage();
             if ($storedPath !== null) {
                 try {
@@ -262,6 +303,14 @@ final class ScreenshotQueueService implements ScreenshotEnqueuerInterface
             $job = $this->recordFailure($job->getId(), $failureMessage, $error);
         }
 
+        // The source has been committed. Refresh even if no HttpObservation was
+        // available: native dialog evidence is an independent proof source.
+        if ($job->getStatus() === ScreenshotJobStatus::AVAILABLE) {
+            if ($this->entityManager()->contains($job->getFinding())) {
+                $this->entityManager()->refresh($job->getFinding());
+            }
+            $this->reportProjection?->refresh($job->getFinding());
+        }
         return $job;
     }
 

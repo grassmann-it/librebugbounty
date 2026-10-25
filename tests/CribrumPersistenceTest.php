@@ -60,7 +60,7 @@ final class CribrumPersistenceTest extends DatabaseTestCase
 
     public function testMigrationBackfillsReflectedXssAndMatchesMapping(): void
     {
-        $finding = $this->findings->createFinding('https://cribrum-migration.example.test/a');
+        $finding = $this->findings->createFinding('https://cribrum-migration.example.test/a', type: 'reflected_xss');
         $connection = $this->entityManager->getConnection();
         $findingBefore = $connection->fetchAssociative('SELECT * FROM finding WHERE id = ?', [$finding->getId()]);
         foreach (['finding_claim_revision', 'finding_claim', 'http_observation'] as $table) {
@@ -127,7 +127,7 @@ final class CribrumPersistenceTest extends DatabaseTestCase
             ['claim' => 'error_disclosure', 'state' => 'observed', 'score' => 90, 'ruleIds' => ['error/generic'], 'reasons' => ['Error page']],
         ]);
         $claims = $this->claims->currentClaims($finding);
-        self::assertSame(['error_disclosure', 'sql_injection', 'xss'], array_map(static fn (FindingClaim $claim): string => $claim->claim, $claims));
+        self::assertSame(['error_disclosure', 'sql_injection'], array_map(static fn (FindingClaim $claim): string => $claim->claim, $claims));
         self::assertSame('suspected', $claims[1]->state);
         self::assertSame($observation->getId(), $claims[1]->observationId);
         $this->claims->attachClassification($observation, ['classifierVersion' => 'test', 'suggestions' => []]);
@@ -170,20 +170,69 @@ final class CribrumPersistenceTest extends DatabaseTestCase
             'domTextBytes' => 52,
             'domTextTruncated' => false,
         ];
-        $entity = $processor->process($finding, $observation, dialogSeen: false, dialogText: null);
+        $entity = $processor->process($finding, $observation, dialogSeen: false, dialogText: null, requestContextSha256: \App\Service\WorkerProofResolver::requestContextSha256($finding));
         self::assertNotNull($entity);
         self::assertNotNull($entity->getArtifactPath());
-        self::assertSame('cribrum-1.0.0', $entity->getClassification()['classifierVersion']);
+        self::assertSame('cribrum-1.3.2', $entity->getClassification()['classifierVersion']);
         $claims = $this->claims->currentClaims($finding);
         self::assertSame(['error_disclosure', 'information_disclosure', 'sql_injection', 'xss'], array_map(static fn ($claim): string => $claim->claim, $claims));
-        self::assertNotNull($processor->process($finding, $observation));
+        self::assertNotNull($processor->process($finding, $observation, requestContextSha256: \App\Service\WorkerProofResolver::requestContextSha256($finding)));
         self::assertCount(4, $this->claims->currentClaims($finding));
         self::assertNull($processor->process($finding, ['schema' => 2]));
+    }
+
+    public function testShortMarkerReplayPreservesAnUnrelatedNativeDialog(): void
+    {
+        $finding = $this->findings->createFinding('https://cribrum-short-marker.example.test/?q=5003');
+        $finding->setExpectedEvidence('3');
+        $this->entityManager->flush();
+        $classifier = new \App\Cribrum\CribrumClassifier('/nonexistent-private-cribrum-packs');
+        $processor = new \App\Service\CribrumProcessingService(
+            $this->entityManager,
+            $classifier,
+            new CribrumObservationStore($this->entityManager, $this->storage),
+            new CribrumClaimService($this->entityManager),
+        );
+        $observation = [
+            'schema' => 1,
+            'contentType' => 'text/html',
+            'httpStatus' => 200,
+            'finalUrl' => 'https://cribrum-short-marker.example.test/?q=5003',
+            'redirectChain' => [],
+            'headers' => [],
+            'rawHtml' => '<p>Search failed with error 5003</p>',
+            'rawHtmlBytes' => 36,
+            'rawHtmlTruncated' => false,
+            'domText' => 'Search failed with error 5003',
+            'domTextBytes' => 29,
+            'domTextTruncated' => false,
+        ];
+
+        $entity = $processor->process($finding, $observation, dialogSeen: true, dialogText: 'Search failed with error 5003');
+        self::assertNotNull($entity);
+        $context = $entity->getMetadata()['classificationContext'] ?? null;
+        self::assertIsArray($context);
+        self::assertFalse($context['dialogTextRetainedAsMarker'] ?? false);
+        self::assertSame('Search failed with error 5003', $context['dialogText'] ?? null);
+        $replay = $classifier->classify(\App\Cribrum\ObservationInput::fromArray([
+            ...$this->transportObservation(),
+            'url' => $finding->getPocUrl(),
+            'finalUrl' => $observation['finalUrl'],
+            'httpStatus' => 200,
+            'rawHtml' => $observation['rawHtml'],
+            'domText' => $observation['domText'],
+            'expectedEvidence' => '3',
+            'dialogSeen' => true,
+            'dialogText' => $context['dialogText'],
+        ]));
+        self::assertNotContains('xss', array_column($replay->toArray()['suggestions'], 'claim'));
     }
 
     public function testScreenshotAndRetestPathsStoreObservationsAndApplySuggestions(): void
     {
         $finding = $this->findings->createFinding('https://cribrum-paths.example.test/a');
+        // An explicitly historical fixture; normal intake no longer invents XSS.
+        $this->claims->apply($finding, 'xss', 'observed', true, 'migration');
         $finding->setExpectedEvidence('<OPENBUGBOUNTY>');
         $this->entityManager->flush();
         $observation = [
@@ -257,19 +306,15 @@ final class CribrumPersistenceTest extends DatabaseTestCase
         self::assertStringContainsString('sql_injection', json_encode($retestObservation->getClassification(), JSON_THROW_ON_ERROR));
     }
 
-    public function testObservationEligibilityAndArtifactAudit(): void
+    public function testEveryBoundedResponseTypeIsRetainedAndAudited(): void
     {
         $finding = $this->findings->createFinding('https://cribrum-eligibility.example.test/a');
-        $json = [...$this->transportObservation(), 'contentType' => 'application/json', 'httpStatus' => 200, 'rawHtml' => '{"token":"secret"}', 'rawHtmlBytes' => 17, 'domText' => null, 'domTextBytes' => null];
-        try {
-            $this->observations->store($finding, $json);
-            self::fail('A successful JSON response must not be retained.');
-        } catch (\InvalidArgumentException) {
-            self::assertSame([], $this->storage->listPaths());
-        }
+        $json = [...$this->transportObservation(), 'contentType' => 'application/json', 'httpStatus' => 200, 'rawHtml' => '{"token":"secret"}', 'rawHtmlBytes' => 18, 'domText' => null, 'domTextBytes' => null];
+        $jsonObservation = $this->observations->store($finding, $json, requestContextSha256: \App\Service\WorkerProofResolver::requestContextSha256($finding));
+        self::assertNotNull($jsonObservation->getArtifactPath());
 
         $plain = [...$this->transportObservation(), 'contentType' => 'text/plain', 'httpStatus' => 200, 'rawHtml' => 'root:x:0:0:root:/root:/bin/bash', 'rawHtmlBytes' => 31, 'domText' => null, 'domTextBytes' => null];
-        $observation = $this->observations->store($finding, $plain, contextUrl: 'https://cribrum-eligibility.example.test/file?page=../../etc/passwd');
+        $observation = $this->observations->store($finding, $plain, contextUrl: 'https://cribrum-eligibility.example.test/file?page=../../etc/passwd', requestContextSha256: \App\Service\WorkerProofResolver::requestContextSha256($finding));
         self::assertNotNull($observation->getArtifactPath());
         $tester = new CommandTester(new ArtifactAuditCommand($this->entityManager->getConnection(), $this->storage));
         self::assertSame(0, $tester->execute([]), $tester->getDisplay());

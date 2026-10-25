@@ -69,7 +69,7 @@ final class WebController
         }
 
         $parameters = $request->request->all();
-        foreach (['url', 'payload', 'annotate', 'surface'] as $field) {
+        foreach (['url', 'payload', 'annotate', 'surface', 'declaredType'] as $field) {
             if (array_key_exists($field, $parameters) && !is_string($parameters[$field])) {
                 return new Response($this->i18n->trans('Ungültige Eingabe.'), Response::HTTP_BAD_REQUEST);
             }
@@ -81,6 +81,7 @@ final class WebController
                 url: trim($request->request->getString('url')),
                 expectedEvidence: $payload !== '' ? $payload : null,
                 privateNotes: $request->request->getString('annotate') ?: null,
+                declaredType: $request->request->getString('declaredType') ?: null,
             );
             $finding = $result->finding;
             if (!$result->created) {

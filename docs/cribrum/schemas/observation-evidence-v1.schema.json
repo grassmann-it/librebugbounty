@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Cribrum observation evidence v1; source authenticity requires runtime validation",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "const": "observation_evidence"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "code": {
+      "type": "string"
+    },
+    "mode": {
+      "enum": [
+        "shadow",
+        "active"
+      ]
+    },
+    "producer": {
+      "type": "string"
+    },
+    "producerVersion": {
+      "type": "string"
+    },
+    "artifactSha256": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "spans": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "representation": {
+            "enum": [
+              "raw",
+              "dom_text",
+              "dialog"
+            ]
+          },
+          "representationSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "start": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "length": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "representationLength": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "excerptSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "id",
+          "representation",
+          "representationSha256",
+          "start",
+          "length",
+          "excerpt",
+          "representationLength",
+          "excerptSha256"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "attributes": {
+      "type": [
+        "array",
+        "object"
+      ]
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "transformations": {
+            "type": [
+              "array",
+              "object"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "from",
+          "to"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "pack": {
+      "type": "string"
+    },
+    "version": {
+      "const": "1"
+    },
+    "rule": {
+      "type": "string"
+    },
+    "representation": {
+      "enum": [
+        "raw",
+        "dom_text",
+        "dialog"
+      ]
+    },
+    "phrase": {
+      "type": "string"
+    },
+    "shadow": {
+      "type": "boolean"
+    },
+    "evidenceId": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "required": [
+    "kind",
+    "schemaVersion",
+    "code",
+    "mode",
+    "producer",
+    "producerVersion",
+    "artifactSha256",
+    "spans",
+    "attributes",
+    "relations",
+    "pack",
+    "version",
+    "rule",
+    "representation",
+    "phrase",
+    "shadow",
+    "evidenceId"
+  ],
+  "additionalProperties": true
+}

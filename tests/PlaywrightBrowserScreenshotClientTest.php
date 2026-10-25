@@ -59,6 +59,46 @@ final class PlaywrightBrowserScreenshotClientTest extends KernelTestCase
         self::assertSame(1, $http->getRequestsCount());
     }
 
+    public function testFailedCapturePreservesTheWorkerResponseObservation(): void
+    {
+        $http = new MockHttpClient(static function (): MockResponse {
+            return self::jsonResponse([
+                'errorMessage' => 'ffmpeg fixture failed',
+                'httpStatus' => 500,
+                'finalUrl' => self::URL,
+                'dialogSeen' => true,
+                'dialogType' => 'alert',
+                'dialogText' => 'OPENBUGBOUNTY',
+                'observation' => [
+                    'schema' => 1,
+                    'contentType' => 'text/html',
+                    'httpStatus' => 500,
+                    'finalUrl' => self::URL,
+                    'redirectChain' => [],
+                    'headers' => ['content-type' => 'text/html'],
+                    'rawHtml' => '<p>database error</p>',
+                    'rawHtmlBytes' => 21,
+                    'rawHtmlTruncated' => false,
+                    'domText' => 'database error',
+                    'domTextBytes' => 14,
+                    'domTextTruncated' => false,
+                ],
+            ], 500);
+        });
+
+        try {
+            (new PlaywrightBrowserScreenshotClient($http, self::WORKER, self::TOKEN))
+                ->capture(new BrowserScreenshotRequest(self::URL));
+            self::fail('A failed capture must not produce screenshot evidence.');
+        } catch (\App\Exception\BrowserScreenshotCaptureException $error) {
+            self::assertSame('ffmpeg fixture failed', $error->getMessage());
+            self::assertSame(500, $error->httpStatus);
+            self::assertTrue($error->dialogSeen);
+            self::assertSame('OPENBUGBOUNTY', $error->dialogText);
+            self::assertSame('<p>database error</p>', $error->observation['rawHtml'] ?? null);
+        }
+    }
+
     #[DataProvider('missingTokens')]
     public function testCaptureFailsClearlyBeforeHttpWhenTokenIsMissing(?string $token): void
     {

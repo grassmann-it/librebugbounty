@@ -9,7 +9,7 @@
       <h2 id="about-title"><?= $escape($app['name']) ?></h2>
       <p class="studio-about-lead"><?= $escape($t('Eine lokale Arbeitsumgebung für Bug-Bounty-Ingest, technische Prüfung, Bildbelege und manuelle Entscheidungen.')) ?></p>
     </div>
-    <p class="studio-about-version">v<?= $escape($app['version']) ?><span><?= $escape($app['releaseName']) ?></span></p>
+    <p class="studio-about-version">v<?= $escape($app['version']) ?><span>· <?= $escape($app['releaseName']) ?></span></p>
   </header>
 
   <section class="studio-about-updates" data-release-update="<?= $escape($releaseUpdate['state']) ?>" aria-labelledby="about-update-title">
@@ -49,9 +49,9 @@
       <section class="studio-about-release-notes" data-release-notes aria-labelledby="release-notes-title">
         <h3 id="release-notes-title"><?= $escape($t('Neu in {version}', ['version' => $app['version']])) ?></h3>
         <ul>
-          <li><strong><?= $escape($t('Dialog-Recovery und PoC-Übernahme')) ?></strong><p><?= $escape($t('Erreiche den Alert im interaktiven Browser, wiederhole fehlgeschlagene Aufnahmen und übernimm eine geänderte URL für PoC und Rechecks. Original und Bildquelle bleiben nachvollziehbar.')) ?></p></li>
-          <li><strong><?= $escape($t('Review gezielt zurückstellen')) ?></strong><p><?= $escape($t('Parke vorübergehend nicht prüfbare Fälle mit Grund und Termin. Zum Termin wird einmal getestet; ein erneuter Fehler lässt den Fall zurückgestellt.')) ?></p></li>
-          <li><strong><?= $escape($t('Sitzungsfortschritt und Arbeitskorb')) ?></strong><p><?= $escape($t('Behalte Erfassungstempo und letzte Einträge im Blick, klappe Statistiken bei Bedarf ein und arbeite offene Wiedervorlagen nach Termin ab. Hilfe und Updatehinweise stehen direkt bereit.')) ?></p></li>
+          <li><strong><?= $escape($t('Cribrum: lokaler Klassifikator')) ?></strong><p><?= $escape($t('Der Schwerpunkt dieser Version: gespeicherte HTTP-Antworten und DOM-Inhalte mit versionierten Regeln einordnen und nachvollziehbare Hinweise anzeigen. Die Auswertung startet keine zusätzlichen Zielaufrufe; du entscheidest über den Befund.')) ?></p></li>
+          <li><strong><?= $escape($t('Mehrere Befunde pro Fall')) ?></strong><p><?= $escape($t('Prüfe Vorschläge als einzelne Claims. Beobachtung, Verdacht und Bestätigung bleiben in Review, Bestand, Statistik und Export unterscheidbar. Manuelle Entscheidungen und frühere Ergebnisse bleiben erhalten.')) ?></p></li>
+          <li><strong><?= $escape($t('Regeln und Diagnose im Blick')) ?></strong><p><?= $escape($t('Sieh aktive Regelpakete und Speichergrenzen in den Einstellungen. Vergleiche gespeicherte Ergebnisse mit der aktuellen lokalen Auswertung und klassifiziere vorhandene Beobachtungen neu, ohne manuelle Entscheidungen zu überschreiben.')) ?></p></li>
         </ul>
       </section>
 
@@ -88,6 +88,7 @@
 
       <section class="studio-settings-docs" aria-labelledby="settings-docs-title" data-documentation-links>
         <h3 id="settings-docs-title"><?= $escape($t('Dokumentation')) ?></h3>
+        <p><?= $escape($t('Lokal mitgeliefert, ohne Internet lesbar.')) ?></p>
         <nav aria-label="<?= $escape($t('Dokumentation')) ?>">
           <a href="/docs/usage"><?= $escape($t('Benutzerhandbuch')) ?> <span aria-hidden="true">→</span></a>
           <a href="/docs/readme"><?= $escape($t('Installation & Upgrade')) ?> <span aria-hidden="true">→</span></a>

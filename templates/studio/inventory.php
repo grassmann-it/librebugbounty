@@ -19,12 +19,12 @@ $returnPath = $path.'?'.http_build_query($listQuery, '', '&', PHP_QUERY_RFC3986)
 $pageUrl = static fn (int $page): string => $path.'?'.http_build_query(array_replace($listQuery, ['page' => $page]), '', '&', PHP_QUERY_RFC3986);
 $scopeUrl = static fn (string $scope): string => $path.'?'.http_build_query(array_replace($view->filterQuery, ['scope' => $scope, 'pageSize' => $pagination['pageSize']]), '', '&', PHP_QUERY_RFC3986);
 $resetUrl = $path.'?'.http_build_query(($isWorkbasket ? ['view' => 'workbasket', 'reminder' => 'open'] : []) + ['pageSize' => $pagination['pageSize']], '', '&', PHP_QUERY_RFC3986);
-$modeUrl = static fn (string $mode): string => $path.'?'.http_build_query(array_filter(array_replace($view->filterQuery, ['view' => $mode, 'reminder' => $mode === 'workbasket' && $filter->reminder === '' ? 'open' : $filter->reminder, 'pageSize' => $pagination['pageSize']]), static fn (string $value): bool => $value !== ''), '', '&', PHP_QUERY_RFC3986);
+$modeUrl = static fn (string $mode): string => $path.'?'.http_build_query(array_filter(array_replace($view->filterQuery, ['view' => $mode, 'reminder' => $mode === 'workbasket' && $filter->reminder === '' ? 'open' : $filter->reminder, 'pageSize' => $pagination['pageSize']]), static fn (mixed $value): bool => $value !== ''), '', '&', PHP_QUERY_RFC3986);
 $reminderUrl = static fn (string $reminder): string => $path.'?'.http_build_query(array_replace($view->filterQuery, ['view' => 'workbasket', 'reminder' => $reminder, 'pageSize' => $pagination['pageSize']]), '', '&', PHP_QUERY_RFC3986);
 $exportUrl = '/export?'.http_build_query($view->filterQuery, '', '&', PHP_QUERY_RFC3986);
 $scopeLabels = ['active' => 'Aktiv', 'discarded' => 'Verworfen', 'duplicates' => 'Duplikate', 'all' => 'Alle Fälle'];
 $hasAdditionalFilters = $filter->domain !== '' || $filter->exactDomain || $filter->type !== '' || $filter->severity !== '' || $filter->legacyStatus !== '' || $filter->legacyBucket !== '' || $filter->legacyReview !== '' || $filter->event !== '' || $filter->tld !== '' || $filter->sent !== '' || $filter->pursuit !== '' || $filter->closureReason !== '' || $filter->contactWork !== '' || $filter->claim !== '' || $filter->claimState !== '' || in_array($filter->review, ['open', 'deferred'], true) || (!$isWorkbasket && $filter->reminder !== '');
-$hasSelectionFilters = $isWorkbasket || $hasAdditionalFilters || $filter->q !== '' || $filter->assessment !== '' || $filter->observation !== '' || $filter->contact !== '';
+$hasSelectionFilters = ($filter->cribrumCodes ?? []) !== [] || ($filter->extraFindings ?? '') !== '' || ($filter->newFindings ?? '') !== '' || ($filter->cribrumFreshness ?? '') !== '' || ($filter->cribrumHistory ?? false) || $filter->reportKind !== '' || $isWorkbasket || $hasAdditionalFilters || $filter->q !== '' || $filter->assessment !== '' || $filter->observation !== '' || $filter->contact !== '';
 $isFirstStart = $view->stats['active']['count'] + $view->stats['discarded']['count'] === 0;
 $isArchivedOnly = !$isFirstStart && $view->stats['active']['count'] === 0 && $filter->scope === 'active' && !$hasSelectionFilters;
 $eventLabels = ['reported' => 'Gemeldet (Ingest)', 'sent' => 'Erstmals versendet', 'contacted' => 'Als kontaktiert markiert', 'confirmed' => 'Erstmals manuell bestätigt', 'fixed' => 'Erstmals manuell behoben'];
@@ -65,6 +65,14 @@ $eventLabels = ['reported' => 'Gemeldet (Ingest)', 'sent' => 'Erstmals versendet
 
       <?php require __DIR__.'/inventory-views.php'; ?>
 
+      <?php if ($isWorkbasket): ?>
+        <nav class="studio-list-reminders" aria-label="<?= $escape($t('Offene Wiedervorlagen')) ?>">
+          <?php foreach (['overdue' => 'Überfällig', 'today' => 'Heute', 'open' => 'Alle offenen Wiedervorlagen'] as $reminder => $label): ?>
+            <a class="studio-list-button" href="<?= $escape($reminderUrl($reminder)) ?>" data-reminder-filter="<?= $escape($reminder) ?>"<?= $filter->reminder === $reminder ? ' aria-current="page"' : '' ?>><?= $escape($t($label)) ?></a>
+          <?php endforeach; ?>
+        </nav>
+      <?php endif; ?>
+
       <section class="studio-list-tools" aria-label="<?= $escape($t('Suche und Filter')) ?>">
         <nav class="studio-list-scopes" aria-label="<?= $escape($t('Bestand und Archiv')) ?>">
           <?php foreach ($scopeLabels as $scope => $label): ?>
@@ -87,6 +95,9 @@ $eventLabels = ['reported' => 'Gemeldet (Ingest)', 'sent' => 'Erstmals versendet
             <button class="studio-list-button studio-list-button-primary" type="submit"><?= $escape($t('Suchen & filtern')) ?></button>
           </div>
           <div class="studio-list-primary-filters">
+            <label><?= $escape($locale === 'de' ? 'Meldeart' : 'Report kind') ?>
+              <select name="report_kind"><option value=""><?= $escape($t('Alle')) ?></option><?php foreach (\App\Value\ReportKindLabels::CHOICES as $value => $label): ?><option value="<?= $escape($value) ?>"<?= ($filter->reportKind === $value || ($filter->reportKind === 'pure_information_disclosure' && $value === 'only_information_disclosure')) ? ' selected' : '' ?>><?= $escape($t($label)) ?></option><?php endforeach; ?></select>
+            </label>
             <label><?= $escape($t('Manuelle Bewertung')) ?>
               <select name="assessment">
                 <?php foreach (['' => 'Alle Bewertungen', 'confirmed' => 'Befund bestätigt', 'fixed' => 'Behoben', 'discarded' => 'Verworfen', 'unknown' => 'Keine aufgezeichnete Bewertung'] as $value => $label): ?>
@@ -110,6 +121,7 @@ $eventLabels = ['reported' => 'Gemeldet (Ingest)', 'sent' => 'Erstmals versendet
               </select>
             </label>
           </div>
+          <?php require __DIR__.'/cribrum-filters.php'; ?>
           <div class="studio-list-filter-options">
             <details class="studio-list-additional"<?= $hasAdditionalFilters ? ' open' : '' ?>>
               <summary><?= $escape($t('Weitere Filter')) ?><?= $hasAdditionalFilters ? $escape($t(' · aktiv')) : '' ?></summary>
@@ -146,13 +158,6 @@ $eventLabels = ['reported' => 'Gemeldet (Ingest)', 'sent' => 'Erstmals versendet
             <a class="studio-list-reset" href="<?= $escape($resetUrl) ?>"><?= $escape($t('Zurücksetzen')) ?></a>
           </div>
         </form>
-        <?php if ($isWorkbasket): ?>
-          <nav class="studio-list-reminders" aria-label="<?= $escape($t('Offene Wiedervorlagen')) ?>">
-            <?php foreach (['overdue' => 'Überfällig', 'today' => 'Heute', 'open' => 'Alle offenen Wiedervorlagen'] as $reminder => $label): ?>
-              <a class="studio-list-button" href="<?= $escape($reminderUrl($reminder)) ?>" data-reminder-filter="<?= $escape($reminder) ?>"<?= $filter->reminder === $reminder ? ' aria-current="page"' : '' ?>><?= $escape($t($label)) ?></a>
-            <?php endforeach; ?>
-          </nav>
-        <?php endif; ?>
       </section>
 
       <?php if ($filter->legacyStatus !== '' || $filter->legacyBucket !== '' || $filter->legacyReview !== ''): ?>
@@ -164,8 +169,23 @@ $eventLabels = ['reported' => 'Gemeldet (Ingest)', 'sent' => 'Erstmals versendet
         <p class="studio-list-archive-hint" data-statistics-filter><?= $escape($t('Statistikauswahl: {event}{from}{to}{tld}. Die Bewertung daneben zeigt den heutigen Stand.', ['event' => $t($eventLabels[$filter->event] ?? 'Alle Ereignisse'), 'from' => $filter->from !== '' ? $t(' · ab {date}', ['date' => $formatDate($filter->from)]) : '', 'to' => $filter->to !== '' ? $t(' · bis {date}', ['date' => $formatDate($filter->to)]) : '', 'tld' => $filter->tld !== '' ? ' · TLD '.$filter->tld : ''])) ?></p>
       <?php endif; ?>
 
+      <?php
+      $activeFilterLabels = [];
+      $assessmentFilterLabels = ['confirmed' => 'Befund bestätigt', 'fixed' => 'Behoben', 'discarded' => 'Verworfen', 'unknown' => 'Keine aufgezeichnete Bewertung'];
+      $contactFilterLabels = ['yes' => 'Kontaktiert', 'no' => 'Nicht kontaktiert'];
+      if ($filter->q !== '') $activeFilterLabels[] = ($locale === 'de' ? 'Suche: ' : 'Search: ').$filter->q;
+      if (($filter->cribrumCodes ?? []) !== []) $activeFilterLabels[] = ($locale === 'de' ? 'Cribrum-Codes: ' : 'Cribrum codes: ').count($filter->cribrumCodes);
+      if (($filter->cribrumFreshness ?? '') !== '') $activeFilterLabels[] = ($locale === 'de' ? 'Auswertung: ' : 'Evaluation: ').($cribrumFreshLabels[$filter->cribrumFreshness] ?? $filter->cribrumFreshness);
+      if ($filter->assessment !== '') $activeFilterLabels[] = ($locale === 'de' ? 'Bewertung: ' : 'Assessment: ').$t($assessmentFilterLabels[$filter->assessment] ?? $filter->assessment);
+      if ($filter->observation !== '') $activeFilterLabels[] = ($locale === 'de' ? 'Beobachtung: ' : 'Observation: ').$t(FindingReadLabels::observation($filter->observation === 'none' ? null : $filter->observation));
+      if ($filter->contact !== '') $activeFilterLabels[] = ($locale === 'de' ? 'Kontakt: ' : 'Contact: ').$t($contactFilterLabels[$filter->contact] ?? $filter->contact);
+      if (($filter->sort ?? 'default') !== 'default') $activeFilterLabels[] = ($locale === 'de' ? 'Sortierung: ' : 'Order: ').($cribrumSortLabels[$filter->sort] ?? $filter->sort);
+      if ($hasAdditionalFilters || ($filter->extraFindings ?? '') !== '' || ($filter->newFindings ?? '') !== '' || ($filter->cribrumHistory ?? false) || $filter->reportKind !== '') $activeFilterLabels[] = $locale === 'de' ? 'Weitere Filter aktiv' : 'More filters active';
+      ?>
+      <?php if ($activeFilterLabels !== []): ?><div class="studio-list-active-filters" data-active-filter-summary aria-label="<?= $escape($locale === 'de' ? 'Aktive Filter' : 'Active filters') ?>"><strong><?= $escape($locale === 'de' ? 'Aktive Auswahl' : 'Current selection') ?></strong><?php foreach ($activeFilterLabels as $activeLabel): ?><span><?= $escape($activeLabel) ?></span><?php endforeach; ?><a href="<?= $escape($resetUrl) ?>"><?= $escape($t('Zurücksetzen')) ?></a></div><?php endif; ?>
+
       <section class="studio-list-results<?= $isWorkbasket ? ' studio-list-workbasket' : '' ?>" aria-labelledby="studio-list-results-title">
-        <div class="studio-list-results-heading"><h2 id="studio-list-results-title"><?= $escape($isWorkbasket ? $t('Arbeitskorb').' · '.$t($scopeLabels[$filter->scope]) : $t($scopeLabels[$filter->scope])) ?></h2><span data-total-filtered="<?= $escape($pagination['totalFiltered']) ?>"><?= $escape($t('{count} Fälle', ['count' => $formatNumber($pagination['totalFiltered'])])) ?> <span class="studio-list-order"><?= $escape($t($isWorkbasket ? ' · Früheste Termine zuerst' : ' · Neueste zuerst')) ?></span></span><a class="studio-list-button" data-export-selection href="<?= $escape($exportUrl) ?>"><?= $escape($t('Auswahl exportieren')) ?> <span aria-hidden="true">↗</span></a></div>
+        <div class="studio-list-results-heading"><h2 id="studio-list-results-title"><?= $escape($isWorkbasket ? $t('Arbeitskorb').' · '.$t($scopeLabels[$filter->scope]) : $t($scopeLabels[$filter->scope])) ?></h2><span data-total-filtered="<?= $escape($pagination['totalFiltered']) ?>"><?= $escape($t('{count} Fälle', ['count' => $formatNumber($pagination['totalFiltered'])])) ?> <span class="studio-list-order"><?= $escape((($filter->sort ?? 'default') !== 'default' ? ' · '.($cribrumSortLabels[$filter->sort] ?? '') : $t($isWorkbasket ? ' · Früheste Termine zuerst' : ' · Neueste zuerst'))) ?></span></span><a class="studio-list-button" data-export-selection href="<?= $escape($exportUrl) ?>"><?= $escape($t('Auswahl exportieren')) ?> <span aria-hidden="true">↗</span></a></div>
         <div class="studio-list-column-headings" aria-hidden="true"><?php foreach ($isWorkbasket ? ['Fall', 'Fälligkeit', 'Nächster Schritt', 'Gewählter Meldeweg', 'Letzte Meldeaktivität', ''] : ['Fall', 'Manuelle Bewertung', 'Technische Beobachtung', 'Kontakt', 'Eingang', ''] as $label): ?><span><?= $escape($t($label)) ?></span><?php endforeach; ?></div>
         <ol class="studio-findings">
           <?php foreach ($view->findings as $finding): ?>
@@ -184,6 +204,15 @@ $eventLabels = ['reported' => 'Gemeldet (Ingest)', 'sent' => 'Erstmals versendet
                   <p class="studio-finding-url" title="<?= $escape($finding->url) ?>"><?= $escape($finding->url) ?></p>
                   <p class="studio-finding-record-meta"><code><?= $escape(substr($finding->id, 0, 8)) ?></code><span><?= $escape($finding->type) ?></span><span><?= $escape($finding->severity) ?></span></p>
                   <?php if ($isWorkbasket): ?><span class="studio-finding-state" data-tone="<?= $escape($assessmentTone) ?>"><?= $escape($t(FindingReadLabels::assessment($finding->assessment, $finding->discardReason))) ?></span><?php endif; ?>
+                  <?php if ($isWorkbasket):
+                    $workbasketBadgeSummary = \App\Service\CribrumFindingSummary::fromReadView($finding, $locale);
+                    $workbasketAdditional = array_values(array_filter($workbasketBadgeSummary['badges'], static fn (array $badge): bool => $badge['additional'] && $badge['known']));
+                    usort($workbasketAdditional, static fn (array $a, array $b): int => ($b['state'] === 'suspected' ? 1 : 0) <=> ($a['state'] === 'suspected' ? 1 : 0));
+                    $workbasketSignalLabels = array_map(static fn (array $badge): string => $badge['label'].' · '.\App\Value\CribrumBadgeCatalog::stateLabel($badge['state'], $locale), array_slice($workbasketAdditional, 0, 2));
+                    $workbasketHiddenSignals = count($workbasketAdditional) - count($workbasketSignalLabels);
+                  ?><details class="studio-finding-cribrum-toggle" data-dimension="cribrum-secondary"><summary><?= $escape(($locale === 'de' ? 'Cribrum-Erkenntnisse: ' : 'Cribrum findings: ').count($workbasketBadgeSummary['badges'])) ?><?php if ($workbasketSignalLabels !== []): ?> · <span class="studio-finding-cribrum-signals"><?= $escape(implode(' / ', $workbasketSignalLabels)) ?><?= $workbasketHiddenSignals > 0 ? $escape(' +'.$workbasketHiddenSignals) : '' ?></span><?php endif; ?><?php if ($workbasketBadgeSummary['projectionStatus'] !== 'current'): ?> · <?= $escape($locale === 'de' ? 'Auswertung nicht aktuell oder fehlt' : 'Evaluation out of date or missing') ?><?php endif; ?><?php if ($finding->reviewNotice): ?> · <?= $escape($locale === 'de' ? 'Sichtung erforderlich' : 'Review required') ?><?php endif; ?></summary><?php endif; ?>
+                  <?php $reportProjection = $finding->reportProjection; $reportSummaryCompact = true; require __DIR__.'/report-summary.php'; ?>
+                  <?php if ($isWorkbasket): ?></details><?php endif; ?>
                   <details class="studio-finding-history" data-dimension="history"><summary><?= $escape($t('Historische Werte · Diagnose')) ?></summary><p><?= $escape($t('Historischer Status')) ?>: <code><?= $escape($finding->legacyStatus) ?></code> · <?= $escape($t('Frühere Review-Markierung')) ?>: <code><?= $escape($finding->legacyReviewState ?? $t('Kein Review-Wert')) ?></code><br><?= $escape($t($finding->assessment === null ? 'Historische Herkunft unklar; keine manuelle Entscheidung nachträglich abgeleitet.' : 'Kompatibilitätswerte; die manuelle Bewertung wird gesondert aufgezeichnet.')) ?></p></details>
                 </div>
                 <?php if ($isWorkbasket): ?>
@@ -243,7 +272,7 @@ $eventLabels = ['reported' => 'Gemeldet (Ingest)', 'sent' => 'Erstmals versendet
 
         <div class="studio-list-pagination">
           <form method="get" action="<?= $escape($path) ?>" id="page-size-form" class="studio-list-page-size">
-            <?php foreach ($view->filterQuery as $name => $value): ?><input type="hidden" name="<?= $escape($name) ?>" value="<?= $escape($value) ?>"><?php endforeach; ?>
+            <?php foreach ($view->filterQuery as $name => $value): ?><?php foreach (is_array($value) ? $value : [$value] as $item): ?><input type="hidden" name="<?= $escape($name.(is_array($value) ? '[]' : '')) ?>" value="<?= $escape($item) ?>"><?php endforeach; ?><?php endforeach; ?>
             <input type="hidden" name="page" value="1">
             <label for="studio-list-page-size"><?= $escape($t('Zeilen pro Seite')) ?></label>
             <select id="studio-list-page-size" name="pageSize"><?php foreach (['10', '25', '50', '100', 'all'] as $value): ?><option value="<?= $escape($value) ?>"<?= $pagination['pageSize'] === $value ? ' selected' : '' ?>><?= $escape($value === 'all' ? $t('Alle') : $value) ?></option><?php endforeach; ?></select>

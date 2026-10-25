@@ -1,0 +1,6 @@
+/* Scoped history styles; Sol3 ownership. */
+
+.studio-technical-section .studio-history-orientation{border-left:3px solid #8fcaff;background:#1b2734;padding:.65rem .8rem;color:#d8e5f2;line-height:1.45}
+.studio-technical-section .studio-history-diagnostic-link{margin:.6rem 0 1rem}
+.studio-technical-section .studio-history-diagnostic-link a{display:inline-block;padding:.35rem .1rem;text-underline-offset:.18em}
+.studio-technical-section .studio-history-diagnostic-link a:focus-visible{outline:3px solid #c5ddff;outline-offset:3px}

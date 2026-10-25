@@ -38,6 +38,8 @@ final class ReviewQueueService
         private readonly CsrfTokenManagerInterface $csrf,
         private readonly ReviewNoticeService $notices,
         private readonly ?CribrumClaimService $claims = null,
+        private readonly ?ReportProjectionService $reports = null,
+        private readonly ?CribrumReviewSelectionService $selection = null,
     ) {
     }
 
@@ -115,8 +117,9 @@ final class ReviewQueueService
         $stateFingerprint = $id === null ? '' : $this->fingerprint($id);
         $currentDetail = $id === null ? null : $this->detail->get($id, true);
         $currentNotice = $currentDetail?->notice;
-        $claims = $currentDetail === null ? [] : $this->claimsFor($currentDetail->finding);
-        $claimObservationId = $currentDetail === null ? null : $this->claimObservationId($currentDetail->finding);
+        $selectionView = $currentDetail === null || $this->selection === null ? null : $this->selection->view($currentDetail->finding);
+        $claims = $selectionView['rows'] ?? ($currentDetail === null ? [] : $this->claimsFor($currentDetail->finding));
+        $claimObservationId = $selectionView['observationId'] ?? ($currentDetail === null ? null : $this->claimObservationId($currentDetail->finding));
         $selectedEvidenceId = null;
         if ($currentDetail !== null) {
             foreach ($currentDetail->screenshots as $screenshot) {
@@ -240,6 +243,8 @@ final class ReviewQueueService
         $current = [];
         foreach ($this->claims->currentClaims($finding) as $claim) $current[$claim->claim] = $claim;
         if ($decisions === []) {
+            // A case-wide confirmation is not adoption of every classifier claim.
+            if ($assessment !== 'fixed') return;
             foreach ($current as $claim) {
                 $open = in_array($claim->state, ['observed', 'suspected', 'confirmed'], true);
                 if ($assessment === 'fixed' && !$open) continue;
@@ -257,11 +262,19 @@ final class ReviewQueueService
             if ($assessment === 'fixed' && in_array($state, ['observed', 'suspected', 'confirmed'], true)) $state = 'resolved';
             if ($state === '') continue;
             $existing = $current[$claimName] ?? null;
+            $reportSelected = $decision['report'] && !in_array($state, ['rejected', 'resolved', 'stale'], true);
+            if ($existing !== null && $existing->state === $state && $existing->reportSelected === $reportSelected) {
+                if (isset($decision['revision']) && $decision['revision'] !== $existing->revision) {
+                    throw new \UnexpectedValueException('Cribrum claim revision changed.');
+                }
+                // Unchanged form defaults retain their original owner and evidence.
+                continue;
+            }
             $this->claims->apply(
                 $finding,
                 $claimName,
                 $state,
-                $decision['report'] && !in_array($state, ['rejected', 'resolved', 'stale'], true),
+                $reportSelected,
                 'manual',
                 [],
                 'Review assessment decision',
@@ -317,9 +330,9 @@ final class ReviewQueueService
     }
 
     /** @throws \UnexpectedValueException when the displayed state changed */
-    public function assess(string $id, string $assessment, ?string $reason, ?string $observationId, ?string $evidenceId, string $contextToken, bool $explicitReview = false, array $claimDecisions = []): string
+    public function assess(string $id, string $assessment, ?string $reason, ?string $observationId, ?string $evidenceId, string $contextToken, bool $explicitReview = false, array $claimDecisions = [], ?array $claimSelection = null): string
     {
-        if (!in_array($assessment, ['confirmed', 'fixed', 'discarded', 'keep'], true) || !in_array($reason, [null, 'duplicate'], true)
+        if (!in_array($assessment, ['confirmed', 'fixed', 'discarded', 'keep', 'acknowledge_waf_block', 'acknowledge_change'], true) || !in_array($reason, [null, 'duplicate'], true)
             || ($assessment !== 'discarded' && $reason !== null)
         ) {
             throw new \InvalidArgumentException('Ungültige Bewertung oder ungültiger Verwerfungsgrund.');
@@ -343,6 +356,11 @@ final class ReviewQueueService
             }
             $finding = $this->findings->getFindingOrFail($id);
             $this->entityManager->refresh($finding);
+            $selectionPlan = null;
+            if ($claimSelection !== null && $assessment === 'confirmed') {
+                if ($this->selection === null) throw new \UnexpectedValueException('Die Schwachstellen-Auswahl ist nicht verfügbar.');
+                $selectionPlan = $this->selection->prepare($finding, $claimSelection['version'], $claimSelection['observation'], $claimSelection['rows']);
+            }
             if ($evidenceId !== null) {
                 $evidence = $connection->fetchAssociative('SELECT kind, file_path FROM evidence WHERE id = ? AND finding_id = ?', [$evidenceId, $id]);
                 if ($evidence === false) {
@@ -352,12 +370,27 @@ final class ReviewQueueService
                     throw new \UnexpectedValueException('Der gewählte Screenshot ist inzwischen nicht mehr lesbar. Bitte die Bewertungsgrundlage erneut prüfen.');
                 }
             }
-            if ($assessment === 'keep') {
+            if ($assessment === 'acknowledge_change') {
+                $notice = $this->notices->get($id);
+                if (!array_filter($notice?->observations ?? [], static fn(array $entry): bool => ($entry['reason'] ?? null) === 'classification_changed')) throw new \InvalidArgumentException('Kein offener Klassifikationshinweis vorhanden.');
+                $ack = new FindingReviewAcknowledgement($finding, $notice->decisionKey, $finding->getManualAssessment() ?? 'observed', $this->notices->states($id), array_column($notice->observations, 'id'));
+                $this->entityManager->persist($ack);
+                $this->entityManager->flush();
+            } elseif ($assessment === 'acknowledge_waf_block') {
+                $notice = $this->notices->get($id);
+                $this->acknowledgeWafNotices($finding, $notice?->observations ?? [], true);
+                if (array_filter($notice?->observations ?? [], static fn(array $entry): bool => ($entry['reason'] ?? null) === 'classification_changed')) {
+                    $ack = new FindingReviewAcknowledgement($finding, $notice->decisionKey, $finding->getManualAssessment() ?? 'observed', $this->notices->states($id), array_column($notice->observations, 'id'));
+                    $this->entityManager->persist($ack);
+                    $this->entityManager->flush();
+                }
+            } elseif ($assessment === 'keep') {
                 $notice = $this->notices->get($id);
                 $resumed = ReviewDispositionService::available($connection) && (bool) $connection->fetchOne("SELECT 1 FROM finding_review_disposition WHERE finding_id = ? AND state = 'active'", [$id]);
-                if (($notice === null || $notice->observations === []) && !($resumed && $finding->getManualAssessment() !== null)) {
+                if ($finding->getManualAssessment() === null || (($notice === null || $notice->observations === []) && !$resumed)) {
                     throw new \InvalidArgumentException('Ein Hinweis kann nur für einen bereits manuell bewerteten Fall erledigt werden.');
                 }
+                $this->acknowledgeWafNotices($finding, $notice?->observations ?? [], false);
                 $snapshot = [];
                 if ($observationId !== null) {
                     $run = $this->entityManager->find(RetestRun::class, $observationId);
@@ -375,10 +408,22 @@ final class ReviewQueueService
                 $this->entityManager->flush();
             } else {
                 $this->findings->assess($finding, $assessment, $reason, $observationId, $evidenceId);
-                $this->applyClaimDecisions($finding, $assessment, $claimDecisions);
+                if ($selectionPlan !== null) {
+                    if ($this->reports?->available() && $selectionPlan['observation'] !== null) {
+                        $classificationObservation = $this->entityManager->find(HttpObservation::class, $selectionPlan['observation']);
+                        if ($classificationObservation === null) throw new \UnexpectedValueException('Die Klassifikation ist nicht mehr verfügbar.');
+                        $this->reports->materializeObservationFacts($finding, $classificationObservation);
+                    }
+                    $this->selection->apply($finding, $selectionPlan);
+                }
+                else $this->applyClaimDecisions($finding, $assessment, $claimDecisions);
             }
             if (ReviewDispositionService::available($connection)) {
                 $connection->executeStatement("UPDATE finding_review_disposition SET state = 'reviewed', revision = revision + 1, changed_at = ? WHERE finding_id = ? AND state = 'active'", [(new \DateTimeImmutable())->format('Y-m-d H:i:s'), $id]);
+            }
+            if ($selectionPlan !== null && $this->reports?->available()) {
+                $classificationObservation = $selectionPlan['observation'] === null ? null : $this->entityManager->find(HttpObservation::class, $selectionPlan['observation']);
+                $this->reports->refresh($finding, $classificationObservation);
             }
             // Capture our own committed state while the writer lock is held.
             // A later controller read could accidentally authorize undoing an
@@ -391,6 +436,22 @@ final class ReviewQueueService
                 $connection->rollBack();
             }
             throw $exception;
+        }
+    }
+
+    private function acknowledgeWafNotices(Finding $finding, array $observations, bool $required): void
+    {
+        $fingerprints = [];
+        foreach ($observations as $observation) {
+            if (($observation['reason'] ?? null) === 'waf_block' && is_string($observation['fingerprint'] ?? null)) $fingerprints[$observation['fingerprint']] = true;
+        }
+        if ($fingerprints === []) {
+            if ($required) throw new \InvalidArgumentException('Kein offener WAF-Hinweis zum Sichten vorhanden.');
+            return;
+        }
+        if ($this->reports === null) throw new \UnexpectedValueException('Die Reportprojektion für die WAF-Sichtung ist nicht verfügbar.');
+        foreach (array_keys($fingerprints) as $fingerprint) {
+            $this->reports->acknowledgeWafBlock($finding, $fingerprint, 'local-review');
         }
     }
 
@@ -407,7 +468,10 @@ final class ReviewQueueService
         $claims = CribrumClaimService::available($connection) ? $connection->fetchAllAssociative('SELECT * FROM finding_claim WHERE finding_id = ? ORDER BY claim', [$id]) : [];
         $httpObservations = $connection->fetchAllAssociative("SELECT id, poc_revision, http_status, classification, classified_at, created_at FROM http_observation WHERE finding_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 3", [$id]);
 
-        return hash('sha256', json_encode([$finding, $observations, $decision, $ack, $reset, $disposition, $claims, $httpObservations], JSON_THROW_ON_ERROR));
+        $reportContext = $connection->fetchOne("SELECT name FROM sqlite_master WHERE name = 'finding_report_context'") === false ? false : $connection->fetchAssociative('SELECT * FROM finding_report_context WHERE finding_id = ?', [$id]);
+        $report = $connection->fetchOne("SELECT name FROM sqlite_master WHERE name = 'finding_report_current'") === false ? false : $connection->fetchAssociative('SELECT * FROM finding_report_current WHERE finding_id = ?', [$id]);
+
+        return hash('sha256', json_encode([$finding, $observations, $decision, $ack, $reset, $disposition, $claims, $httpObservations, $reportContext, $report], JSON_THROW_ON_ERROR));
     }
 
     public function exists(string $id): bool

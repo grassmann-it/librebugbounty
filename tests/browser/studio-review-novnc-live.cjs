@@ -60,6 +60,7 @@ async function click(page, action, confirmation = false) {
   const errors = [];
   for (const page of [a]) page.on('pageerror', error => errors.push(error.message));
   await a.goto(target);
+  await a.locator('[data-novnc-action="refresh"]').click();
   await a.locator('[data-review-novnc][data-state="available"]').waitFor();
   assert.equal(php('echo json_encode($db->fetchOne("SELECT state FROM interactive_browser_lease WHERE singleton_id=1"));'), 'available', 'GET must not acquire/start');
   await click(a, 'acquire');
@@ -70,6 +71,7 @@ async function click(page, action, confirmation = false) {
   const b = await context.newPage(); ownerPage = b;
   b.on('pageerror', error => errors.push(error.message));
   await b.goto(target);
+  await b.locator('[data-novnc-action="refresh"]').click();
   await b.locator('[data-review-novnc][data-state="busy"]').waitFor({ timeout: 10000 });
   assert.equal(await b.locator('[data-novnc-screen] canvas').count(), 0, 'Nonowner gets no framebuffer');
   await click(b, 'takeover', true);

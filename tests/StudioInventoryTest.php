@@ -445,9 +445,16 @@ final class StudioInventoryTest extends DatabaseTestCase
         $form = $xpath->query('//form[@id="'.$id.'"]')->item(0);
         self::assertInstanceOf(\DOMElement::class, $form);
         foreach ($xpath->query('.//input[@name]', $form) as $input) {
+            if (in_array($input->getAttribute('type'), ['checkbox', 'radio'], true) && !$input->hasAttribute('checked')) continue;
             $values[$input->getAttribute('name')] = $input->getAttribute('value');
         }
         foreach ($xpath->query('.//select[@name]', $form) as $select) {
+            if ($select->hasAttribute('multiple')) {
+                foreach ($xpath->query('.//option[@selected]', $select) as $selected) {
+                    $values[rtrim($select->getAttribute('name'), '[]')][] = $selected->getAttribute('value');
+                }
+                continue;
+            }
             $option = $xpath->query('.//option[@selected]', $select)->item(0) ?? $xpath->query('.//option', $select)->item(0);
             $values[$select->getAttribute('name')] = $option->getAttribute('value');
         }

@@ -3,7 +3,6 @@
 namespace App\Command;
 
 use App\Repository\DomainRepository;
-use App\Dto\FindingReadFilter;
 use App\Repository\FindingReadRepository;
 use App\Service\ValidationService;
 use App\Value\FindingReadLabels;
@@ -21,6 +20,7 @@ final class FindingListCommand extends Command
         private readonly DomainRepository $domains,
         private readonly FindingReadRepository $findings,
         private readonly ValidationService $validation,
+        private readonly \App\Service\FindingListService $lists,
     ) {
         parent::__construct();
     }
@@ -37,6 +37,7 @@ final class FindingListCommand extends Command
             ->addOption('type', null, InputOption::VALUE_REQUIRED, 'Filter by finding type.')
             ->addOption('severity', null, InputOption::VALUE_REQUIRED, 'Filter by severity.')
         ;
+        CribrumSelectionOptions::configure($this);
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -59,17 +60,17 @@ final class FindingListCommand extends Command
             default => 'active',
         });
         try {
-            $filter = new FindingReadFilter(
-                domain: $domain?->getHostname() ?? '',
-                assessment: (string) ($input->getOption('assessment') ?? ''),
-                observation: (string) ($input->getOption('observation') ?? ''),
-                contact: (string) ($input->getOption('contact') ?? ''),
-                scope: $scope,
-                legacyStatus: $status,
-                type: (string) ($input->getOption('type') ?? ''),
-                severity: (string) ($input->getOption('severity') ?? ''),
-                exactDomain: $domain !== null,
-            );
+            [$filter] = $this->lists->parse(CribrumSelectionOptions::query($input) + [
+                'domain' => $domain?->getHostname() ?? '',
+                'assessment' => (string) ($input->getOption('assessment') ?? ''),
+                'observation' => (string) ($input->getOption('observation') ?? ''),
+                'contact' => (string) ($input->getOption('contact') ?? ''),
+                'scope' => $scope,
+                'legacy_status' => $status,
+                'type' => (string) ($input->getOption('type') ?? ''),
+                'severity' => (string) ($input->getOption('severity') ?? ''),
+                'exact_domain' => $domain !== null ? '1' : '0',
+            ]);
         } catch (\InvalidArgumentException $error) {
             $io->error($error->getMessage());
 
@@ -93,11 +94,12 @@ final class FindingListCommand extends Command
                 $finding->legacyStatus.' / '.($finding->legacyReviewState ?? 'unbekannt'),
                 $finding->title,
                 $finding->submittedAt?->format(DATE_ATOM) ?? 'n/a',
+                implode('; ', array_map(static fn (array $badge): string => $badge['label'].' · '.$badge['stateLabel'], \App\Service\CribrumFindingSummary::fromReadView($finding)['badges'])),
             ];
         }
 
         $io->note('Bewertung, technische Beobachtung und Kontakt sind unabhängig. Altstatus / Review belegt keine frühere manuelle Entscheidung; deren Herkunft kann unklar sein.');
-        $io->table(['id', 'domain', 'type', 'severity', 'Bewertung', 'Bewertet am', 'Letzte Beobachtung', 'Beobachtet am', 'Modus', 'Kontakt', 'Kontaktiert am', 'Altstatus / Review', 'title', 'submittedAt'], $rows);
+        $io->table(['id', 'domain', 'type', 'severity', 'Bewertung', 'Bewertet am', 'Letzte Beobachtung', 'Beobachtet am', 'Modus', 'Kontakt', 'Kontaktiert am', 'Altstatus / Review', 'title', 'submittedAt', 'Cribrum'], $rows);
 
         return Command::SUCCESS;
     }

@@ -13,6 +13,8 @@
   <title><?= $escape($utilityTitle) ?> · <?= $escape($app['name'].' '.$app['releaseName']) ?></title>
   <?php require __DIR__.'/styles.php'; ?>
   <link rel="stylesheet" href="/css/studio-settings.css">
+  <link rel="stylesheet" href="/css/studio-about.css">
+  <link rel="stylesheet" href="/css/studio-follow-up.css">
   <script src="/js/i18n.js" defer></script>
 </head>
 <body data-studio data-studio-settings>

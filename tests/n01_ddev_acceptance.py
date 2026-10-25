@@ -118,8 +118,14 @@ class Acceptance:
 
     def runtime(self):
         php_version = self.ddev("exec", "php", "-r", "echo PHP_VERSION;")
-        self.check(php_version.startswith("8.3."), "Fresh web container uses configured PHP 8.3")
+        config = (self.checkout / ".ddev/config.yaml").read_text()
+        configured_php = re.search(r'^php_version:\s*"?([0-9]+\.[0-9]+)"?\s*$', config, re.MULTILINE)
+        self.check(configured_php is not None, "DDEV config declares an exact PHP major/minor version")
+        expected_php = configured_php.group(1)
+        self.check(php_version.startswith(expected_php + "."),
+                   f"Fresh web container uses configured PHP {expected_php}")
         self.report["phpVersion"] = php_version
+        self.report.setdefault("configuredPhpVersions", []).append(expected_php)
         app_version = self.ddev("exec", "php", "-r", 'require "vendor/autoload.php"; echo App\\AppInfo::VERSION;')
         package_version = json.loads((self.checkout / "playwright-worker/package.json").read_text())["version"]
         self.check(app_version == package_version, "Running application and worker package expose the same release version")
@@ -257,17 +263,27 @@ class Acceptance:
         if self.report["applicationVersions"][-1] == "2.2.0":
             for finding_id in ids:
                 observations = self.rows("SELECT * FROM http_observation WHERE finding_id=?", (finding_id,))
-                self.check(bool(observations), f"{round_name}: existing browser run stores a Cribrum observation")
+                self.check(len(observations) == 1, f"{round_name}: local fixture stores exactly one Cribrum observation")
                 for observation in observations:
                     artifact = self.checkout / observation["artifact_path"]
                     if not artifact.exists():
                         artifact = self.checkout / "storage/artifacts" / observation["artifact_path"]
                     self.check(artifact.is_file() and self.sha(artifact) == observation["artifact_sha256"],
                                f"{round_name}: observation artifact matches its private SHA256")
-                    self.check(json.loads(observation["classification"])["classifierVersion"] == "cribrum-1.0.0",
+                    self.check(json.loads(observation["classification"])["classifierVersion"] == "cribrum-1.3.2",
                                f"{round_name}: observation retains a completed local classification")
-                self.check(bool(self.rows("SELECT * FROM finding_claim WHERE finding_id=?", (finding_id,))),
-                           f"{round_name}: existing case has its compatible claim ledger")
+                fixture_path = urllib.parse.urlsplit(initial_findings[finding_id]["url"]).path
+                self.check(fixture_path in ("/plain", "/dialog"),
+                           f"{round_name}: claim oracle uses a known local fixture")
+                suggestions = json.loads(observations[0]["classification"])["suggestions"]
+                expected = [] if fixture_path == "/plain" else [("xss", "observed")]
+                self.check([(item["claim"], item["state"]) for item in suggestions] == expected,
+                           f"{round_name}: {fixture_path} has the fixed classifier suggestion outcome")
+                claims = self.rows("SELECT * FROM finding_claim WHERE finding_id=?", (finding_id,))
+                self.check([(item["claim"], item["state"], item["source"], item["observation_id"], item["report_selected"])
+                            for item in claims] ==
+                           [(claim, state, "classifier", observations[0]["id"], 0) for claim, state in expected],
+                           f"{round_name}: claim ledger exactly follows the fixed local fixture and observation")
         before_display = self.snapshot()
         in_container = "/var/www/html/storage/test/n01-report/browser"
         self.ddev("exec", "--service", "playwright", "node", "/var/www/html/tests/browser/n01-ddev.cjs", base, in_container, round_name, *ids)

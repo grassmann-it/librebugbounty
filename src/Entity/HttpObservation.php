@@ -98,6 +98,8 @@ class HttpObservation
     public function setRetestRunId(?string $id): self { $this->retestRunId = $id; return $this; }
     public function setArtifact(?string $path, ?string $sha256): self { $this->artifactPath = $path; $this->artifactSha256 = $sha256; return $this; }
     public function setClassification(?array $classification): self { $this->classification = $classification; $this->classifiedAt = $classification === null ? null : new \DateTimeImmutable(); return $this; }
+    public function getScreenshotJobId(): ?string { return $this->screenshotJobId; }
+    public function getRetestRunId(): ?string { return $this->retestRunId; }
     public function getPocRevision(): int { return $this->pocRevision; }
     public function getHttpStatus(): ?int { return $this->httpStatus; }
     public function getFinalUrl(): ?string { return $this->finalUrl; }

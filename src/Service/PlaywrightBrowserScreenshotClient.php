@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Cribrum\ObservationTransport;
 use App\Dto\BrowserScreenshotRequest;
 use App\Dto\BrowserScreenshotResult;
+use App\Exception\BrowserScreenshotCaptureException;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class PlaywrightBrowserScreenshotClient implements BrowserScreenshotClientInterface
@@ -20,21 +21,33 @@ class PlaywrightBrowserScreenshotClient implements BrowserScreenshotClientInterf
     {
         $browserSeconds = max(1, (int) ceil($request->timeoutMs / 1000));
         $authorization = $this->authorizationHeader();
-        $response = $this->httpClient->request('POST', rtrim($this->workerUrl, '/').'/screenshot', [
-            'headers' => [
-                'Authorization' => $authorization,
-            ],
-            'json' => [
-                'url' => $request->url,
-                'timeoutMs' => $request->timeoutMs,
-                'settleMs' => $request->settleMs,
-            ],
-            'timeout' => max(90, $browserSeconds + 45),
-            'max_duration' => max(120, $browserSeconds + 60),
-        ]);
-        $data = $response->toArray(false);
+        try {
+            $response = $this->httpClient->request('POST', rtrim($this->workerUrl, '/').'/screenshot', [
+                'headers' => [
+                    'Authorization' => $authorization,
+                ],
+                'json' => [
+                    'url' => $request->url,
+                    'timeoutMs' => $request->timeoutMs,
+                    'settleMs' => $request->settleMs,
+                ],
+                'timeout' => max(90, $browserSeconds + 45),
+                'max_duration' => max(120, $browserSeconds + 60),
+            ]);
+            $data = $response->toArray(false);
+        } catch (\Throwable $error) {
+            throw new BrowserScreenshotCaptureException($error->getMessage(), previous: $error);
+        }
         if ($response->getStatusCode() >= 400 || !is_string($data['screenshotBase64'] ?? null) || $data['screenshotBase64'] === '') {
-            throw new \RuntimeException((string) ($data['errorMessage'] ?? 'Browser worker did not return a screenshot.'));
+            throw new BrowserScreenshotCaptureException(
+                (string) ($data['errorMessage'] ?? 'Browser worker did not return a screenshot.'),
+                ObservationTransport::normalize($data['observation'] ?? null),
+                isset($data['httpStatus']) ? (int) $data['httpStatus'] : null,
+                isset($data['finalUrl']) ? (string) $data['finalUrl'] : null,
+                ($data['dialogSeen'] ?? false) === true,
+                isset($data['dialogType']) ? (string) $data['dialogType'] : null,
+                isset($data['dialogText']) ? (string) $data['dialogText'] : null,
+            );
         }
 
         return $this->screenshotResult($data);
@@ -77,6 +90,20 @@ class PlaywrightBrowserScreenshotClient implements BrowserScreenshotClientInterf
 
     protected function screenshotResult(array $data): BrowserScreenshotResult
     {
+        $metadata = is_array($data['metadata'] ?? null) ? $data['metadata'] : [];
+        // Keep native and page-hook observations separate. A legacy merged
+        // dialogText is still displayable but cannot manufacture native proof.
+        foreach (['dialogEvents', 'hookedDialogEvents'] as $key) {
+            $events = $data[$key] ?? $metadata[$key] ?? [];
+            $metadata[$key] = is_array($events) ? array_values(array_filter(array_slice($events, 0, 64), static fn ($event): bool =>
+                is_array($event) && is_string($event['type'] ?? null) && is_string($event['message'] ?? null)
+            )) : [];
+        }
+        unset($metadata['dialogOrigin']);
+        if (in_array($data['dialogOrigin'] ?? null, ['native', 'hook'], true)) {
+            $metadata['dialogOrigin'] = $data['dialogOrigin'];
+        }
+
         return new BrowserScreenshotResult(
             screenshotBase64: $data['screenshotBase64'],
             capturedAt: $this->timestamp($data['capturedAt'] ?? null, 'capture timestamp'),
@@ -86,7 +113,7 @@ class PlaywrightBrowserScreenshotClient implements BrowserScreenshotClientInterf
             dialogType: isset($data['dialogType']) ? (string) $data['dialogType'] : null,
             dialogText: isset($data['dialogText']) ? (string) $data['dialogText'] : null,
             captureMethod: isset($data['captureMethod']) ? (string) $data['captureMethod'] : null,
-            metadata: is_array($data['metadata'] ?? null) ? $data['metadata'] : [],
+            metadata: $metadata,
             observation: ObservationTransport::normalize($data['observation'] ?? null),
         );
     }

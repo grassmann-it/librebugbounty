@@ -1,0 +1,92 @@
+[
+  {
+    "id": "nuxt_graphql",
+    "body": "<script type=\"application/json\" id=\"__NUXT_DATA__\" data-ssr=\"true\">[[\"ShallowReactive\",1],{\"error\":2,\"data\":8},[\"null\",\"error\",3,\"statusCode\",4,\"message\",5],true,500,\"Variable \\\"$kind\\\" got invalid value \\\"sample\\\"; Value \\\"sample\\\" does not exist in \\\"SyntheticKind\\\" enum.\",{},null,{\"message\":5}]</script>",
+    "expected": {
+      "family": "graphql",
+      "diagnosticKind": "enum_validation",
+      "contextKind": "structured_error",
+      "fieldPath": "nuxt.error.message",
+      "statusCode": 500
+    },
+    "negativeBodies": [
+      "<script type=\"application/json\" id=\"__NUXT_DATA__\" data-ssr=\"true\">[[\"ShallowReactive\",1],{\"data\":2},[\"null\",\"error\",3,\"statusCode\",4,\"message\",5],true,500,\"Variable \\\"$kind\\\" got invalid value \\\"sample\\\"; Value \\\"sample\\\" does not exist in \\\"SyntheticKind\\\" enum.\"]</script>",
+      "<script type=\"application/json\" id=\"__NUXT_DATA__\" data-ssr=\"true\">[[\"ShallowReactive\",1],{\"error\":2},[\"null\",\"statusCode\",4,\"message\",5,\"message\",5],true,500,\"Variable \\\"$kind\\\" got invalid value \\\"sample\\\"; Value \\\"sample\\\" does not exist in \\\"SyntheticKind\\\" enum.\"]</script>",
+      "<script type=\"application/json\" id=\"__NUXT_DATA__\" data-ssr=\"true\">[[\"ShallowReactive\",1],{\"error\":2},{\"statusCode\":4,\"message\":5},true,404,\"Variable \\\"$kind\\\" got invalid value \\\"sample\\\"; Value \\\"sample\\\" does not exist in \\\"SyntheticKind\\\" enum.\"]</script>",
+      "<section class=\"documentation\"><script type=\"application/json\" id=\"__NUXT_DATA__\" data-ssr=\"true\">[[\"ShallowReactive\",1],{\"error\":2,\"data\":8},[\"null\",\"error\",3,\"statusCode\",4,\"message\",5],true,500,\"Variable \\\"$kind\\\" got invalid value \\\"sample\\\"; Value \\\"sample\\\" does not exist in \\\"SyntheticKind\\\" enum.\",{},null,{\"message\":5}]</script></section>",
+      "<div data-example='<script type=\"application/json\" id=\"__NUXT_DATA__\" data-ssr=\"true\">[[\"ShallowReactive\",1],{\"error\":2,\"data\":8},[\"null\",\"error\",3,\"statusCode\",4,\"message\",5],true,500,\"Variable \\\"$kind\\\" got invalid value \\\"sample\\\"; Value \\\"sample\\\" does not exist in \\\"SyntheticKind\\\" enum.\",{},null,{\"message\":5}]</script>'></div>"
+    ]
+  },
+  {
+    "id": "nuxt_header",
+    "body": "<script type=\"application/json\" id=\"__NUXT_DATA__\" data-ssr=\"true\">[[\"Reactive\",1],{\"error\":2,\"data\":6},{\"statusCode\":3,\"message\":4,\"stack\":5},500,\"Invalid character in header content [\\\"location\\\"]\",\"\",{\"message\":4}]</script>",
+    "expected": {
+      "family": "javascript",
+      "diagnosticKind": "header_serialization",
+      "contextKind": "structured_error",
+      "fieldPath": "nuxt.error.message",
+      "statusCode": 500
+    },
+    "negativeBodies": [
+      "<script type=\"application/json\" id=\"__NUXT_DATA__\" data-ssr=\"true\">[[\"Reactive\",1],{\"catalog\":2},{\"statusCode\":3,\"message\":4,\"stack\":5},500,\"Invalid character in header content [\\\"location\\\"]\",\"\"]</script>",
+      "<script type=\"application/json\" id=\"__NUXT_DATA__\" data-ssr=\"true\">[[\"Reactive\",1],{\"error\":1},{\"statusCode\":3,\"message\":4,\"stack\":5},500,\"Invalid character in header content [\\\"location\\\"]\",\"\"]</script>",
+      "<script type=\"application/json\" id=\"__NUXT_DATA__\" data-ssr=\"true\">[[\"Reactive\",1],{\"error\":2},{\"statusCode\":3,\"message\":4},500,\"TypeError\"]</script>",
+      "<section class=\"documentation\"><script type=\"application/json\" id=\"__NUXT_DATA__\" data-ssr=\"true\">[[\"Reactive\",1],{\"error\":2,\"data\":6},{\"statusCode\":3,\"message\":4,\"stack\":5},500,\"Invalid character in header content [\\\"location\\\"]\",\"\",{\"message\":4}]</script></section>",
+      "<div data-example='<script type=\"application/json\" id=\"__NUXT_DATA__\" data-ssr=\"true\">[[\"Reactive\",1],{\"error\":2,\"data\":6},{\"statusCode\":3,\"message\":4,\"stack\":5},500,\"Invalid character in header content [\\\"location\\\"]\",\"\",{\"message\":4}]</script>'></div>"
+    ]
+  },
+  {
+    "id": "nested_previous",
+    "body": "{\"errors\":[{\"status\":\"500\",\"title\":\"Internal Server Error\",\"detail\":\"An exception has been thrown during the rendering of a template (\\\"syntax error, unexpected token public\\\")\",\"meta\":{\"previous\":[{\"status\":\"500\",\"title\":\"Internal Server Error\",\"detail\":\"syntax error, unexpected token \\\"synthetic\\\"\",\"meta\":{\"file\":\"/srv/synthetic/cache.php\",\"line\":9}}]}}]}",
+    "expected": {
+      "family": "php",
+      "diagnosticKind": "syntax_error",
+      "contextKind": "structured_error",
+      "fieldPath": "errors.0.meta.previous.0.detail"
+    },
+    "negativeBodies": [
+      "{\"catalog\": {\"errors\": [{\"status\": \"500\", \"title\": \"Internal Server Error\", \"detail\": \"An exception has been thrown during the rendering of a template (\\\"syntax error, unexpected token public\\\")\", \"meta\": {\"previous\": [{\"status\": \"500\", \"title\": \"Internal Server Error\", \"detail\": \"syntax error, unexpected token \\\"synthetic\\\"\", \"meta\": {\"file\": \"/srv/synthetic/cache.php\", \"line\": 9}}]}}]}}",
+      "{\"errors\": [{\"status\": \"500\", \"title\": \"Internal Server Error\", \"detail\": \"An exception has been thrown during the rendering of a template (\\\"syntax error, unexpected token public\\\")\"}]}",
+      "<section class=\"documentation\">{\"errors\":[{\"status\":\"500\",\"title\":\"Internal Server Error\",\"detail\":\"An exception has been thrown during the rendering of a template (\\\"syntax error, unexpected token public\\\")\",\"meta\":{\"previous\":[{\"status\":\"500\",\"title\":\"Internal Server Error\",\"detail\":\"syntax error, unexpected token \\\"synthetic\\\"\",\"meta\":{\"file\":\"/srv/synthetic/cache.php\",\"line\":9}}]}}]}</section>",
+      "<div data-example='{\"errors\":[{\"status\":\"500\",\"title\":\"Internal Server Error\",\"detail\":\"An exception has been thrown during the rendering of a template (\\\"syntax error, unexpected token public\\\")\",\"meta\":{\"previous\":[{\"status\":\"500\",\"title\":\"Internal Server Error\",\"detail\":\"syntax error, unexpected token \\\"synthetic\\\"\",\"meta\":{\"file\":\"/srv/synthetic/cache.php\",\"line\":9}}]}}]}'></div>"
+    ]
+  },
+  {
+    "id": "malformed_tail",
+    "body": "<!doctype html><div>{\"code\":\"internal_server_error\",\"message\":\"<p data-no-translation=\"\">Critical failure</p>\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Uncaught Error: Call to undefined function synthetic_connect() in /srv/synthetic/view.php:5\\nStack trace:\\n#0 /srv/synthetic/lib.php(4): include()\\n#1 partial-\",\"file\":\"/srv/synthetic/view.php\",\"line\":5}},\"additional_errors\":[]}",
+    "expectedStatus": "failed",
+    "expected": {
+      "family": "php",
+      "diagnosticKind": "undefined_function",
+      "contextKind": "structured_error",
+      "fieldPath": "data.error.message",
+      "errorType": 1,
+      "envelopeStatus": "malformed"
+    },
+    "negativeBodies": [
+      "{\"catalog\":invalid,\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Uncaught Error: Call to undefined function synthetic_connect() in /srv/synthetic/view.php:5\\nStack trace:\\n#0 /srv/synthetic/lib.php(4): include()\\n#1 partial-\",\"file\":\"/srv/synthetic/view.php\",\"line\":5}}}",
+      "<code><!doctype html><div>{\"code\":\"internal_server_error\",\"message\":\"<p data-no-translation=\"\">Critical failure</p>\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Uncaught Error: Call to undefined function synthetic_connect() in /srv/synthetic/view.php:5\\nStack trace:\\n#0 /srv/synthetic/lib.php(4): include()\\n#1 partial-\",\"file\":\"/srv/synthetic/view.php\",\"line\":5}},\"additional_errors\":[]}</code>",
+      "<script>const catalog=<!doctype html><div>{\"code\":\"internal_server_error\",\"message\":\"<p data-no-translation=\"\">Critical failure</p>\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Uncaught Error: Call to undefined function synthetic_connect() in /srv/synthetic/view.php:5\\nStack trace:\\n#0 /srv/synthetic/lib.php(4): include()\\n#1 partial-\",\"file\":\"/srv/synthetic/view.php\",\"line\":5}},\"additional_errors\":[]}",
+      "<section class=\"documentation\"><!doctype html><div>{\"code\":\"internal_server_error\",\"message\":\"<p data-no-translation=\"\">Critical failure</p>\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Uncaught Error: Call to undefined function synthetic_connect() in /srv/synthetic/view.php:5\\nStack trace:\\n#0 /srv/synthetic/lib.php(4): include()\\n#1 partial-\",\"file\":\"/srv/synthetic/view.php\",\"line\":5}},\"additional_errors\":[]}</section>",
+      "<div data-example='<!doctype html><div>{\"code\":\"internal_server_error\",\"message\":\"<p data-no-translation=\"\">Critical failure</p>\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Uncaught Error: Call to undefined function synthetic_connect() in /srv/synthetic/view.php:5\\nStack trace:\\n#0 /srv/synthetic/lib.php(4): include()\\n#1 partial-\",\"file\":\"/srv/synthetic/view.php\",\"line\":5}},\"additional_errors\":[]}'></div>"
+    ]
+  },
+  {
+    "id": "postgresql_offset",
+    "body": "{\"error\":{\"status_code\":500,\"details\":[\"ActiveRecord::StatementInvalid:\\nPG::InvalidRowCountInResultOffsetClause: ERROR:  OFFSET must not be negative\\n\",\"lib/synthetic.rb:8:in `render'\"],\"message\":\"Internal Server Error\"}}",
+    "expected": {
+      "family": "postgresql",
+      "diagnosticKind": "invalid_offset",
+      "contextKind": "structured_error",
+      "fieldPath": "error.details.0"
+    },
+    "negativeBodies": [
+      "{\"catalog\": {\"error\": {\"status_code\": 500, \"details\": [\"ActiveRecord::StatementInvalid:\\nPG::InvalidRowCountInResultOffsetClause: ERROR:  OFFSET must not be negative\\n\", \"lib/synthetic.rb:8:in `render'\"], \"message\": \"Internal Server Error\"}}}",
+      "{\"error\": {\"status_code\": 500, \"details\": [\"PG::InvalidRowCountInResultOffsetClause\"], \"message\": \"Internal Server Error\"}}",
+      "{\"error\":{\"status_code\":500,\"catalog\":[\"ActiveRecord::StatementInvalid:\\nPG::InvalidRowCountInResultOffsetClause: ERROR:  OFFSET must not be negative\\n\",\"lib/synthetic.rb:8:in `render'\"],\"message\":\"Internal Server Error\"}}",
+      "{\"error\":{\"status_code\":404,\"details\":[\"ActiveRecord::StatementInvalid:\\nPG::InvalidRowCountInResultOffsetClause: ERROR:  OFFSET must not be negative\\n\",\"lib/synthetic.rb:8:in `render'\"],\"message\":\"Internal Server Error\"}}",
+      "<code>{\"error\":{\"status_code\":500,\"details\":[\"ActiveRecord::StatementInvalid:\\nPG::InvalidRowCountInResultOffsetClause: ERROR:  OFFSET must not be negative\\n\",\"lib/synthetic.rb:8:in `render'\"],\"message\":\"Internal Server Error\"}}</code>",
+      "<script>const catalog={\"error\":{\"status_code\":500,\"details\":[\"ActiveRecord::StatementInvalid:\\nPG::InvalidRowCountInResultOffsetClause: ERROR:  OFFSET must not be negative\\n\",\"lib/synthetic.rb:8:in `render'\"],\"message\":\"Internal Server Error\"}}</script>"
+    ]
+  }
+]

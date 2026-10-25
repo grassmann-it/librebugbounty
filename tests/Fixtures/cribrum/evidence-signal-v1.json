@@ -1,0 +1,52 @@
+{
+    "schemaVersion": 1,
+    "description": "Synthetic neutral evidence; adapter must bind immutable capture and PoC before creating a behavior fact.",
+    "input": {
+        "url": "https://fixture.invalid/search?q=%3Cprobe%3E",
+        "rawHtml": "Préface 🙂\nDatabase error: SQLSTATE[22018] invalid integer value &lt;probe&gt;\n",
+        "domText": null,
+        "contentType": "text/html",
+        "httpStatus": 500,
+        "finalUrl": null,
+        "payload": null,
+        "expectedEvidence": null,
+        "dialogSeen": false,
+        "dialogText": null
+    },
+    "evidence": {
+        "kind": "observation_evidence",
+        "schemaVersion": 1,
+        "code": "sql_error_observed",
+        "mode": "shadow",
+        "producer": "triage-v1",
+        "producerVersion": "1",
+        "artifactSha256": "28b230b88b4ca35e796f37d23414abff1144be8fedf174bc478d9db0e54445ad",
+        "spans": [
+            {
+                "representation": "raw",
+                "representationSha256": "28b230b88b4ca35e796f37d23414abff1144be8fedf174bc478d9db0e54445ad",
+                "start": 10,
+                "length": 67,
+                "excerpt": "Database error: SQLSTATE[22018] invalid integer value &lt;probe&gt;",
+                "representationLength": 78,
+                "excerptSha256": "ecba81cf77f50abe2cc8bc8785b0d073f887634ebecbd21fe5de01db42ca2b2e",
+                "id": "s0"
+            }
+        ],
+        "attributes": {
+            "vendor": "synthetic",
+            "qualification": "diagnostic_only",
+            "limitations": [
+                "No query structure or execution evidence."
+            ]
+        },
+        "relations": [],
+        "pack": "triage-v1",
+        "version": "1",
+        "rule": "sql_error_observed",
+        "representation": "raw",
+        "phrase": "Database error: SQLSTATE[22018] invalid integer value &lt;probe&gt;",
+        "shadow": true,
+        "evidenceId": "62d8a6b7257c677bd0fa8ccf22eee22fca223cece51a993a51a931b13e74c720"
+    }
+}

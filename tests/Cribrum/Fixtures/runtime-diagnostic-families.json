@@ -1,0 +1,585 @@
+[
+  {
+    "id": "php_undefined_function",
+    "body": "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Call to undefined function synthetic_lookup()\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+    "expected": {
+      "family": "php",
+      "diagnosticKind": "undefined_function",
+      "contextKind": "structured_error",
+      "fieldPath": "data.error.message",
+      "errorType": 1
+    },
+    "negativeBodies": [
+      "{\"message\": \"Call to undefined function synthetic_lookup()\"}",
+      "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":\"1\",\"message\":\"Call to undefined function synthetic_lookup()\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+      "<section class=\"documentation\">{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Call to undefined function synthetic_lookup()\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</section>",
+      "<code>{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Call to undefined function synthetic_lookup()\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</code>",
+      "<script>const example={\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Call to undefined function synthetic_lookup()\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}};</script>",
+      "<script>const catalog=\"{\\\"code\\\":\\\"internal_server_error\\\",\\\"message\\\":\\\"A critical error occurred\\\",\\\"data\\\":{\\\"status\\\":500,\\\"error\\\":{\\\"type\\\":1,\\\"message\\\":\\\"Call to undefined function synthetic_lookup()\\\",\\\"file\\\":\\\"/srv/synthetic/view.php\\\",\\\"line\\\":21}}}\";</script>",
+      "<div data-example='{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Call to undefined function synthetic_lookup()\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}'></div>",
+      "<div data-example=\"{&quot;code&quot;:&quot;internal_server_error&quot;,&quot;message&quot;:&quot;A critical error occurred&quot;,&quot;data&quot;:{&quot;status&quot;:500,&quot;error&quot;:{&quot;type&quot;:1,&quot;message&quot;:&quot;Call to undefined function synthetic_lookup()&quot;,&quot;file&quot;:&quot;/srv/synthetic/view.php&quot;,&quot;line&quot;:21}}}\"></div>"
+    ]
+  },
+  {
+    "id": "php_undefined_method",
+    "body": "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Call to undefined method Synthetic\\\\View::lookup()\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+    "expected": {
+      "family": "php",
+      "diagnosticKind": "undefined_method",
+      "contextKind": "structured_error",
+      "fieldPath": "data.error.message",
+      "errorType": 1
+    },
+    "negativeBodies": [
+      "{\"message\": \"Call to undefined method Synthetic\\\\View::lookup()\"}",
+      "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":\"1\",\"message\":\"Call to undefined method Synthetic\\\\View::lookup()\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+      "<section class=\"documentation\">{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Call to undefined method Synthetic\\\\View::lookup()\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</section>",
+      "<code>{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Call to undefined method Synthetic\\\\View::lookup()\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</code>",
+      "<script>const example={\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Call to undefined method Synthetic\\\\View::lookup()\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}};</script>",
+      "<script>const catalog=\"{\\\"code\\\":\\\"internal_server_error\\\",\\\"message\\\":\\\"A critical error occurred\\\",\\\"data\\\":{\\\"status\\\":500,\\\"error\\\":{\\\"type\\\":1,\\\"message\\\":\\\"Call to undefined method Synthetic\\\\\\\\View::lookup()\\\",\\\"file\\\":\\\"/srv/synthetic/view.php\\\",\\\"line\\\":21}}}\";</script>",
+      "<div data-example='{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Call to undefined method Synthetic\\\\View::lookup()\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}'></div>",
+      "<div data-example=\"{&quot;code&quot;:&quot;internal_server_error&quot;,&quot;message&quot;:&quot;A critical error occurred&quot;,&quot;data&quot;:{&quot;status&quot;:500,&quot;error&quot;:{&quot;type&quot;:1,&quot;message&quot;:&quot;Call to undefined method Synthetic\\\\View::lookup()&quot;,&quot;file&quot;:&quot;/srv/synthetic/view.php&quot;,&quot;line&quot;:21}}}\"></div>"
+    ]
+  },
+  {
+    "id": "php_offset_type",
+    "body": "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Cannot access offset of type string on string\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+    "expected": {
+      "family": "php",
+      "diagnosticKind": "offset_type",
+      "contextKind": "structured_error",
+      "fieldPath": "data.error.message",
+      "errorType": 1
+    },
+    "negativeBodies": [
+      "{\"message\": \"Cannot access offset of type string on string\"}",
+      "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":\"1\",\"message\":\"Cannot access offset of type string on string\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+      "<section class=\"documentation\">{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Cannot access offset of type string on string\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</section>",
+      "<code>{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Cannot access offset of type string on string\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</code>",
+      "<script>const example={\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Cannot access offset of type string on string\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}};</script>",
+      "<script>const catalog=\"{\\\"code\\\":\\\"internal_server_error\\\",\\\"message\\\":\\\"A critical error occurred\\\",\\\"data\\\":{\\\"status\\\":500,\\\"error\\\":{\\\"type\\\":1,\\\"message\\\":\\\"Cannot access offset of type string on string\\\",\\\"file\\\":\\\"/srv/synthetic/view.php\\\",\\\"line\\\":21}}}\";</script>",
+      "<div data-example='{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Cannot access offset of type string on string\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}'></div>",
+      "<div data-example=\"{&quot;code&quot;:&quot;internal_server_error&quot;,&quot;message&quot;:&quot;A critical error occurred&quot;,&quot;data&quot;:{&quot;status&quot;:500,&quot;error&quot;:{&quot;type&quot;:1,&quot;message&quot;:&quot;Cannot access offset of type string on string&quot;,&quot;file&quot;:&quot;/srv/synthetic/view.php&quot;,&quot;line&quot;:21}}}\"></div>"
+    ]
+  },
+  {
+    "id": "php_object_context",
+    "body": "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Using $this when not in object context\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+    "expected": {
+      "family": "php",
+      "diagnosticKind": "object_context",
+      "contextKind": "structured_error",
+      "fieldPath": "data.error.message",
+      "errorType": 1
+    },
+    "negativeBodies": [
+      "{\"message\": \"Using $this when not in object context\"}",
+      "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":\"1\",\"message\":\"Using $this when not in object context\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+      "<section class=\"documentation\">{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Using $this when not in object context\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</section>",
+      "<code>{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Using $this when not in object context\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</code>",
+      "<script>const example={\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Using $this when not in object context\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}};</script>",
+      "<script>const catalog=\"{\\\"code\\\":\\\"internal_server_error\\\",\\\"message\\\":\\\"A critical error occurred\\\",\\\"data\\\":{\\\"status\\\":500,\\\"error\\\":{\\\"type\\\":1,\\\"message\\\":\\\"Using $this when not in object context\\\",\\\"file\\\":\\\"/srv/synthetic/view.php\\\",\\\"line\\\":21}}}\";</script>",
+      "<div data-example='{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Using $this when not in object context\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}'></div>",
+      "<div data-example=\"{&quot;code&quot;:&quot;internal_server_error&quot;,&quot;message&quot;:&quot;A critical error occurred&quot;,&quot;data&quot;:{&quot;status&quot;:500,&quot;error&quot;:{&quot;type&quot;:1,&quot;message&quot;:&quot;Using $this when not in object context&quot;,&quot;file&quot;:&quot;/srv/synthetic/view.php&quot;,&quot;line&quot;:21}}}\"></div>"
+    ]
+  },
+  {
+    "id": "php_argument_type",
+    "body": "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Synthetic\\\\Profiler::find(): Argument #3 ($limit) must be of type ?int, string given\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+    "expected": {
+      "family": "php",
+      "diagnosticKind": "argument_type",
+      "contextKind": "structured_error",
+      "fieldPath": "data.error.message",
+      "errorType": 1
+    },
+    "negativeBodies": [
+      "{\"message\": \"Synthetic\\\\Profiler::find(): Argument #3 ($limit) must be of type ?int, string given\"}",
+      "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":\"1\",\"message\":\"Synthetic\\\\Profiler::find(): Argument #3 ($limit) must be of type ?int, string given\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+      "<section class=\"documentation\">{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Synthetic\\\\Profiler::find(): Argument #3 ($limit) must be of type ?int, string given\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</section>",
+      "<code>{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Synthetic\\\\Profiler::find(): Argument #3 ($limit) must be of type ?int, string given\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</code>",
+      "<script>const example={\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Synthetic\\\\Profiler::find(): Argument #3 ($limit) must be of type ?int, string given\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}};</script>",
+      "<script>const catalog=\"{\\\"code\\\":\\\"internal_server_error\\\",\\\"message\\\":\\\"A critical error occurred\\\",\\\"data\\\":{\\\"status\\\":500,\\\"error\\\":{\\\"type\\\":1,\\\"message\\\":\\\"Synthetic\\\\\\\\Profiler::find(): Argument #3 ($limit) must be of type ?int, string given\\\",\\\"file\\\":\\\"/srv/synthetic/view.php\\\",\\\"line\\\":21}}}\";</script>",
+      "<div data-example='{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Synthetic\\\\Profiler::find(): Argument #3 ($limit) must be of type ?int, string given\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}'></div>",
+      "<div data-example=\"{&quot;code&quot;:&quot;internal_server_error&quot;,&quot;message&quot;:&quot;A critical error occurred&quot;,&quot;data&quot;:{&quot;status&quot;:500,&quot;error&quot;:{&quot;type&quot;:1,&quot;message&quot;:&quot;Synthetic\\\\Profiler::find(): Argument #3 ($limit) must be of type ?int, string given&quot;,&quot;file&quot;:&quot;/srv/synthetic/view.php&quot;,&quot;line&quot;:21}}}\"></div>"
+    ]
+  },
+  {
+    "id": "php_object_to_string",
+    "body": "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Object of class Synthetic_Error could not be converted to string\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+    "expected": {
+      "family": "php",
+      "diagnosticKind": "object_to_string",
+      "contextKind": "structured_error",
+      "fieldPath": "data.error.message",
+      "errorType": 1
+    },
+    "negativeBodies": [
+      "{\"message\": \"Object of class Synthetic_Error could not be converted to string\"}",
+      "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":\"1\",\"message\":\"Object of class Synthetic_Error could not be converted to string\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+      "<section class=\"documentation\">{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Object of class Synthetic_Error could not be converted to string\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</section>",
+      "<code>{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Object of class Synthetic_Error could not be converted to string\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</code>",
+      "<script>const example={\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Object of class Synthetic_Error could not be converted to string\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}};</script>",
+      "<script>const catalog=\"{\\\"code\\\":\\\"internal_server_error\\\",\\\"message\\\":\\\"A critical error occurred\\\",\\\"data\\\":{\\\"status\\\":500,\\\"error\\\":{\\\"type\\\":1,\\\"message\\\":\\\"Object of class Synthetic_Error could not be converted to string\\\",\\\"file\\\":\\\"/srv/synthetic/view.php\\\",\\\"line\\\":21}}}\";</script>",
+      "<div data-example='{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Object of class Synthetic_Error could not be converted to string\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}'></div>",
+      "<div data-example=\"{&quot;code&quot;:&quot;internal_server_error&quot;,&quot;message&quot;:&quot;A critical error occurred&quot;,&quot;data&quot;:{&quot;status&quot;:500,&quot;error&quot;:{&quot;type&quot;:1,&quot;message&quot;:&quot;Object of class Synthetic_Error could not be converted to string&quot;,&quot;file&quot;:&quot;/srv/synthetic/view.php&quot;,&quot;line&quot;:21}}}\"></div>"
+    ]
+  },
+  {
+    "id": "php_undefined_constant",
+    "body": "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Undefined constant \\\"SYNTHETIC_PATH\\\"\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+    "expected": {
+      "family": "php",
+      "diagnosticKind": "undefined_constant",
+      "contextKind": "structured_error",
+      "fieldPath": "data.error.message",
+      "errorType": 1
+    },
+    "negativeBodies": [
+      "{\"message\": \"Undefined constant \\\"SYNTHETIC_PATH\\\"\"}",
+      "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":\"1\",\"message\":\"Undefined constant \\\"SYNTHETIC_PATH\\\"\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+      "<section class=\"documentation\">{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Undefined constant \\\"SYNTHETIC_PATH\\\"\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</section>",
+      "<code>{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Undefined constant \\\"SYNTHETIC_PATH\\\"\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</code>",
+      "<script>const example={\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Undefined constant \\\"SYNTHETIC_PATH\\\"\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}};</script>",
+      "<script>const catalog=\"{\\\"code\\\":\\\"internal_server_error\\\",\\\"message\\\":\\\"A critical error occurred\\\",\\\"data\\\":{\\\"status\\\":500,\\\"error\\\":{\\\"type\\\":1,\\\"message\\\":\\\"Undefined constant \\\\\\\"SYNTHETIC_PATH\\\\\\\"\\\",\\\"file\\\":\\\"/srv/synthetic/view.php\\\",\\\"line\\\":21}}}\";</script>",
+      "<div data-example='{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Undefined constant \\\"SYNTHETIC_PATH\\\"\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}'></div>",
+      "<div data-example=\"{&quot;code&quot;:&quot;internal_server_error&quot;,&quot;message&quot;:&quot;A critical error occurred&quot;,&quot;data&quot;:{&quot;status&quot;:500,&quot;error&quot;:{&quot;type&quot;:1,&quot;message&quot;:&quot;Undefined constant \\&quot;SYNTHETIC_PATH\\&quot;&quot;,&quot;file&quot;:&quot;/srv/synthetic/view.php&quot;,&quot;line&quot;:21}}}\"></div>"
+    ]
+  },
+  {
+    "id": "php_operand_type",
+    "body": "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Unsupported operand types: string - int\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+    "expected": {
+      "family": "php",
+      "diagnosticKind": "operand_type",
+      "contextKind": "structured_error",
+      "fieldPath": "data.error.message",
+      "errorType": 1
+    },
+    "negativeBodies": [
+      "{\"message\": \"Unsupported operand types: string - int\"}",
+      "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":\"1\",\"message\":\"Unsupported operand types: string - int\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+      "<section class=\"documentation\">{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Unsupported operand types: string - int\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</section>",
+      "<code>{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Unsupported operand types: string - int\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</code>",
+      "<script>const example={\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Unsupported operand types: string - int\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}};</script>",
+      "<script>const catalog=\"{\\\"code\\\":\\\"internal_server_error\\\",\\\"message\\\":\\\"A critical error occurred\\\",\\\"data\\\":{\\\"status\\\":500,\\\"error\\\":{\\\"type\\\":1,\\\"message\\\":\\\"Unsupported operand types: string - int\\\",\\\"file\\\":\\\"/srv/synthetic/view.php\\\",\\\"line\\\":21}}}\";</script>",
+      "<div data-example='{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Unsupported operand types: string - int\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}'></div>",
+      "<div data-example=\"{&quot;code&quot;:&quot;internal_server_error&quot;,&quot;message&quot;:&quot;A critical error occurred&quot;,&quot;data&quot;:{&quot;status&quot;:500,&quot;error&quot;:{&quot;type&quot;:1,&quot;message&quot;:&quot;Unsupported operand types: string - int&quot;,&quot;file&quot;:&quot;/srv/synthetic/view.php&quot;,&quot;line&quot;:21}}}\"></div>"
+    ]
+  },
+  {
+    "id": "php_argument_count",
+    "body": "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Uncaught ArgumentCountError: 9 arguments are required, 1 given\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+    "expected": {
+      "family": "php",
+      "diagnosticKind": "argument_count",
+      "contextKind": "structured_error",
+      "fieldPath": "data.error.message",
+      "errorType": 1
+    },
+    "negativeBodies": [
+      "{\"message\": \"Uncaught ArgumentCountError: 9 arguments are required, 1 given\"}",
+      "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":\"1\",\"message\":\"Uncaught ArgumentCountError: 9 arguments are required, 1 given\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+      "<section class=\"documentation\">{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Uncaught ArgumentCountError: 9 arguments are required, 1 given\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</section>",
+      "<code>{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Uncaught ArgumentCountError: 9 arguments are required, 1 given\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</code>",
+      "<script>const example={\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Uncaught ArgumentCountError: 9 arguments are required, 1 given\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}};</script>",
+      "<script>const catalog=\"{\\\"code\\\":\\\"internal_server_error\\\",\\\"message\\\":\\\"A critical error occurred\\\",\\\"data\\\":{\\\"status\\\":500,\\\"error\\\":{\\\"type\\\":1,\\\"message\\\":\\\"Uncaught ArgumentCountError: 9 arguments are required, 1 given\\\",\\\"file\\\":\\\"/srv/synthetic/view.php\\\",\\\"line\\\":21}}}\";</script>",
+      "<div data-example='{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Uncaught ArgumentCountError: 9 arguments are required, 1 given\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}'></div>",
+      "<div data-example=\"{&quot;code&quot;:&quot;internal_server_error&quot;,&quot;message&quot;:&quot;A critical error occurred&quot;,&quot;data&quot;:{&quot;status&quot;:500,&quot;error&quot;:{&quot;type&quot;:1,&quot;message&quot;:&quot;Uncaught ArgumentCountError: 9 arguments are required, 1 given&quot;,&quot;file&quot;:&quot;/srv/synthetic/view.php&quot;,&quot;line&quot;:21}}}\"></div>"
+    ]
+  },
+  {
+    "id": "php_class_not_found",
+    "body": "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Class 'Synthetic\\\\View' not found\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+    "expected": {
+      "family": "php",
+      "diagnosticKind": "class_not_found",
+      "contextKind": "structured_error",
+      "fieldPath": "data.error.message",
+      "errorType": 1
+    },
+    "negativeBodies": [
+      "{\"message\": \"Class 'Synthetic\\\\View' not found\"}",
+      "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":\"1\",\"message\":\"Class 'Synthetic\\\\View' not found\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+      "<section class=\"documentation\">{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Class 'Synthetic\\\\View' not found\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</section>",
+      "<code>{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Class 'Synthetic\\\\View' not found\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</code>",
+      "<script>const example={\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Class 'Synthetic\\\\View' not found\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}};</script>",
+      "<script>const catalog=\"{\\\"code\\\":\\\"internal_server_error\\\",\\\"message\\\":\\\"A critical error occurred\\\",\\\"data\\\":{\\\"status\\\":500,\\\"error\\\":{\\\"type\\\":1,\\\"message\\\":\\\"Class 'Synthetic\\\\\\\\View' not found\\\",\\\"file\\\":\\\"/srv/synthetic/view.php\\\",\\\"line\\\":21}}}\";</script>",
+      "<div data-example='{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Class &#39;Synthetic\\\\View&#39; not found\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}'></div>",
+      "<div data-example=\"{&quot;code&quot;:&quot;internal_server_error&quot;,&quot;message&quot;:&quot;A critical error occurred&quot;,&quot;data&quot;:{&quot;status&quot;:500,&quot;error&quot;:{&quot;type&quot;:1,&quot;message&quot;:&quot;Class 'Synthetic\\\\View' not found&quot;,&quot;file&quot;:&quot;/srv/synthetic/view.php&quot;,&quot;line&quot;:21}}}\"></div>"
+    ]
+  },
+  {
+    "id": "php_syntax_error",
+    "body": "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":4,\"message\":\"syntax error, unexpected identifier \\\"synthetic\\\", expecting \\\")\\\"\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+    "expected": {
+      "family": "php",
+      "diagnosticKind": "syntax_error",
+      "contextKind": "structured_error",
+      "fieldPath": "data.error.message",
+      "errorType": 4
+    },
+    "negativeBodies": [
+      "{\"message\": \"syntax error, unexpected identifier \\\"synthetic\\\", expecting \\\")\\\"\"}",
+      "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":\"4\",\"message\":\"syntax error, unexpected identifier \\\"synthetic\\\", expecting \\\")\\\"\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+      "<section class=\"documentation\">{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":4,\"message\":\"syntax error, unexpected identifier \\\"synthetic\\\", expecting \\\")\\\"\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</section>",
+      "<code>{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":4,\"message\":\"syntax error, unexpected identifier \\\"synthetic\\\", expecting \\\")\\\"\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</code>",
+      "<script>const example={\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":4,\"message\":\"syntax error, unexpected identifier \\\"synthetic\\\", expecting \\\")\\\"\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}};</script>",
+      "<script>const catalog=\"{\\\"code\\\":\\\"internal_server_error\\\",\\\"message\\\":\\\"A critical error occurred\\\",\\\"data\\\":{\\\"status\\\":500,\\\"error\\\":{\\\"type\\\":4,\\\"message\\\":\\\"syntax error, unexpected identifier \\\\\\\"synthetic\\\\\\\", expecting \\\\\\\")\\\\\\\"\\\",\\\"file\\\":\\\"/srv/synthetic/view.php\\\",\\\"line\\\":21}}}\";</script>",
+      "<div data-example='{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":4,\"message\":\"syntax error, unexpected identifier \\\"synthetic\\\", expecting \\\")\\\"\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}'></div>",
+      "<div data-example=\"{&quot;code&quot;:&quot;internal_server_error&quot;,&quot;message&quot;:&quot;A critical error occurred&quot;,&quot;data&quot;:{&quot;status&quot;:500,&quot;error&quot;:{&quot;type&quot;:4,&quot;message&quot;:&quot;syntax error, unexpected identifier \\&quot;synthetic\\&quot;, expecting \\&quot;)\\&quot;&quot;,&quot;file&quot;:&quot;/srv/synthetic/view.php&quot;,&quot;line&quot;:21}}}\"></div>"
+    ]
+  },
+  {
+    "id": "php_redeclare",
+    "body": "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Cannot redeclare synthetic_render() (previously declared in /srv/synthetic/view.php:8)\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+    "expected": {
+      "family": "php",
+      "diagnosticKind": "redeclare",
+      "contextKind": "structured_error",
+      "fieldPath": "data.error.message",
+      "errorType": 1
+    },
+    "negativeBodies": [
+      "{\"message\": \"Cannot redeclare synthetic_render() (previously declared in /srv/synthetic/view.php:8)\"}",
+      "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":\"1\",\"message\":\"Cannot redeclare synthetic_render() (previously declared in /srv/synthetic/view.php:8)\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+      "<section class=\"documentation\">{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Cannot redeclare synthetic_render() (previously declared in /srv/synthetic/view.php:8)\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</section>",
+      "<code>{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Cannot redeclare synthetic_render() (previously declared in /srv/synthetic/view.php:8)\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</code>",
+      "<script>const example={\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Cannot redeclare synthetic_render() (previously declared in /srv/synthetic/view.php:8)\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}};</script>",
+      "<script>const catalog=\"{\\\"code\\\":\\\"internal_server_error\\\",\\\"message\\\":\\\"A critical error occurred\\\",\\\"data\\\":{\\\"status\\\":500,\\\"error\\\":{\\\"type\\\":1,\\\"message\\\":\\\"Cannot redeclare synthetic_render() (previously declared in /srv/synthetic/view.php:8)\\\",\\\"file\\\":\\\"/srv/synthetic/view.php\\\",\\\"line\\\":21}}}\";</script>",
+      "<div data-example='{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Cannot redeclare synthetic_render() (previously declared in /srv/synthetic/view.php:8)\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}'></div>",
+      "<div data-example=\"{&quot;code&quot;:&quot;internal_server_error&quot;,&quot;message&quot;:&quot;A critical error occurred&quot;,&quot;data&quot;:{&quot;status&quot;:500,&quot;error&quot;:{&quot;type&quot;:1,&quot;message&quot;:&quot;Cannot redeclare synthetic_render() (previously declared in /srv/synthetic/view.php:8)&quot;,&quot;file&quot;:&quot;/srv/synthetic/view.php&quot;,&quot;line&quot;:21}}}\"></div>"
+    ]
+  },
+  {
+    "id": "php_signature_compatibility",
+    "body": "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Declaration of SyntheticDate::create(int $time) must be compatible with BaseDate::create(int|float $time): static\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+    "expected": {
+      "family": "php",
+      "diagnosticKind": "signature_compatibility",
+      "contextKind": "structured_error",
+      "fieldPath": "data.error.message",
+      "errorType": 1
+    },
+    "negativeBodies": [
+      "{\"message\": \"Declaration of SyntheticDate::create(int $time) must be compatible with BaseDate::create(int|float $time): static\"}",
+      "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":\"1\",\"message\":\"Declaration of SyntheticDate::create(int $time) must be compatible with BaseDate::create(int|float $time): static\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+      "<section class=\"documentation\">{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Declaration of SyntheticDate::create(int $time) must be compatible with BaseDate::create(int|float $time): static\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</section>",
+      "<code>{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Declaration of SyntheticDate::create(int $time) must be compatible with BaseDate::create(int|float $time): static\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</code>",
+      "<script>const example={\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Declaration of SyntheticDate::create(int $time) must be compatible with BaseDate::create(int|float $time): static\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}};</script>",
+      "<script>const catalog=\"{\\\"code\\\":\\\"internal_server_error\\\",\\\"message\\\":\\\"A critical error occurred\\\",\\\"data\\\":{\\\"status\\\":500,\\\"error\\\":{\\\"type\\\":1,\\\"message\\\":\\\"Declaration of SyntheticDate::create(int $time) must be compatible with BaseDate::create(int|float $time): static\\\",\\\"file\\\":\\\"/srv/synthetic/view.php\\\",\\\"line\\\":21}}}\";</script>",
+      "<div data-example='{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":1,\"message\":\"Declaration of SyntheticDate::create(int $time) must be compatible with BaseDate::create(int|float $time): static\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}'></div>",
+      "<div data-example=\"{&quot;code&quot;:&quot;internal_server_error&quot;,&quot;message&quot;:&quot;A critical error occurred&quot;,&quot;data&quot;:{&quot;status&quot;:500,&quot;error&quot;:{&quot;type&quot;:1,&quot;message&quot;:&quot;Declaration of SyntheticDate::create(int $time) must be compatible with BaseDate::create(int|float $time): static&quot;,&quot;file&quot;:&quot;/srv/synthetic/view.php&quot;,&quot;line&quot;:21}}}\"></div>"
+    ]
+  },
+  {
+    "id": "php_curly_offset_compile",
+    "body": "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":64,\"message\":\"Array and string offset access syntax with curly braces is no longer supported\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+    "expected": {
+      "family": "php",
+      "diagnosticKind": "curly_offset_compile",
+      "contextKind": "structured_error",
+      "fieldPath": "data.error.message",
+      "errorType": 64
+    },
+    "negativeBodies": [
+      "{\"message\": \"Array and string offset access syntax with curly braces is no longer supported\"}",
+      "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":\"64\",\"message\":\"Array and string offset access syntax with curly braces is no longer supported\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+      "<section class=\"documentation\">{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":64,\"message\":\"Array and string offset access syntax with curly braces is no longer supported\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</section>",
+      "<code>{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":64,\"message\":\"Array and string offset access syntax with curly braces is no longer supported\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</code>",
+      "<script>const example={\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":64,\"message\":\"Array and string offset access syntax with curly braces is no longer supported\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}};</script>",
+      "<script>const catalog=\"{\\\"code\\\":\\\"internal_server_error\\\",\\\"message\\\":\\\"A critical error occurred\\\",\\\"data\\\":{\\\"status\\\":500,\\\"error\\\":{\\\"type\\\":64,\\\"message\\\":\\\"Array and string offset access syntax with curly braces is no longer supported\\\",\\\"file\\\":\\\"/srv/synthetic/view.php\\\",\\\"line\\\":21}}}\";</script>",
+      "<div data-example='{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":64,\"message\":\"Array and string offset access syntax with curly braces is no longer supported\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}'></div>",
+      "<div data-example=\"{&quot;code&quot;:&quot;internal_server_error&quot;,&quot;message&quot;:&quot;A critical error occurred&quot;,&quot;data&quot;:{&quot;status&quot;:500,&quot;error&quot;:{&quot;type&quot;:64,&quot;message&quot;:&quot;Array and string offset access syntax with curly braces is no longer supported&quot;,&quot;file&quot;:&quot;/srv/synthetic/view.php&quot;,&quot;line&quot;:21}}}\"></div>"
+    ]
+  },
+  {
+    "id": "php_ternary_compile",
+    "body": "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":64,\"message\":\"Unparenthesized `a ? b : c ? d : e` is not supported. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)`\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+    "expected": {
+      "family": "php",
+      "diagnosticKind": "ternary_compile",
+      "contextKind": "structured_error",
+      "fieldPath": "data.error.message",
+      "errorType": 64
+    },
+    "negativeBodies": [
+      "{\"message\": \"Unparenthesized `a ? b : c ? d : e` is not supported. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)`\"}",
+      "{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":\"64\",\"message\":\"Unparenthesized `a ? b : c ? d : e` is not supported. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)`\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}",
+      "<section class=\"documentation\">{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":64,\"message\":\"Unparenthesized `a ? b : c ? d : e` is not supported. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)`\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</section>",
+      "<code>{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":64,\"message\":\"Unparenthesized `a ? b : c ? d : e` is not supported. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)`\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}</code>",
+      "<script>const example={\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":64,\"message\":\"Unparenthesized `a ? b : c ? d : e` is not supported. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)`\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}};</script>",
+      "<script>const catalog=\"{\\\"code\\\":\\\"internal_server_error\\\",\\\"message\\\":\\\"A critical error occurred\\\",\\\"data\\\":{\\\"status\\\":500,\\\"error\\\":{\\\"type\\\":64,\\\"message\\\":\\\"Unparenthesized `a ? b : c ? d : e` is not supported. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)`\\\",\\\"file\\\":\\\"/srv/synthetic/view.php\\\",\\\"line\\\":21}}}\";</script>",
+      "<div data-example='{\"code\":\"internal_server_error\",\"message\":\"A critical error occurred\",\"data\":{\"status\":500,\"error\":{\"type\":64,\"message\":\"Unparenthesized `a ? b : c ? d : e` is not supported. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)`\",\"file\":\"/srv/synthetic/view.php\",\"line\":21}}}'></div>",
+      "<div data-example=\"{&quot;code&quot;:&quot;internal_server_error&quot;,&quot;message&quot;:&quot;A critical error occurred&quot;,&quot;data&quot;:{&quot;status&quot;:500,&quot;error&quot;:{&quot;type&quot;:64,&quot;message&quot;:&quot;Unparenthesized `a ? b : c ? d : e` is not supported. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)`&quot;,&quot;file&quot;:&quot;/srv/synthetic/view.php&quot;,&quot;line&quot;:21}}}\"></div>"
+    ]
+  },
+  {
+    "id": "js_null",
+    "body": "{\"status\": 500, \"message\": \"Cannot read properties of null (reading 'label')\", \"name\": \"TypeError\"}",
+    "expected": {
+      "family": "javascript",
+      "diagnosticKind": "null_property",
+      "contextKind": "structured_error"
+    },
+    "negativeBodies": [
+      "{\"name\": \"TypeError\", \"message\": \"TypeError\", \"status\": 500}",
+      "<script>const catalog=\"{\\\"status\\\": 500, \\\"message\\\": \\\"Cannot read properties of null (reading 'label')\\\", \\\"name\\\": \\\"TypeError\\\"}\";</script>",
+      "<div data-example='{\"status\": 500, \"message\": \"Cannot read properties of null (reading &#39;label&#39;)\", \"name\": \"TypeError\"}'></div>",
+      "<div data-example=\"{&quot;status&quot;: 500, &quot;message&quot;: &quot;Cannot read properties of null (reading 'label')&quot;, &quot;name&quot;: &quot;TypeError&quot;}\"></div>"
+    ]
+  },
+  {
+    "id": "java_enum",
+    "body": "{\"serverResponse\": \"IllegalArgumentException: No enum constant synthetic.api.Kind.SAMPLE\"}",
+    "expected": {
+      "family": "java",
+      "diagnosticKind": "enum_validation",
+      "contextKind": "structured_error"
+    },
+    "negativeBodies": [
+      "{\"catalog\": {\"serverResponse\": \"IllegalArgumentException: No enum constant synthetic.api.Kind.SAMPLE\"}}",
+      "<script>const catalog=\"{\\\"serverResponse\\\": \\\"IllegalArgumentException: No enum constant synthetic.api.Kind.SAMPLE\\\"}\";</script>",
+      "<div data-example='{\"serverResponse\": \"IllegalArgumentException: No enum constant synthetic.api.Kind.SAMPLE\"}'></div>",
+      "<div data-example=\"{&quot;serverResponse&quot;: &quot;IllegalArgumentException: No enum constant synthetic.api.Kind.SAMPLE&quot;}\"></div>"
+    ]
+  },
+  {
+    "id": "notes_index",
+    "body": "<h1>Error 500</h1>HTTP Web Server: HCL Notes Exception - Array index out of bounds",
+    "expected": {
+      "family": "notes",
+      "diagnosticKind": "array_index",
+      "contextKind": "backend_diagnostic"
+    },
+    "negativeBodies": [
+      "<code><h1>Error 500</h1>HTTP Web Server: HCL Notes Exception - Array index out of bounds</code>",
+      "<section class=\"documentation\"><h1>Error 500</h1>HTTP Web Server: HCL Notes Exception - Array index out of bounds</section>",
+      "<script>const catalog=\"<h1>Error 500</h1>HTTP Web Server: HCL Notes Exception - Array index out of bounds\";</script>",
+      "<div data-example='<h1>Error 500</h1>HTTP Web Server: HCL Notes Exception - Array index out of bounds'></div>",
+      "<div data-example=\"<h1>Error 500</h1>HTTP Web Server: HCL Notes Exception - Array index out of bounds\"></div>"
+    ]
+  },
+  {
+    "id": "notes_unid",
+    "body": "<h1>Error 500</h1>HTTP Web Server: HCL Notes Exception - Invalid UNID; UNID must be a 32-digit hex string.",
+    "expected": {
+      "family": "notes",
+      "diagnosticKind": "unid_validation",
+      "contextKind": "backend_diagnostic"
+    },
+    "negativeBodies": [
+      "<code><h1>Error 500</h1>HTTP Web Server: HCL Notes Exception - Invalid UNID; UNID must be a 32-digit hex string.</code>",
+      "<section class=\"documentation\"><h1>Error 500</h1>HTTP Web Server: HCL Notes Exception - Invalid UNID; UNID must be a 32-digit hex string.</section>",
+      "<script>const catalog=\"<h1>Error 500</h1>HTTP Web Server: HCL Notes Exception - Invalid UNID; UNID must be a 32-digit hex string.\";</script>",
+      "<div data-example='<h1>Error 500</h1>HTTP Web Server: HCL Notes Exception - Invalid UNID; UNID must be a 32-digit hex string.'></div>",
+      "<div data-example=\"<h1>Error 500</h1>HTTP Web Server: HCL Notes Exception - Invalid UNID; UNID must be a 32-digit hex string.\"></div>"
+    ]
+  },
+  {
+    "id": "idx",
+    "body": "InternalServerError: IDX10000: The parameter 'token' cannot be a 'null' or an empty object.\r\nParameter name: token",
+    "expected": {
+      "family": "dotnet",
+      "diagnosticKind": "idx_parameter",
+      "contextKind": "backend_diagnostic"
+    },
+    "negativeBodies": [
+      "IDX10000: The parameter 'token' cannot be a 'null' or an empty object.",
+      "<script>const catalog=\"InternalServerError: IDX10000: The parameter 'token' cannot be a 'null' or an empty object.\\r\\nParameter name: token\";</script>",
+      "<div data-example='InternalServerError: IDX10000: The parameter &#39;token&#39; cannot be a &#39;null&#39; or an empty object.\r\nParameter name: token'></div>",
+      "<div data-example=\"InternalServerError: IDX10000: The parameter 'token' cannot be a 'null' or an empty object.\r\nParameter name: token\"></div>"
+    ]
+  },
+  {
+    "id": "urlpattern",
+    "body": "Failed to parse URLPattern from \"https://fixture.test/items?tag=sample+\": parser error: expected token End, found '+' of type OtherModifier",
+    "expected": {
+      "family": "urlpattern",
+      "diagnosticKind": "syntax_error",
+      "contextKind": "backend_diagnostic"
+    },
+    "negativeBodies": [
+      "<code>Failed to parse URLPattern from \"https://fixture.test/items?tag=sample+\": parser error: expected token End, found '+' of type OtherModifier</code>",
+      "<section class=\"documentation\">Failed to parse URLPattern from \"https://fixture.test/items?tag=sample+\": parser error: expected token End, found '+' of type OtherModifier</section>",
+      "<script>const catalog=\"Failed to parse URLPattern from \\\"https://fixture.test/items?tag=sample+\\\": parser error: expected token End, found '+' of type OtherModifier\";</script>",
+      "<div data-example='Failed to parse URLPattern from \"https://fixture.test/items?tag=sample+\": parser error: expected token End, found &#39;+&#39; of type OtherModifier'></div>",
+      "<div data-example=\"Failed to parse URLPattern from &quot;https://fixture.test/items?tag=sample+&quot;: parser error: expected token End, found '+' of type OtherModifier\"></div>"
+    ]
+  },
+  {
+    "id": "jcr",
+    "body": "<font color=\"red\">javax.jcr.query.InvalidQueryException: Encountered \"&gt;\" at line 1, column 52.\nWas expecting:\n    \")\" ...</font>",
+    "expected": {
+      "family": "jcr",
+      "diagnosticKind": "query_parse",
+      "contextKind": "backend_diagnostic"
+    },
+    "negativeBodies": [
+      "<code><font color=\"red\">javax.jcr.query.InvalidQueryException: Encountered \"&gt;\" at line 1, column 52.\nWas expecting:\n    \")\" ...</font></code>",
+      "<section class=\"documentation\"><font color=\"red\">javax.jcr.query.InvalidQueryException: Encountered \"&gt;\" at line 1, column 52.\nWas expecting:\n    \")\" ...</font></section>",
+      "<script>const catalog=\"<font color=\\\"red\\\">javax.jcr.query.InvalidQueryException: Encountered \\\"&gt;\\\" at line 1, column 52.\\nWas expecting:\\n    \\\")\\\" ...</font>\";</script>",
+      "<div data-example='<font color=\"red\">javax.jcr.query.InvalidQueryException: Encountered \"&gt;\" at line 1, column 52.\nWas expecting:\n    \")\" ...</font>'></div>",
+      "<div data-example=\"<font color=&quot;red&quot;>javax.jcr.query.InvalidQueryException: Encountered &quot;&amp;gt;&quot; at line 1, column 52.\nWas expecting:\n    &quot;)&quot; ...</font>\"></div>"
+    ]
+  },
+  {
+    "id": "java_locale",
+    "body": "<h1>HTTP Status 500</h1><p><b>Message</b> Request processing failed: java.lang.IllegalArgumentException: Locale part &quot;sample&quot; contains invalid characters</p>",
+    "expected": {
+      "family": "java",
+      "diagnosticKind": "locale_validation",
+      "contextKind": "backend_diagnostic"
+    },
+    "negativeBodies": [
+      "<code><h1>HTTP Status 500</h1><p><b>Message</b> Request processing failed: java.lang.IllegalArgumentException: Locale part &quot;sample&quot; contains invalid characters</p></code>",
+      "<section class=\"documentation\"><h1>HTTP Status 500</h1><p><b>Message</b> Request processing failed: java.lang.IllegalArgumentException: Locale part &quot;sample&quot; contains invalid characters</p></section>",
+      "<script>const catalog=\"<h1>HTTP Status 500</h1><p><b>Message</b> Request processing failed: java.lang.IllegalArgumentException: Locale part &quot;sample&quot; contains invalid characters</p>\";</script>",
+      "<div data-example='<h1>HTTP Status 500</h1><p><b>Message</b> Request processing failed: java.lang.IllegalArgumentException: Locale part &quot;sample&quot; contains invalid characters</p>'></div>",
+      "<div data-example=\"<h1>HTTP Status 500</h1><p><b>Message</b> Request processing failed: java.lang.IllegalArgumentException: Locale part &amp;quot;sample&amp;quot; contains invalid characters</p>\"></div>"
+    ]
+  },
+  {
+    "id": "lua",
+    "body": "{\"traceback\": \"\\nstack traceback:\\n\\t[C]: in function 'decode'\\n\\t./lib/synthetic.lua:4: in function 'serve'\", \"error\": \"./lib/synthetic.lua:2: bad argument #1 to 'decode' (string expected, got nil)\"}",
+    "expected": {
+      "family": "lua",
+      "diagnosticKind": "argument_type",
+      "contextKind": "structured_error"
+    },
+    "negativeBodies": [
+      "<code>{\"traceback\": \"\\nstack traceback:\\n\\t[C]: in function 'decode'\\n\\t./lib/synthetic.lua:4: in function 'serve'\", \"error\": \"./lib/synthetic.lua:2: bad argument #1 to 'decode' (string expected, got nil)\"}</code>",
+      "<section class=\"documentation\">{\"traceback\": \"\\nstack traceback:\\n\\t[C]: in function 'decode'\\n\\t./lib/synthetic.lua:4: in function 'serve'\", \"error\": \"./lib/synthetic.lua:2: bad argument #1 to 'decode' (string expected, got nil)\"}</section>",
+      "<script>const catalog=\"{\\\"traceback\\\": \\\"\\\\nstack traceback:\\\\n\\\\t[C]: in function 'decode'\\\\n\\\\t./lib/synthetic.lua:4: in function 'serve'\\\", \\\"error\\\": \\\"./lib/synthetic.lua:2: bad argument #1 to 'decode' (string expected, got nil)\\\"}\";</script>",
+      "<div data-example='{\"traceback\": \"\\nstack traceback:\\n\\t[C]: in function &#39;decode&#39;\\n\\t./lib/synthetic.lua:4: in function &#39;serve&#39;\", \"error\": \"./lib/synthetic.lua:2: bad argument #1 to &#39;decode&#39; (string expected, got nil)\"}'></div>",
+      "<div data-example=\"{&quot;traceback&quot;: &quot;\\nstack traceback:\\n\\t[C]: in function 'decode'\\n\\t./lib/synthetic.lua:4: in function 'serve'&quot;, &quot;error&quot;: &quot;./lib/synthetic.lua:2: bad argument #1 to 'decode' (string expected, got nil)&quot;}\"></div>"
+    ]
+  },
+  {
+    "id": "perl",
+    "body": "<div class=\"error\"><h1>500 Internal Server Error:</h1><pre>Illegal characters in node (sample) at synthetic.pm line 149.\n</pre></div>",
+    "expected": {
+      "family": "perl",
+      "diagnosticKind": "validation",
+      "contextKind": "backend_diagnostic"
+    },
+    "negativeBodies": [
+      "<code><div class=\"error\"><h1>500 Internal Server Error:</h1><pre>Illegal characters in node (sample) at synthetic.pm line 149.\n</pre></div></code>",
+      "<section class=\"documentation\"><div class=\"error\"><h1>500 Internal Server Error:</h1><pre>Illegal characters in node (sample) at synthetic.pm line 149.\n</pre></div></section>",
+      "<script>const catalog=\"<div class=\\\"error\\\"><h1>500 Internal Server Error:</h1><pre>Illegal characters in node (sample) at synthetic.pm line 149.\\n</pre></div>\";</script>",
+      "<div data-example='<div class=\"error\"><h1>500 Internal Server Error:</h1><pre>Illegal characters in node (sample) at synthetic.pm line 149.\n</pre></div>'></div>",
+      "<div data-example=\"<div class=&quot;error&quot;><h1>500 Internal Server Error:</h1><pre>Illegal characters in node (sample) at synthetic.pm line 149.\n</pre></div>\"></div>"
+    ]
+  },
+  {
+    "id": "datetime",
+    "body": "Failed to parse time string (sample) at position 0 (s): The timezone could not be found in the database",
+    "expected": {
+      "family": "datetime",
+      "diagnosticKind": "parse_error",
+      "contextKind": "backend_diagnostic"
+    },
+    "negativeBodies": [
+      "<code>Failed to parse time string (sample) at position 0 (s): The timezone could not be found in the database</code>",
+      "<section class=\"documentation\">Failed to parse time string (sample) at position 0 (s): The timezone could not be found in the database</section>",
+      "<script>const catalog=\"Failed to parse time string (sample) at position 0 (s): The timezone could not be found in the database\";</script>",
+      "<div data-example='Failed to parse time string (sample) at position 0 (s): The timezone could not be found in the database'></div>",
+      "<div data-example=\"Failed to parse time string (sample) at position 0 (s): The timezone could not be found in the database\"></div>"
+    ]
+  },
+  {
+    "id": "java_numeric_comment",
+    "body": "<!--\nSyntheticHeader.doAfterBody request().getParameterMap() = map\nSyntheticHeader.doAfterBody e = java.lang.NumberFormatException: null\nSyntheticHeader.doAfterBody version = 3\n-->",
+    "expected": {
+      "family": "java",
+      "diagnosticKind": "numeric_parse_debug",
+      "contextKind": "backend_diagnostic"
+    },
+    "negativeBodies": [
+      "<!-- java.lang.NumberFormatException: null -->",
+      "<script>const catalog=\"<!--\\nSyntheticHeader.doAfterBody request().getParameterMap() = map\\nSyntheticHeader.doAfterBody e = java.lang.NumberFormatException: null\\nSyntheticHeader.doAfterBody version = 3\\n-->\";</script>",
+      "<div data-example='<!--\nSyntheticHeader.doAfterBody request().getParameterMap() = map\nSyntheticHeader.doAfterBody e = java.lang.NumberFormatException: null\nSyntheticHeader.doAfterBody version = 3\n-->'></div>",
+      "<div data-example=\"<!--\nSyntheticHeader.doAfterBody request().getParameterMap() = map\nSyntheticHeader.doAfterBody e = java.lang.NumberFormatException: null\nSyntheticHeader.doAfterBody version = 3\n-->\"></div>"
+    ]
+  },
+  {
+    "id": "joomla",
+    "body": "<pre class=\"stacktrace\">Joomla\\CMS\\WebAsset\\Exception\\UnknownAssetException:\nThere is no &quot;synthetic.main&quot; asset of a &quot;preset&quot; type in the registry.\n\n at /srv/synthetic/Registry.php:8</pre>",
+    "expected": {
+      "family": "joomla",
+      "diagnosticKind": "asset_registry",
+      "contextKind": "backend_diagnostic"
+    },
+    "negativeBodies": [
+      "<code><pre class=\"stacktrace\">Joomla\\CMS\\WebAsset\\Exception\\UnknownAssetException:\nThere is no &quot;synthetic.main&quot; asset of a &quot;preset&quot; type in the registry.\n\n at /srv/synthetic/Registry.php:8</pre></code>",
+      "<section class=\"documentation\"><pre class=\"stacktrace\">Joomla\\CMS\\WebAsset\\Exception\\UnknownAssetException:\nThere is no &quot;synthetic.main&quot; asset of a &quot;preset&quot; type in the registry.\n\n at /srv/synthetic/Registry.php:8</pre></section>",
+      "<script>const catalog=\"<pre class=\\\"stacktrace\\\">Joomla\\\\CMS\\\\WebAsset\\\\Exception\\\\UnknownAssetException:\\nThere is no &quot;synthetic.main&quot; asset of a &quot;preset&quot; type in the registry.\\n\\n at /srv/synthetic/Registry.php:8</pre>\";</script>",
+      "<div data-example='<pre class=\"stacktrace\">Joomla\\CMS\\WebAsset\\Exception\\UnknownAssetException:\nThere is no &quot;synthetic.main&quot; asset of a &quot;preset&quot; type in the registry.\n\n at /srv/synthetic/Registry.php:8</pre>'></div>",
+      "<div data-example=\"<pre class=&quot;stacktrace&quot;>Joomla\\CMS\\WebAsset\\Exception\\UnknownAssetException:\nThere is no &amp;quot;synthetic.main&amp;quot; asset of a &amp;quot;preset&amp;quot; type in the registry.\n\n at /srv/synthetic/Registry.php:8</pre>\"></div>"
+    ]
+  },
+  {
+    "id": "neos",
+    "body": "<div class=\"Flow-Debug-Exception-Header\"><h1 class=\"ExceptionSubject\">Could not convert target type &quot;Neos\\ContentRepository\\Domain\\Model\\NodeInterface&quot;: Only absolute paths are allowed for Context::getNode()</h1></div>",
+    "expected": {
+      "family": "neos",
+      "diagnosticKind": "node_path_validation",
+      "contextKind": "backend_diagnostic"
+    },
+    "negativeBodies": [
+      "<code><div class=\"Flow-Debug-Exception-Header\"><h1 class=\"ExceptionSubject\">Could not convert target type &quot;Neos\\ContentRepository\\Domain\\Model\\NodeInterface&quot;: Only absolute paths are allowed for Context::getNode()</h1></div></code>",
+      "<section class=\"documentation\"><div class=\"Flow-Debug-Exception-Header\"><h1 class=\"ExceptionSubject\">Could not convert target type &quot;Neos\\ContentRepository\\Domain\\Model\\NodeInterface&quot;: Only absolute paths are allowed for Context::getNode()</h1></div></section>",
+      "<script>const catalog=\"<div class=\\\"Flow-Debug-Exception-Header\\\"><h1 class=\\\"ExceptionSubject\\\">Could not convert target type &quot;Neos\\\\ContentRepository\\\\Domain\\\\Model\\\\NodeInterface&quot;: Only absolute paths are allowed for Context::getNode()</h1></div>\";</script>",
+      "<div data-example='<div class=\"Flow-Debug-Exception-Header\"><h1 class=\"ExceptionSubject\">Could not convert target type &quot;Neos\\ContentRepository\\Domain\\Model\\NodeInterface&quot;: Only absolute paths are allowed for Context::getNode()</h1></div>'></div>",
+      "<div data-example=\"<div class=&quot;Flow-Debug-Exception-Header&quot;><h1 class=&quot;ExceptionSubject&quot;>Could not convert target type &amp;quot;Neos\\ContentRepository\\Domain\\Model\\NodeInterface&amp;quot;: Only absolute paths are allowed for Context::getNode()</h1></div>\"></div>"
+    ]
+  },
+  {
+    "id": "odata",
+    "body": "<h1>An unhandled exception occurred while processing the request.</h1><div class=\"titleerror\">CloudException: Invalid expression: Syntax error: character &quot;&gt;&quot; is not valid at position 8 in &quot;(kind eq sample)&quot;.<br />\nParameter name: $filter</div><p class=\"location\">Microsoft.Azure.Search.DocumentsOperations.Search()</p>",
+    "expected": {
+      "family": "odata",
+      "diagnosticKind": "filter_parse",
+      "contextKind": "backend_diagnostic"
+    },
+    "negativeBodies": [
+      "<code><h1>An unhandled exception occurred while processing the request.</h1><div class=\"titleerror\">CloudException: Invalid expression: Syntax error: character &quot;&gt;&quot; is not valid at position 8 in &quot;(kind eq sample)&quot;.<br />\nParameter name: $filter</div><p class=\"location\">Microsoft.Azure.Search.DocumentsOperations.Search()</p></code>",
+      "<section class=\"documentation\"><h1>An unhandled exception occurred while processing the request.</h1><div class=\"titleerror\">CloudException: Invalid expression: Syntax error: character &quot;&gt;&quot; is not valid at position 8 in &quot;(kind eq sample)&quot;.<br />\nParameter name: $filter</div><p class=\"location\">Microsoft.Azure.Search.DocumentsOperations.Search()</p></section>",
+      "<script>const catalog=\"<h1>An unhandled exception occurred while processing the request.</h1><div class=\\\"titleerror\\\">CloudException: Invalid expression: Syntax error: character &quot;&gt;&quot; is not valid at position 8 in &quot;(kind eq sample)&quot;.<br />\\nParameter name: $filter</div><p class=\\\"location\\\">Microsoft.Azure.Search.DocumentsOperations.Search()</p>\";</script>",
+      "<div data-example='<h1>An unhandled exception occurred while processing the request.</h1><div class=\"titleerror\">CloudException: Invalid expression: Syntax error: character &quot;&gt;&quot; is not valid at position 8 in &quot;(kind eq sample)&quot;.<br />\nParameter name: $filter</div><p class=\"location\">Microsoft.Azure.Search.DocumentsOperations.Search()</p>'></div>",
+      "<div data-example=\"<h1>An unhandled exception occurred while processing the request.</h1><div class=&quot;titleerror&quot;>CloudException: Invalid expression: Syntax error: character &amp;quot;&amp;gt;&amp;quot; is not valid at position 8 in &amp;quot;(kind eq sample)&amp;quot;.<br />\nParameter name: $filter</div><p class=&quot;location&quot;>Microsoft.Azure.Search.DocumentsOperations.Search()</p>\"></div>"
+    ]
+  },
+  {
+    "id": "php_locale",
+    "body": "<div class=\"info error\"><h1>[User Error] Uncaught InvalidArgumentException: Invalid locale \"sample\"</h1><p>Line <strong>310</strong> in <strong>/srv/synthetic/Translatable.php</strong></p></div>",
+    "expected": {
+      "family": "php",
+      "diagnosticKind": "locale_validation",
+      "contextKind": "backend_diagnostic"
+    },
+    "negativeBodies": [
+      "<code><div class=\"info error\"><h1>[User Error] Uncaught InvalidArgumentException: Invalid locale \"sample\"</h1><p>Line <strong>310</strong> in <strong>/srv/synthetic/Translatable.php</strong></p></div></code>",
+      "<section class=\"documentation\"><div class=\"info error\"><h1>[User Error] Uncaught InvalidArgumentException: Invalid locale \"sample\"</h1><p>Line <strong>310</strong> in <strong>/srv/synthetic/Translatable.php</strong></p></div></section>",
+      "<script>const catalog=\"<div class=\\\"info error\\\"><h1>[User Error] Uncaught InvalidArgumentException: Invalid locale \\\"sample\\\"</h1><p>Line <strong>310</strong> in <strong>/srv/synthetic/Translatable.php</strong></p></div>\";</script>",
+      "<div data-example='<div class=\"info error\"><h1>[User Error] Uncaught InvalidArgumentException: Invalid locale \"sample\"</h1><p>Line <strong>310</strong> in <strong>/srv/synthetic/Translatable.php</strong></p></div>'></div>",
+      "<div data-example=\"<div class=&quot;info error&quot;><h1>[User Error] Uncaught InvalidArgumentException: Invalid locale &quot;sample&quot;</h1><p>Line <strong>310</strong> in <strong>/srv/synthetic/Translatable.php</strong></p></div>\"></div>"
+    ]
+  },
+  {
+    "id": "file_read",
+    "body": "<div>Fatal Error Can't read file: synthetic/start.html</div>",
+    "expected": {
+      "family": "application",
+      "diagnosticKind": "file_read",
+      "contextKind": "backend_diagnostic"
+    },
+    "negativeBodies": [
+      "<code><div>Fatal Error Can't read file: synthetic/start.html</div></code>",
+      "<section class=\"documentation\"><div>Fatal Error Can't read file: synthetic/start.html</div></section>",
+      "<script>const catalog=\"<div>Fatal Error Can't read file: synthetic/start.html</div>\";</script>",
+      "<div data-example='<div>Fatal Error Can&#39;t read file: synthetic/start.html</div>'></div>",
+      "<div data-example=\"<div>Fatal Error Can't read file: synthetic/start.html</div>\"></div>"
+    ]
+  }
+]

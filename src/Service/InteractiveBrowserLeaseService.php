@@ -58,6 +58,11 @@ final class InteractiveBrowserLeaseService
             $row = $this->current();
             $this->assertRevision($row, $expectedRevision);
             $this->assertState($row, ['available']);
+            // Pin server-side context before the caller starts browser navigation.
+            // Never accept a marker/proof binding supplied by a worker or client.
+            unset($binding['proofContext']);
+            $proofContext = $this->proofContextAtStart($binding);
+            if ($proofContext !== null) $binding['proofContext'] = $proofContext;
             $next = array_replace($this->available($this->nextGeneration($row)), [
                 'state' => 'activating', 'finding_id' => $binding['finding_id'],
                 'owner_hash' => $owner, 'channel_id' => $channel, 'binding' => $binding,
@@ -78,8 +83,8 @@ final class InteractiveBrowserLeaseService
             $row = $this->current();
             $this->assertRevision($row, $generation);
             $this->assertState($row, ['activating']);
-            foreach (['finding_id', 'start_url', 'start_url_hash'] as $key) {
-                if (array_key_exists($key, $workerContext) && $workerContext[$key] !== $row['binding'][$key]) {
+            foreach (['finding_id', 'start_url', 'start_url_hash', 'poc_revision', 'proofContext'] as $key) {
+                if (array_key_exists($key, $workerContext) && $workerContext[$key] !== ($row['binding'][$key] ?? null)) {
                     throw new \RuntimeException('Interactive finding binding changed.', 409);
                 }
             }
@@ -259,6 +264,23 @@ final class InteractiveBrowserLeaseService
         if ($owner === '' || $channel === '') {
             throw new \InvalidArgumentException('Interactive browser owner and channel are required.');
         }
+    }
+
+    private function proofContextAtStart(array $binding): ?array
+    {
+        // The lease primitive also supports standalone installations/tests without
+        // a finding table. Such sessions have no execution-proof attribution.
+        if (!in_array('finding', $this->connection->createSchemaManager()->listTableNames(), true)) return null;
+        $finding = $this->connection->fetchAssociative('SELECT id, COALESCE(poc_url, url) AS poc_url, poc_revision, expected_evidence, method, request_params, payload FROM finding WHERE id = ?', [$binding['finding_id']]);
+        if ($finding === false || $finding['poc_url'] !== $binding['start_url']
+            || hash('sha256', $finding['poc_url']) !== $binding['start_url_hash']
+            || (int) $finding['poc_revision'] !== (int) ($binding['poc_revision'] ?? 0)) {
+            throw new \RuntimeException('Interactive proof context changed before session start.', 409);
+        }
+        return ['findingId' => $finding['id'], 'pocUrl' => $finding['poc_url'],
+            'pocRevision' => (int) $finding['poc_revision'], 'pocSha256' => hash('sha256', $finding['poc_url']),
+            'expectedMarker' => $finding['expected_evidence'],
+            'requestContextSha256' => WorkerProofResolver::requestContextHashFromValues($finding['method'], $finding['request_params'] === null ? null : json_decode($finding['request_params'], true, 512, JSON_THROW_ON_ERROR), $finding['payload'], $finding['expected_evidence'])];
     }
 
     private function nextGeneration(array $row): int

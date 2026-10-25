@@ -90,7 +90,7 @@ final class StudioExportService
             foreach ($this->pages($filter) as $page) {
                 [$details, $observations] = $this->details($page, $includeNotes);
                 foreach ($page as $finding) {
-                    $record = $this->record($finding, $details[$finding->id], $observations, $includeNotes);
+                    $record = $this->record($finding, $details[$finding->id], $observations, $includeNotes, $filter->cribrumHistory);
                     $write(($firstFinding ? '' : ',').substr($this->json($record), 0, -1).',"evidence":[');
                     $firstFinding = false;
                     $firstEvidence = true;
@@ -178,7 +178,7 @@ final class StudioExportService
     }
 
     /** @param array<string, mixed> $detail @param array<string, array<string, mixed>> $observations */
-    private function record(FindingReadView $finding, array $detail, array $observations, bool $includeNotes): array
+    private function record(FindingReadView $finding, array $detail, array $observations, bool $includeNotes, bool $includeHistory = false): array
     {
         $observation = $finding->observationId === null ? null : $observations[$finding->observationId];
         $record = [
@@ -222,6 +222,7 @@ final class StudioExportService
             'discarded' => $finding->discarded,
             'legacy' => ['status' => $finding->legacyStatus, 'reviewState' => $finding->legacyReviewState],
         ];
+        $record['cribrum'] = CribrumSummaryExport::fromReadView($finding, $detail['claims'], $includeHistory);
         // Absent for cases without claims, keeping legacy export records identical.
         if ($detail['claims'] !== []) {
             $record['claims'] = $detail['claims'];

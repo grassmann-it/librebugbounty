@@ -34,6 +34,9 @@ final class CribrumClassifyCommand extends Command
             ->addOption('payload', null, InputOption::VALUE_REQUIRED, 'Original payload context (does not change the requested URL).')
             ->addOption('marker', null, InputOption::VALUE_REQUIRED, 'Expected reflection marker. HTTP input cannot prove browser execution.')
             ->addOption('format', null, InputOption::VALUE_REQUIRED, 'Output format: text or json.', 'text')
+            ->addOption('candidate-packs', null, InputOption::VALUE_REQUIRED, 'Explicit local schema-2 candidate directory; offline --response input required.')
+            ->addOption('candidate-mode', null, InputOption::VALUE_REQUIRED, 'Candidate evidence mode: shadow or active (complete detector coverage required).', 'shadow')
+            ->addOption('capture-complete', null, InputOption::VALUE_NONE, 'Declare the supplied response capture complete for supported-signature coverage.')
             ->addOption('explain', null, InputOption::VALUE_NONE, 'Include all rule hits and exclusions.');
     }
 
@@ -45,6 +48,13 @@ final class CribrumClassifyCommand extends Command
             $url = $input->getArgument('url');
             $file = $input->getOption('response');
             $domFile = $input->getOption('dom');
+            $candidateDirectory = $input->getOption('candidate-packs');
+            $candidateMode = $input->getOption('candidate-mode');
+            if (!in_array($candidateMode, ['shadow', 'active'], true)) throw new \InvalidArgumentException('Use --candidate-mode=shadow or active.');
+            if ($candidateDirectory !== null && (!is_dir($candidateDirectory) || !is_readable($candidateDirectory))) throw new \InvalidArgumentException('Candidate directory must be readable.');
+            if ($candidateDirectory !== null && $file === null) throw new \InvalidArgumentException('Candidate packs require offline --response input.');
+            if ($candidateMode === 'active' && $candidateDirectory === null) throw new \InvalidArgumentException('Active mode requires explicit --candidate-packs.');
+
             if ($url === null && $file === null) throw new \InvalidArgumentException('Provide a URL or --response=FILE (or --response=- for stdin).');
             if ($url !== null) CribrumProbeSource::validateUrl($url);
             if ($file === '-' && $domFile === '-') throw new \InvalidArgumentException('Only one input may read from stdin.');
@@ -62,10 +72,13 @@ final class CribrumClassifyCommand extends Command
                 $url ?? 'https://response.invalid/', $capture['body'], $dom,
                 $type ?? $capture['contentType'], $status === null ? $capture['httpStatus'] : (int) $status,
                 $capture['finalUrl'], $input->getOption('payload'), $input->getOption('marker'), false, null,
+                $input->getOption('capture-complete') ? ['status' => 'complete'] : [],
             );
             $rules = $input->getOption('explain') ? [] : null;
-            $result = $this->classifier->classify($observation, $rules);
+            $classifier = $candidateDirectory === null ? $this->classifier : new CribrumClassifier(null, $candidateDirectory, $candidateMode);
+            $result = $classifier->classify($observation, $rules);
             $warnings = ['HTTP/DOM text only: JavaScript is not executed and no native dialog is observed. Classification is not a manual assessment.'];
+            if (in_array($result->coverage['status'] ?? null, ['partial', 'unknown'], true)) $warnings[] = 'Incomplete evaluation: coverage is '.($result->coverage['status']).'; valid findings remain available. Exit 0 does not certify a complete evaluation.';
             if ($url === null) $warnings[] = 'No URL context supplied; URL-parameter-dependent rules may not match.';
             if ($observation->httpStatus === null) $warnings[] = 'HTTP status is unknown; status-dependent rules may not match. Use --status or provide HTTP headers.';
             if ($capture['httpStatus'] >= 300 && $capture['httpStatus'] < 400) $warnings[] = 'Redirect response: redirects are not followed. Supply the destination URL explicitly to test it.';
@@ -125,6 +138,7 @@ final class CribrumClassifyCommand extends Command
         $io->text(sprintf('Source: %s | HTTP: %s | Content-Type: %s | Body: %d bytes', $source['mode'],
             $source['httpStatus'] ?? 'unknown', $this->safe($source['contentType'] ?? 'unknown'), $source['rawBytes']));
         $io->text('Classifier: '.$this->safe($result['classifierVersion']));
+        if (isset($result['coverage']['status'])) $io->text('Coverage: '.$this->safe($result['coverage']['status']));
         foreach ($result['packs'] as $id => $version) $io->text('Pack: '.$this->safe($id.'@'.$version));
         if ($result['suggestions'] === []) $io->text('No claim suggestions. This does not prove that the response is safe.');
         foreach ($result['suggestions'] as $suggestion) {

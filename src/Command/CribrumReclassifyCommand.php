@@ -22,6 +22,7 @@ final class CribrumReclassifyCommand extends Command
     {
         $this
             ->addOption('finding', null, InputOption::VALUE_REQUIRED, 'Restrict reclassification to one finding ID.')
+            ->addOption('since', null, InputOption::VALUE_REQUIRED, 'Only findings created since this PHP datetime expression, for example "24 hours ago".')
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Classify without writing claim suggestions.');
     }
 
@@ -35,8 +36,24 @@ final class CribrumReclassifyCommand extends Command
             return Command::INVALID;
         }
         $dryRun = (bool) $input->getOption('dry-run');
+        $since = null;
+        $sinceValue = $input->getOption('since');
+        if ($sinceValue !== null) {
+            if (!is_string($sinceValue) || trim($sinceValue) === '') {
+                $io->error('--since must be a non-empty PHP datetime expression.');
+
+                return Command::INVALID;
+            }
+            try {
+                $since = new \DateTimeImmutable(trim($sinceValue));
+            } catch (\Exception) {
+                $io->error('--since must be a valid PHP datetime expression.');
+
+                return Command::INVALID;
+            }
+        }
         try {
-            $summary = $this->reclassify->reclassify($finding === null ? null : trim($finding), $dryRun);
+            $summary = $this->reclassify->reclassify($finding === null ? null : trim($finding), $dryRun, $since);
         } catch (\InvalidArgumentException $error) {
             $io->error($error->getMessage());
 

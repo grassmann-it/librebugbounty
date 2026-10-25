@@ -1,7 +1,14 @@
 [data-studio-detail] .studio-detail-shell { grid-template-rows: 56px minmax(0, 1fr) 64px; }
 .studio-detail-workspace { min-width: 0; min-height: 0; width: 100%; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: #48525f transparent; }
 .studio-case-heading, .studio-case-layout, .studio-detail-sections, .studio-technical-section, .studio-detail-feedback { width: min(100%, 1720px); margin-inline: auto; }
-.studio-case-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 25px 30px 20px; }
+.studio-detail-workspace > .cribrum-summary { box-sizing: border-box; width: min(100%, 1720px); margin: 0 auto 16px; padding: 0 30px; }
+.studio-case-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 30px 16px; }
+.studio-detail-workspace > .cribrum-summary > .cribrum-summary-heading { margin-bottom: 8px; }
+.studio-detail-workspace > .cribrum-summary > .cribrum-action-help { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.studio-detail-workspace > .cribrum-summary > .cribrum-freshness { margin: 8px 0 0; padding-block: 4px; font-size: 12px; }
+.studio-detail-workspace > .cribrum-summary > .cribrum-badges { padding: 3px 0; }
+.studio-case-proof { min-width: 0; margin-top: 18px; }
+.studio-case-proof > .cribrum-history, .studio-case-proof > .cribrum-diagnostics { font-size: 12px; }
 .studio-case-title { min-width: 0; }
 .studio-case-heading h1 { margin: 3px 0; font-size: 26px; line-height: 1.3; letter-spacing: -.7px; font-weight: 550; overflow-wrap: anywhere; }
 .studio-case-subtitle { margin: 5px 0 0; font-size: 12px; color: var(--studio-muted); overflow-wrap: anywhere; }
@@ -11,7 +18,7 @@
 .studio-detail-sections a { display: flex; align-items: center; gap: 8px; padding: 12px 0; color: #c1cbd8; font-size: 12px; }
 .studio-detail-sections a:hover { color: var(--studio-blue); }
 .studio-detail-sections a span { padding: 1px 5px; border-radius: 3px; background: #303640; color: var(--studio-muted); font-size: 10px; }
-.studio-case-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; }
+.studio-case-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(420px, 500px); }
 .studio-evidence-workspace { min-width: 0; padding: 24px 30px 30px; background: #171a1e; scroll-margin-top: 58px; }
 .studio-section-heading, .studio-source-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 14px; }
 .studio-section-heading { margin-bottom: 14px; }
@@ -58,6 +65,11 @@
 .studio-observation { margin: 18px 0 16px; padding: 12px 13px; border: 1px solid #3c4655; border-radius: 4px; background: #222932; }
 .studio-observation > p { margin: 5px 0; color: #d1dbe9; font-size: 12px; }
 .studio-observation .studio-observation-callout { margin: 10px 0 0; color: var(--studio-amber); font-size: 11px; }
+.studio-case-proof { min-width: 0; margin: 16px 0 0; }
+.studio-case-proof:empty { display: none; }
+.studio-case-proof .cribrum-proof-panels { min-width: 0; }
+.studio-case-proof .cribrum-proof { overflow-wrap: anywhere; }
+.studio-case-proof .cribrum-proof pre { max-width: 100%; }
 .studio-assessment-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 13px 0; }
 .studio-detail-button { display: inline-flex; align-items: center; justify-content: center; min-height: 35px; padding: 7px 12px; border: 1px solid #4b5668; border-radius: 4px; background: #2b3340; color: #e0e8f3; font-size: 11px !important; font-weight: 550; cursor: pointer; }
 .studio-detail-button:hover { background: #354257; border-color: #819abf; }
@@ -126,6 +138,7 @@
 }
 
 @media (max-width: 640px) {
+  .studio-detail-workspace > .cribrum-summary { padding-inline: 20px; }
   .studio-case-heading { align-items: flex-start; gap: 10px; padding: 20px 20px 17px; }
   .studio-case-heading h1 { font-size: 23px; }
   .studio-case-subtitle { font-size: 11px; }
@@ -147,6 +160,7 @@
 }
 
 @media (max-width: 479px) {
+  .studio-detail-workspace > .cribrum-summary { padding-inline: 17px; }
   [data-studio-detail] .studio-detail-shell { height: auto; min-height: 100dvh; overflow: visible; grid-template-rows: 52px minmax(0, 1fr) 64px; }
   .studio-detail-workspace { overflow: visible; }
   .studio-case-heading { padding-inline: 17px; }

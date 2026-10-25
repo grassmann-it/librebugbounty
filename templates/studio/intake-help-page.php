@@ -7,6 +7,7 @@
   <meta name="theme-color" content="#121416">
   <title><?= $escape($t('URL erfassen – so funktioniert’s')) ?> · <?= $escape(\App\AppInfo::NAME.' '.\App\AppInfo::RELEASE_NAME) ?></title>
   <?php require __DIR__.'/styles.php'; ?>
+  <link rel="stylesheet" href="/css/studio-intake.css?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/css/studio-intake.css'), 0, 16) ?>">
   <link rel="stylesheet" href="/css/studio-settings.css">
   <script src="/js/i18n.js" defer></script>
 </head>

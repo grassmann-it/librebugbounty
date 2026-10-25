@@ -2,9 +2,9 @@
  * Isolated intake-session acceptance; never point this at the live application.
  *
  *   STUDIO_BROWSER_ROOT=/tmp/librebugbounty-studio-session-UNIQUE \
- *     php -d extension=pdo_sqlite tests/Support/studio_browser_router.php init
+ *     php tests/Support/studio_browser_router.php init
  *   STUDIO_BROWSER_ROOT=/tmp/librebugbounty-studio-session-UNIQUE \
- *     php -d extension=pdo_sqlite -S 127.0.0.1:8092 -t public tests/Support/studio_browser_router.php
+ *     php -S 127.0.0.1:8092 -t public tests/Support/studio_browser_router.php
  *   node tests/browser/studio-intake-session.cjs
  *
  * STUDIO_BROWSER_BASE and STUDIO_BROWSER_OUTPUT override the server and artifacts.
@@ -142,7 +142,7 @@ async function main() {
   async function draft(page) {
     return page.evaluate(() => {
       const form = document.querySelector('#intake-form');
-      return { url: form.elements.url.value, payload: form.elements.payload.value, notes: form.elements.annotate.value };
+      return { url: form.elements.url.value, payload: form.elements.payload.value, notes: form.elements.annotate.value, declaredType: form.elements.declaredType.value };
     });
   }
 
@@ -307,6 +307,7 @@ async function main() {
     await page.locator(urlField).fill('https://session-acceptance.example/draft-a');
     await page.locator('#intake-form [name="payload"]').fill('TAB A');
     await page.locator('#intake-form [name="annotate"]').fill('Draft A\nsecond line');
+    await page.locator('#intake-form [name="declaredType"]').selectOption('local_file_inclusion');
     const draftA = await draft(page);
     const second = await openIntake(context);
     await waitCount(second, 61);
@@ -527,6 +528,8 @@ async function main() {
       committed = await response.json();
       return route.abort('failed');
     });
+    await failure.locator('#intake-form details').evaluate((node) => { node.open = true; });
+    await failure.locator('#intake-form [name="declaredType"]').selectOption('sql_injection');
     await failure.locator(urlField).fill('https://session-recovery.example/committed-response-lost');
     await failure.locator(urlField).press('Enter');
     await failure.locator('[data-intake-entry][data-save-state="unconfirmed"]').waitFor({ state: 'attached' });
@@ -547,7 +550,10 @@ async function main() {
     assert.equal(await failure.locator(historyRows + '[data-save-state="unconfirmed"]').count(), 1);
     assert.equal(await failure.locator(historyRows + '[data-save-state="confirmed"]').count(), 48, 'Global recovery attempts occupy rows within the same 50-row limit');
     const failurePostCount = postRequests.filter((request) => request.page === failure).length;
+    await failure.locator('#intake-form details').evaluate((node) => { node.open = true; });
+    await failure.locator('#intake-form [name="declaredType"]').selectOption('information_disclosure');
     await failure.locator(historyRows + '[data-save-state="unconfirmed"] button').click();
+    assert.equal(await failure.locator('#intake-form [name="declaredType"]').inputValue(), 'sql_injection', 'History recovery preserves declared type from the original request');
     assert.equal(await failure.locator(urlField).inputValue(), 'https://session-recovery.example/committed-response-lost');
     assert.equal(await failure.locator(urlField).evaluate((node) => node === document.activeElement), true);
     assert.equal(postRequests.filter((request) => request.page === failure).length, failurePostCount);

@@ -1,0 +1,108 @@
+{
+  "findingId": "synthetic-case-001",
+  "sourceInstanceId": "synthetic-source-v1",
+  "basisRevision": 1,
+  "decisionRevision": 1,
+  "intake": {
+    "schemaVersion": 1,
+    "sourceKind": "manual",
+    "sourceRef": null,
+    "declaredClaims": [
+      "xss"
+    ],
+    "payloadKind": "xss",
+    "payloadSource": null,
+    "markerSource": null,
+    "legacyCohortId": null
+  },
+  "poc": {
+    "intakeUrl": "https://fixture.invalid/search?q=demo",
+    "effectiveUrl": "https://fixture.invalid/search?q=demo",
+    "revision": 1,
+    "sha256": "1a17a53f69fc19271ac14b6e57ce9ee4a832d69335dac626f977c7ab10956ad0"
+  },
+  "legacyBasis": null,
+  "claims": [],
+  "selection": [],
+  "reportSelection": {
+    "mode": "auto",
+    "origin": "synthetic",
+    "revision": 1,
+    "actor": null,
+    "reason": null
+  },
+  "workflow": {},
+  "schemaVersion": 1,
+  "policyVersion": "behavior-report-v2",
+  "factIds": [],
+  "tags": [
+    "xss_execution_confirmed"
+  ],
+  "lane": "xss",
+  "components": [
+    {
+      "code": "xss_confirmed",
+      "certainty": "confirmed",
+      "evidenceRefs": [
+        {
+          "kind": "worker_proof",
+          "id": "synthetic-proof-001",
+          "sourceInstanceId": "synthetic-source-v1",
+          "findingId": "synthetic-case-001",
+          "pocRevision": 1,
+          "pocSha256": "1a17a53f69fc19271ac14b6e57ce9ee4a832d69335dac626f977c7ab10956ad0",
+          "contentSha256": "5822ad9ea122bea9dac595c240142526fa6aaca74a98bd91616183d601896ed7"
+        }
+      ]
+    }
+  ],
+  "gate": "eligible",
+  "reasonCodes": [
+    "worker_execution_basis"
+  ],
+  "reviewRequired": false,
+  "urgencyAllowed": false,
+  "decidedAt": "2026-10-22T12:00:00+00:00",
+  "coverage": {
+    "profile": "behavior-triage-v1",
+    "version": 1,
+    "requiredFamilies": [
+      "disclosure",
+      "local_include",
+      "reflection",
+      "remote_include",
+      "sql",
+      "waf"
+    ],
+    "evaluatedFamilies": [
+      "disclosure",
+      "local_include",
+      "reflection",
+      "remote_include",
+      "sql",
+      "waf"
+    ],
+    "status": "complete",
+    "pocRevision": 1,
+    "pocSha256": "1a17a53f69fc19271ac14b6e57ce9ee4a832d69335dac626f977c7ab10956ad0",
+    "artifactSha256": "487c2b2c21d3eb15ee24eb6940589bf957196f4c84fdcf2670b08acc67e4142d",
+    "resultVersion": "synthetic-triage-1",
+    "mode": "active"
+  },
+  "caseSummary": {
+    "kind": "pure_xss",
+    "purity": "pure",
+    "components": [
+      "xss_confirmed"
+    ],
+    "hints": [],
+    "reviewReasons": []
+  },
+  "wafBlockReview": {
+    "pending": false,
+    "acknowledgementAccepted": false,
+    "fingerprint": null,
+    "pendingFingerprints": []
+  },
+  "wafBlockFingerprint": null
+}

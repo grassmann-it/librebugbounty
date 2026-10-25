@@ -187,7 +187,7 @@ final class PlaywrightBrowserInteractiveClientTest extends KernelTestCase
         self::assertSame('alert', $capture->dialogType);
         self::assertSame('proof', $capture->dialogText);
         self::assertSame('interactive-desktop-page', $capture->captureMethod);
-        self::assertSame(self::screenshot()['metadata'], $capture->metadata);
+        self::assertSame(self::screenshot()['metadata'] + ['dialogEvents' => [], 'hookedDialogEvents' => []], $capture->metadata);
         $client->interactiveStatus(self::ID); // Capture must not implicitly close.
         $client->closeInteractive(self::ID);
         self::assertSame([

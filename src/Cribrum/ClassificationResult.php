@@ -4,6 +4,8 @@ namespace App\Cribrum;
 
 final readonly class ClassificationResult
 {
+    public array $coverage;
+    public array $diagnostics;
     /**
      * @param list<ClaimSuggestion> $suggestions
      * @param list<array<string,mixed>> $signals
@@ -14,9 +16,22 @@ final readonly class ClassificationResult
         public array $suggestions,
         public array $signals,
         public array $packs,
-        public array $diagnostics,
+        array $diagnostics,
         public string $classifierVersion,
+        array $coverage = [],
     ) {
+        if (EvaluationCoverage::requiresEvaluation($classifierVersion, $coverage, $packs)) {
+            $errors = EvaluationCoverage::validationErrors($coverage['evaluation'] ?? null, $packs);
+            if ($errors !== []) $diagnostics[] = 'Evaluation coverage contract invalid: '.implode(', ', $errors).'.';
+            if (($coverage['status'] ?? null) === 'complete' && !EvaluationCoverage::certifiesComplete($coverage, $classifierVersion, $packs)) $coverage['status'] = 'partial';
+        } elseif (array_key_exists('evaluation', $coverage) && ($coverage['status'] ?? null) === 'complete'
+            && !EvaluationCoverage::certifiesComplete($coverage, $classifierVersion, $packs)) {
+            $coverage['status'] = 'partial';
+        }
+        $diagnostics = array_values(array_unique($diagnostics));
+        sort($diagnostics, SORT_STRING);
+        $this->diagnostics = $diagnostics;
+        $this->coverage = $coverage;
     }
 
     public static function fromArray(array $data): self
@@ -33,7 +48,7 @@ final readonly class ClassificationResult
         $signals = [];
         foreach ($rawSignals as $signal) {
             if (!is_array($signal)) throw new \InvalidArgumentException('Invalid classification signal.');
-            $signals[] = $signal;
+            $signals[] = ($signal['kind'] ?? null) === 'observation_evidence' ? EvidenceSignal::validate($signal) : $signal;
         }
         $rawPacks = $data['packs'] ?? null;
         if (!is_array($rawPacks)) throw new \InvalidArgumentException('packs must be an array.');
@@ -60,7 +75,9 @@ final readonly class ClassificationResult
         $diagnostics = array_values(array_unique($diagnostics));
         sort($diagnostics, SORT_STRING);
 
-        return new self($suggestions, $signals, $packs, $diagnostics, $version);
+        $coverage = $data['coverage'] ?? [];
+        if (!is_array($coverage)) throw new \InvalidArgumentException('coverage must be an array.');
+        return new self($suggestions, $signals, $packs, $diagnostics, $version, $coverage);
     }
 
     public function toArray(): array
@@ -71,6 +88,7 @@ final readonly class ClassificationResult
             'packs' => $this->packs,
             'diagnostics' => $this->diagnostics,
             'classifierVersion' => $this->classifierVersion,
+            ...($this->coverage === [] ? [] : ['coverage' => $this->coverage]),
         ];
     }
 }

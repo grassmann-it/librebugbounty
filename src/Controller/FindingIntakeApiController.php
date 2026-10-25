@@ -60,6 +60,7 @@ final class FindingIntakeApiController
             $url = $this->stringParameter($parameters, 'url', required: true);
             $payload = $this->stringParameter($parameters, 'payload');
             $notes = $this->stringParameter($parameters, 'annotate');
+            $declaredType = $this->stringParameter($parameters, 'declaredType');
             $url = trim($url);
             $payload = trim($payload);
             $browserIntake = $parameters['browserIntake'] ?? false;
@@ -74,6 +75,7 @@ final class FindingIntakeApiController
             $create = fn (?callable $recorder = null) => $this->findingService->createIntakeFinding(
                 url: $url, expectedEvidence: $payload !== '' ? $payload : null,
                 privateNotes: $notes !== '' ? $notes : null, onResult: $recorder,
+                declaredType: $declaredType !== '' ? $declaredType : null,
             );
             $receipt = null;
             if ($browserIntake === true || $browserIntake === '1') {

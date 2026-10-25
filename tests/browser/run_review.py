@@ -18,10 +18,13 @@ import uuid
 project = Path(__file__).resolve().parents[2]
 run_id = uuid.uuid4().hex
 root = Path(tempfile.gettempdir()) / f"librebugbounty-studio-review-{run_id}"
-suite_name = "review-recovery" if os.environ.get("STUDIO_REVIEW_ONLY") == "recovery" else "review-focus"
+review_mode = os.environ.get("STUDIO_REVIEW_ONLY")
+suite_name = {"recovery": "review-recovery", "claims": "review-claim-selection"}.get(review_mode, "review-focus")
 output = project / "var" / f"{suite_name}-acceptance-{run_id}"
 output.mkdir(parents=True)
 env = os.environ.copy()
+if review_mode == "claims":
+    env["STUDIO_CLAIM_SELECTION_FIXTURE"] = "1"
 # Concurrent fixture requests must not wait behind an idle browser connection.
 env["PHP_CLI_SERVER_WORKERS"] = "4"
 env["STUDIO_BROWSER_ROOT"] = str(root)
@@ -49,6 +52,11 @@ try:
                 if time.monotonic() >= deadline:
                     raise RuntimeError("Fixture server did not start")
                 time.sleep(0.1)
+        if review_mode == "claims":
+            subprocess.run(["node", "tests/browser/studio-review-claim-selection.cjs"], cwd=project,
+                           env=env, check=True, timeout=300)
+            print(f"Review finding selection artifacts: {output}", flush=True)
+            sys.exit(0)
         if env.get("STUDIO_REVIEW_ONLY") == "recovery":
             # Recovery mutates review state and must start with its own fixture,
             # independently of the focus suite and interactive retry flow.

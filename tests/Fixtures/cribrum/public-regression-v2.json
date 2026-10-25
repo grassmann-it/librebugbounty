@@ -1,0 +1,568 @@
+{
+  "fixtureVersion": 2,
+  "description": "Public synthetic semantic specification. No real finding/cohort membership; expectations require independent implementation tests.",
+  "cases": [
+    {
+      "id": "complete-xss",
+      "given": "XSS execution basis; complete current profile; no extra hint",
+      "expected": {
+        "kind": "pure_xss",
+        "purity": "pure",
+        "coverageStatus": "complete",
+        "pureXssScope": true,
+        "xssContainingScope": true
+      }
+    },
+    {
+      "id": "xss-sql-structure",
+      "given": "XSS and qualified SQL structural suspicion",
+      "expected": {
+        "kind": "mixed",
+        "purity": "mixed",
+        "coverageStatus": "complete",
+        "pureXssScope": false,
+        "xssContainingScope": true
+      }
+    },
+    {
+      "id": "xss-sql-error",
+      "given": "XSS and SQL error without structural suspicion",
+      "expected": {
+        "kind": "mixed",
+        "purity": "mixed",
+        "coverageStatus": "complete",
+        "pureXssScope": false,
+        "xssContainingScope": true
+      }
+    },
+    {
+      "id": "e2-unknown-coverage",
+      "given": "Explicit fixed E2 membership matching baseline; unknown coverage",
+      "expected": {
+        "kind": "xss",
+        "purity": "unknown",
+        "coverageStatus": "unknown",
+        "pureXssScope": false,
+        "xssContainingScope": true
+      }
+    },
+    {
+      "id": "sql-only-coverage",
+      "given": "XSS basis with only SQL family evaluated",
+      "expected": {
+        "kind": "xss",
+        "purity": "unknown",
+        "coverageStatus": "partial",
+        "pureXssScope": false,
+        "xssContainingScope": true
+      }
+    },
+    {
+      "id": "stale-coverage",
+      "given": "XSS basis but coverage references another PoC/artifact",
+      "expected": {
+        "kind": "xss",
+        "purity": "unknown",
+        "coverageStatus": "unknown",
+        "pureXssScope": false,
+        "xssContainingScope": true
+      }
+    },
+    {
+      "id": "pure-disclosure",
+      "given": "Concrete internal path, complete current profile; no unrelated hint",
+      "expected": {
+        "kind": "pure_information_disclosure",
+        "purity": "pure",
+        "coverageStatus": "complete",
+        "pureXssScope": false,
+        "xssContainingScope": false
+      }
+    },
+    {
+      "id": "unknown-signal",
+      "given": "XSS basis and unrecognized active fact",
+      "expected": {
+        "kind": "xss",
+        "purity": "unknown",
+        "coverageStatus": "unknown",
+        "pureXssScope": false,
+        "xssContainingScope": true
+      }
+    },
+    {
+      "id": "new-waf-block",
+      "given": "XSS basis and new relevant block pending explicit acknowledgement",
+      "expected": {
+        "kind": "xss",
+        "purity": "unknown",
+        "coverageStatus": "complete",
+        "pureXssScope": false,
+        "xssContainingScope": true
+      }
+    }
+  ],
+  "detectorCases": [
+    {
+      "id": "positive-local-sql",
+      "input": {
+        "url": "https://fixture.invalid/search?q=%27probe",
+        "rawHtml": "Microsoft JET Database Engine error '80040e14'\nSyntax error (missing operator) in query expression 'name = ''probe'."
+      },
+      "expectedPresent": [
+        "sql_error_observed"
+      ],
+      "expectedAbsent": [
+        "execution_observed"
+      ],
+      "reason": "A real diagnostic signature does not by itself prove execution or sufficient input structure mapping."
+    },
+    {
+      "id": "negative-documentation",
+      "input": {
+        "url": "https://fixture.invalid/docs",
+        "rawHtml": "<article>Example: SQLSTATE errors can occur in a tutorial.</article>"
+      },
+      "expectedAbsent": [
+        "sql_input_structure_indication",
+        "execution_observed"
+      ],
+      "reason": "Documentation and tokens are not qualified structural or execution proof."
+    },
+    {
+      "id": "negative-unrelated-reflection",
+      "input": {
+        "url": "https://fixture.invalid/search?q=probe",
+        "rawHtml": "<p>probe</p><div>Generic DateTime conversion failed.</div>"
+      },
+      "expectedAbsent": [
+        "input_in_sql_error",
+        "sql_input_structure_indication"
+      ],
+      "reason": "Page-wide coexistence cannot establish same-block SQL association."
+    },
+    {
+      "id": "negative-include-success",
+      "input": {
+        "url": "https://fixture.invalid/view?file=demo",
+        "rawHtml": "MapPath rejected the supplied path."
+      },
+      "expectedAbsent": [
+        "sensitive_file_content_observed",
+        "execution_observed"
+      ],
+      "reason": "Path rejection does not prove file disclosure or code execution."
+    },
+    {
+      "id": "r13-link-tail-is-not-sql-operand",
+      "input": {
+        "url": "https://fixture.invalid/?inc=%27%3E%3Ctest%20alt%3D%22%22%3E-marker&typ=Nav2&cat=140",
+        "rawHtml": "<p>Syntax error (missing operator) in query expression &#039;Active = 1 AND Link = &#039;&#039;&gt;&lt;test alt=[]&gt;-marker&amp;typ=Nav2&amp;cat=140&#039;&#039;.</p>"
+      },
+      "expectedPresent": [
+        "sql_error_observed"
+      ],
+      "expectedAbsent": [
+        "sql_input_structure_indication"
+      ],
+      "reason": "A plain link key after changed input does not become a SQL operand."
+    },
+    {
+      "id": "r13-yii-local-full-operand",
+      "input": {
+        "url": "https://fixture.invalid/?category=%27%3Eprobe",
+        "rawHtml": "<p class=\"message\">SQLSTATE[HY000]: General error: 1 near &quot;&gt;&quot;: syntax error. The SQL statement executed was: SELECT * FROM catalog WHERE category_id = &#039;&gt;probe</p>"
+      },
+      "expectedPresent": [
+        "sql_error_observed",
+        "sql_input_structure_indication"
+      ],
+      "expectedAttributes": {
+        "sql_error_observed": {
+          "vendor": "unknown"
+        },
+        "sql_input_structure_indication": {
+          "parameter": "category",
+          "assessment": "suspected_only"
+        }
+      },
+      "expectedAbsent": [
+        "execution_observed"
+      ],
+      "reason": "Full local input supports suspicion, while generic Yii SQLSTATE does not identify the database vendor."
+    },
+    {
+      "id": "r13-prefixless-fixed-include",
+      "input": {
+        "url": "https://fixture.invalid/?q=ordinary",
+        "rawHtml": "<h2>Failed opening required &#039;/var/www/private/view.php&#039; (include_path=&#039;.:/usr/share/php&#039;)</h2>",
+        "httpStatus": 200
+      },
+      "expectedPresent": [
+        "file_include_diagnostic",
+        "internal_information_exposed"
+      ],
+      "expectedAbsent": [
+        "lfi_suspected",
+        "rfi_suspected"
+      ],
+      "reason": "A fixed include target provides diagnostic/path evidence, not an input-to-file relationship."
+    },
+    {
+      "id": "r13-template-internals",
+      "input": {
+        "url": "https://fixture.invalid/",
+        "rawHtml": "<!-- start file:/opt/demo/templates/page.html -->Page<!-- end file:/opt/demo/templates/page.html -->"
+      },
+      "expectedPresent": [
+        "internal_information_exposed"
+      ],
+      "expectedAttributes": {
+        "internal_information_exposed": {
+          "detailKind": "internal_path"
+        }
+      },
+      "expectedAbsent": [
+        "lfi_suspected"
+      ],
+      "reason": "Matching concrete template comments expose an internal path, not a stack or file inclusion."
+    },
+    {
+      "id": "r13-safeline-unused-translation",
+      "input": {
+        "url": "https://fixture.invalid/",
+        "rawHtml": "<script>const translations={name:\"SafeLine\",deny:\"Access denied\",blocked:\"Your request was blocked\"};</script>"
+      },
+      "expectedAbsent": [
+        "coverage_limited"
+      ],
+      "reason": "Unselected JavaScript translation text cannot prove an actual rejection."
+    },
+    {
+      "id": "r13-admin-tools-explicit-block",
+      "input": {
+        "url": "https://fixture.invalid/",
+        "rawHtml": "<h1>This request is blocked by Admin Tools.</h1>",
+        "httpStatus": 500
+      },
+      "expectedPresent": [
+        "coverage_limited"
+      ],
+      "expectedAttributes": {
+        "coverage_limited": {
+          "reason": "waf_block",
+          "vendor": "admin_tools"
+        }
+      },
+      "reason": "The explicit response rejection establishes block context even under HTTP500."
+    },
+    {
+      "id": "r13-public-config-log-pointer",
+      "input": {
+        "url": "https://fixture.invalid/",
+        "rawHtml": "<script>window.__NUXT__={config:{public:{apiBase:\"/api\"}}};</script><p>See Data/Logs/Exceptions/example.txt</p><form>CAPTCHA<input name=\"captcha\"></form>"
+      },
+      "expectedAbsent": [
+        "internal_information_exposed",
+        "coverage_limited"
+      ],
+      "reason": "Public configuration, a relative log locator and an ordinary CAPTCHA are not internal disclosure or a WAF block."
+    },
+    {
+      "id": "r13-yii-table-name-does-not-identify-vendor",
+      "input": {
+        "url": "https://fixture.invalid/?category=%27%3Eprobe",
+        "rawHtml": "<p class=\"message\">SQLSTATE[HY000]: General error: 1 near &quot;&gt;&quot;: syntax error. The SQL statement executed was: SELECT * FROM access WHERE category_id = &#039;&gt;probe</p>"
+      },
+      "expectedPresent": [
+        "sql_error_observed",
+        "sql_input_structure_indication"
+      ],
+      "expectedAttributes": {
+        "sql_error_observed": {
+          "vendor": "unknown"
+        },
+        "sql_input_structure_indication": {
+          "parameter": "category",
+          "assessment": "suspected_only"
+        }
+      },
+      "expectedAbsent": [
+        "execution_observed"
+      ],
+      "reason": "A table named access in executed SQL is not Access/JET engine evidence; Yii remains unknown."
+    },
+    {
+      "id": "r14-parenthesized-access-operand",
+      "input": {
+        "url": "https://fixture.invalid/?id=OPENBUG",
+        "rawHtml": "<pre>Microsoft JET Database Engine error: Syntax error (missing operator) in query expression '(CSTR(ID)) = OPENBUG'.</pre>"
+      },
+      "expectedPresent": [
+        "sql_error_observed",
+        "input_in_sql_error",
+        "sql_input_structure_indication"
+      ],
+      "expectedAttributes": {
+        "sql_input_structure_indication": {
+          "parameter": "id",
+          "assessment": "suspected_only"
+        }
+      },
+      "expectedAbsent": [
+        "lfi_suspected",
+        "rfi_suspected",
+        "execution_observed"
+      ],
+      "reason": "A bounded parenthesized real operand retains the full local input relationship and establishes suspicion only."
+    },
+    {
+      "id": "r14-jet-end-diagnostic",
+      "input": {
+        "url": "https://fixture.invalid/?q=ordinary",
+        "rawHtml": "<pre>Microsoft JET Database Engine error '80040e14'\nCharacters found after end of SQL statement.</pre>"
+      },
+      "expectedPresent": [
+        "sql_error_observed"
+      ],
+      "expectedAttributes": {
+        "sql_error_observed": {
+          "vendor": "access_jet"
+        }
+      },
+      "expectedAbsent": [
+        "sql_input_structure_indication"
+      ],
+      "reason": "A concrete JET diagnostic without a complete local input expression does not establish injection."
+    },
+    {
+      "id": "r14-include-badge",
+      "input": {
+        "url": "https://fixture.invalid/",
+        "rawHtml": "<blockquote><span class=\"badge\">0</span> Failed opening required &#039;/var/www/private/view.php&#039; (include_path=&#039;.:/usr/share/php&#039;)</blockquote>"
+      },
+      "expectedPresent": [
+        "file_include_diagnostic",
+        "internal_information_exposed"
+      ],
+      "expectedAbsent": [
+        "lfi_suspected",
+        "rfi_suspected"
+      ],
+      "reason": "Badge and diagnostic share one bounded block; a fixed path does not establish inclusion."
+    },
+    {
+      "id": "r14-php-type64",
+      "input": {
+        "url": "https://fixture.invalid/",
+        "rawHtml": "<div>Page{\"success\":false,\"data\":{\"error\":{\"type\":64,\"message\":\"Cannot redeclare fixture_function()\",\"file\":\"/hp/private/app.php\",\"line\":17}}}"
+      },
+      "expectedPresent": [
+        "internal_information_exposed"
+      ],
+      "expectedAttributes": {
+        "internal_information_exposed": {
+          "detailKind": "internal_path"
+        }
+      },
+      "expectedAbsent": [
+        "lfi_suspected",
+        "rfi_suspected",
+        "sql_input_structure_indication"
+      ],
+      "reason": "A complete type64 error object exposes its concrete source path; it does not prove execution or inclusion."
+    },
+    {
+      "id": "r14-json-near-no-query",
+      "input": {
+        "url": "https://fixture.invalid/?q=OPENBUG",
+        "rawHtml": "<div><p>Unfinished\n{\"data\":{\"error\":{\"type\":1,\"message\":\"You have an error in your SQL syntax; near 'OPENBUG' at line 1\",\"file\":\"/is/private/app.php\",\"line\":42}}}"
+      },
+      "expectedPresent": [
+        "sql_error_observed",
+        "input_in_sql_error",
+        "internal_information_exposed"
+      ],
+      "expectedAbsent": [
+        "sql_input_structure_indication"
+      ],
+      "reason": "The complete local JSON diagnostic can bind input; a near fragment supplies no complete SQL expression."
+    },
+    {
+      "id": "r14-source-connection",
+      "input": {
+        "url": "https://fixture.invalid/",
+        "rawHtml": "<?php function fixture_connection() { $host='fixture.invalid'; $user='synthetic_user'; $password='synthetic_not_a_secret'; $database='synthetic_db'; $connection=mysql_connect($host,$user,$password); mysql_select_db($database,$connection); return $connection; } ?>"
+      },
+      "expectedPresent": [
+        "internal_information_exposed"
+      ],
+      "expectedAttributes": {
+        "internal_information_exposed": {
+          "detailKind": "source_code"
+        }
+      },
+      "expectedAbsent": [
+        "sql_input_structure_indication",
+        "lfi_suspected",
+        "rfi_suspected",
+        "execution_observed"
+      ],
+      "reason": "A complete connected PHP source function is disclosure; credential validity and execution remain unproved."
+    },
+    {
+      "id": "r14-development-instructions-negative",
+      "input": {
+        "url": "https://fixture.invalid/",
+        "rawHtml": "<h1>An error occurred while processing your request.</h1><p>Set ASPNETCORE_ENVIRONMENT to Development for more details.</p><pre>&lt;customErrors mode=\"Off\"/&gt;</pre>"
+      },
+      "expectedPresent": [],
+      "expectedAbsent": [
+        "internal_information_exposed",
+        "coverage_limited"
+      ],
+      "reason": "Instructions for enabling diagnostics do not establish current debug configuration, frames, or a WAF block."
+    },
+    {
+      "id": "r14-title-probe-is-not-error-input",
+      "input": {
+        "url": "https://fixture.invalid/?q=OPENBUG",
+        "rawHtml": "<h1>OPENBUG</h1><p>Microsoft OLE DB Provider for SQL Server: Incorrect syntax near &quot;&gt;&quot;.</p>"
+      },
+      "expectedPresent": [
+        "sql_error_observed"
+      ],
+      "expectedAbsent": [
+        "input_in_sql_error",
+        "sql_input_structure_indication"
+      ],
+      "reason": "Complete input outside the diagnostic cannot replace a fragment inside it."
+    },
+    {
+      "id": "r14-java-without-at",
+      "input": {
+        "url": "https://fixture.invalid/",
+        "rawHtml": "org.example.Parser.parse(Parser.java:51)\norg.example.Controller.run(Controller.java:22)"
+      },
+      "expectedPresent": [
+        "internal_information_exposed"
+      ],
+      "expectedAttributes": {
+        "internal_information_exposed": {
+          "detailKind": "stack_trace"
+        }
+      },
+      "expectedAbsent": [
+        "sql_input_structure_indication",
+        "lfi_suspected",
+        "rfi_suspected",
+        "execution_observed"
+      ],
+      "reason": "Concrete local diagnostic details reach existing disclosure semantics without inventing injection or execution."
+    },
+    {
+      "id": "r14-dotnet-pre-frames",
+      "input": {
+        "url": "https://fixture.invalid/",
+        "rawHtml": "<code><pre>System.Web.HttpRequest.ValidateString(String value, String key) +119\nSystem.Web.UI.Page.ProcessRequest() +75</pre></code>"
+      },
+      "expectedPresent": [
+        "internal_information_exposed"
+      ],
+      "expectedAttributes": {
+        "internal_information_exposed": {
+          "detailKind": "stack_trace"
+        }
+      },
+      "expectedAbsent": [
+        "sql_input_structure_indication",
+        "lfi_suspected",
+        "rfi_suspected",
+        "execution_observed"
+      ],
+      "reason": "Concrete local diagnostic details reach existing disclosure semantics without inventing injection or execution."
+    },
+    {
+      "id": "r14-yii-header",
+      "input": {
+        "url": "https://fixture.invalid/",
+        "rawHtml": "<div class=\"element\"><span class=\"item-number\">2.</span><span class=\"text\">in /srv/synthetic/Reader.php</span><span class=\"at\">at line <span class=\"line\">42</span></span><span class=\"call\">&ndash; <a>yii\\base\\Module::runAction</a>(<span class=\"string\">'synthetic'</span>, [])</span></div>"
+      },
+      "expectedPresent": [
+        "internal_information_exposed"
+      ],
+      "expectedAttributes": {
+        "internal_information_exposed": {
+          "detailKind": "stack_trace"
+        }
+      },
+      "expectedAbsent": [
+        "sql_input_structure_indication",
+        "lfi_suspected",
+        "rfi_suspected",
+        "execution_observed"
+      ],
+      "reason": "Concrete local diagnostic details reach existing disclosure semantics without inventing injection or execution."
+    },
+    {
+      "id": "r14-iis-physical-path",
+      "input": {
+        "url": "https://fixture.invalid/",
+        "rawHtml": "<title>IIS 10.0 Detailed Error - 500.0</title><table><tr><th>Physical Path</th><td>D:\\Applications\\Synthetic.Web\\search</td></tr></table>"
+      },
+      "expectedPresent": [
+        "internal_information_exposed"
+      ],
+      "expectedAttributes": {
+        "internal_information_exposed": {
+          "detailKind": "internal_path"
+        }
+      },
+      "expectedAbsent": [
+        "sql_input_structure_indication",
+        "lfi_suspected",
+        "rfi_suspected",
+        "execution_observed"
+      ],
+      "reason": "Concrete local diagnostic details reach existing disclosure semantics without inventing injection or execution."
+    },
+    {
+      "id": "r14-iis-tutorial-marker",
+      "input": {
+        "url": "https://fixture.invalid/",
+        "rawHtml": "<article class=\"documentation\"><h1>IIS Detailed Error tutorial</h1></article><table><tr><th>Physical Path</th><td>C:\\synthetic\\private</td></tr></table>"
+      },
+      "expectedPresent": [],
+      "expectedAbsent": [
+        "internal_information_exposed"
+      ],
+      "reason": "An inert or non-diagnostic marker cannot qualify the new local route."
+    },
+    {
+      "id": "r14-iis-attribute-marker",
+      "input": {
+        "url": "https://fixture.invalid/",
+        "rawHtml": "<div title=\"IIS Detailed Error\"></div><table><tr><th>Physical Path</th><td>C:\\synthetic\\private</td></tr></table>"
+      },
+      "expectedPresent": [],
+      "expectedAbsent": [
+        "internal_information_exposed"
+      ],
+      "reason": "An inert or non-diagnostic marker cannot qualify the new local route."
+    },
+    {
+      "id": "r14-include-inert-template",
+      "input": {
+        "url": "https://fixture.invalid/",
+        "rawHtml": "<template><p>Failed opening required &#039;/var/www/private/view.php&#039; (include_path=&#039;.:/usr/share/php&#039;)</p></template>"
+      },
+      "expectedPresent": [],
+      "expectedAbsent": [
+        "file_include_diagnostic",
+        "lfi_suspected",
+        "rfi_suspected"
+      ],
+      "reason": "An inert or non-diagnostic marker cannot qualify the new local route."
+    }
+  ]
+}

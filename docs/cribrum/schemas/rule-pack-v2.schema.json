@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Cribrum registered claim-free candidate pack v2",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": 2
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_.-]{1,63}$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 512,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.:/-]{1,128}$"
+              },
+              "detector": {
+                "const": "sql-triage-v1"
+              },
+              "outputs": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 32,
+                "items": {
+                  "enum": [
+                    "sql_error_observed",
+                    "input_in_sql_error",
+                    "sql_input_structure_indication"
+                  ]
+                }
+              },
+              "shadow": {
+                "const": true
+              }
+            },
+            "required": [
+              "id",
+              "detector",
+              "outputs"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.:/-]{1,128}$"
+              },
+              "detector": {
+                "const": "file-triage-v1"
+              },
+              "outputs": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 32,
+                "items": {
+                  "enum": [
+                    "file_include_diagnostic",
+                    "lfi_suspected",
+                    "rfi_suspected",
+                    "sensitive_file_content_observed"
+                  ]
+                }
+              },
+              "shadow": {
+                "const": true
+              }
+            },
+            "required": [
+              "id",
+              "detector",
+              "outputs"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.:/-]{1,128}$"
+              },
+              "detector": {
+                "const": "context-triage-v1"
+              },
+              "outputs": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 32,
+                "items": {
+                  "enum": [
+                    "internal_information_exposed",
+                    "error_response",
+                    "coverage_limited",
+                    "product_context"
+                  ]
+                }
+              },
+              "shadow": {
+                "const": true
+              }
+            },
+            "required": [
+              "id",
+              "detector",
+              "outputs"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.:/-]{1,128}$"
+              },
+              "detector": {
+                "const": "reflection-triage-v1"
+              },
+              "outputs": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 32,
+                "items": {
+                  "enum": [
+                    "input_reflected"
+                  ]
+                }
+              },
+              "shadow": {
+                "const": true
+              }
+            },
+            "required": [
+              "id",
+              "detector",
+              "outputs"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "schema",
+    "id",
+    "version",
+    "rules"
+  ],
+  "additionalProperties": true
+}

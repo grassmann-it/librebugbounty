@@ -1,5 +1,5 @@
-// Lease operations are explicit. Mounting/polling only reads status; reconnect
-// attaches to an already-owned context and never starts/navigates a browser.
+// Lease operations and the first status check are explicit. Reconnect attaches
+// to an already-owned context and never starts/navigates a browser.
 const panels = new Map();
 const states = new Set(['available', 'own_active', 'busy', 'activating', 'revoked', 'closing', 'expired', 'worker_unavailable']);
 let rfbModule;
@@ -250,7 +250,7 @@ export function mountInteractivePanel(element) {
     };
     for (const button of buttons) {
       if (button.dataset.novncAction === 'acquire') button.textContent = status?.state === 'activating' ? messages.retryActivation : startLabel;
-      button.hidden = !usable || !visible[button.dataset.novncAction];
+      button.hidden = button.dataset.novncAction === 'refresh' ? !channel : !usable || !visible[button.dataset.novncAction];
       button.disabled = pending || Boolean(confirmation);
       if (button.dataset.novncAction === 'save') button.disabled ||= Boolean(selectedCandidate() === undefined || dialogPending || capture?.state === 'capturing' || (status?.captureLocked && !final));
       if (button.dataset.novncAction === 'dialog-arm') button.disabled ||= Boolean(capture?.armed || capture?.state === 'capturing' || status?.captureLocked);
@@ -442,10 +442,11 @@ export function mountInteractivePanel(element) {
       if (!disposed) { showButtons(); void refresh(); }
     }
   };
+  let polling = false;
   for (const button of buttons) on(button, 'click', () => {
     const action = button.dataset.novncAction;
     if (pending || button.disabled || button.hidden) return;
-    if (action === 'refresh') { void refresh(); return; }
+    if (action === 'refresh') { if (!polling) { polling = true; void poll(); } else void refresh(); return; }
     if (action === 'reconnect') { void connect(true); return; }
     if (action === 'acquire') { void mutate(action); return; }
     const expected = { revision: status.revision, dialogRevision: dialogCapture()?.revision, expectedCandidateId: selectedCandidate(), expectedPocRevision: pocRevision(), pocSnapshot: pocSnapshot() };
@@ -473,7 +474,7 @@ export function mountInteractivePanel(element) {
     if (event.key === 'Escape' && confirmation) { event.preventDefault(); get('confirm-no').click(); }
   });
   const handle = {
-    refresh,
+    refresh() { if (!polling) { polling = true; return poll(); } return refresh(); },
     destroy() {
       disposed = true; ++epoch; clearPreview();
       leaveLayoutFullscreen();
@@ -489,7 +490,7 @@ export function mountInteractivePanel(element) {
     if (!disposed) timer = setTimeout(poll, 3000);
   };
   try { channel = tabChannel(); } catch (_) { notice(messages.channelError); say('state', messages.worker_unavailable); }
-  if (channel) { controls.hidden = false; void poll(); }
+  if (channel) { controls.hidden = false; showButtons(); }
   return handle;
 }
 

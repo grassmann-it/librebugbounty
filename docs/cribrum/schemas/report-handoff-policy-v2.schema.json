@@ -1,0 +1,608 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Finding report snapshot: transport schema 1, policy behavior-report-v2",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "policyVersion": {
+      "const": "behavior-report-v2"
+    },
+    "sourceInstanceId": {
+      "type": "string"
+    },
+    "findingId": {
+      "type": "string"
+    },
+    "decisionRevision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "basisRevision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "intake": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "sourceKind": {
+          "enum": [
+            "manual",
+            "browser_intake",
+            "checker_import",
+            "file_import",
+            "legacy_snapshot"
+          ]
+        },
+        "sourceRef": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "declaredClaims": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "payloadKind": {
+          "enum": [
+            "xss",
+            "sql",
+            "other",
+            "unknown"
+          ]
+        },
+        "payloadSource": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "markerSource": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "legacyCohortId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "sourceKind",
+        "declaredClaims",
+        "payloadKind"
+      ],
+      "additionalProperties": true
+    },
+    "poc": {
+      "type": "object",
+      "properties": {
+        "intakeUrl": {
+          "type": "string"
+        },
+        "effectiveUrl": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "intakeUrl",
+        "effectiveUrl",
+        "revision",
+        "sha256"
+      ],
+      "additionalProperties": true
+    },
+    "legacyBasis": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "cohortId": {
+              "type": "string"
+            },
+            "cohortDigest": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "baselinePocRevision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "baselinePocSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "cohortId",
+            "cohortDigest",
+            "baselinePocRevision",
+            "baselinePocSha256"
+          ],
+          "additionalProperties": true
+        }
+      ]
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "claim": {
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "observed",
+              "suspected",
+              "confirmed",
+              "rejected",
+              "stale",
+              "resolved"
+            ]
+          },
+          "source": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reportSelected": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "observationId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "claim",
+          "state",
+          "source",
+          "revision"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "factIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "selection": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "component": {
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "auto",
+              "include",
+              "exclude"
+            ]
+          },
+          "origin": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "actor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "component",
+          "mode"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "reportSelection": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": [
+            "auto",
+            "exclude"
+          ]
+        },
+        "origin": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "actor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "additionalProperties": true
+    },
+    "lane": {
+      "enum": [
+        "none",
+        "xss",
+        "xss_with_sqli_suspected",
+        "xss_with_sql_error",
+        "xss_with_disclosure",
+        "sqli_suspected",
+        "information_disclosure",
+        "lfi_suspected",
+        "rfi_suspected",
+        "file_inclusion_suspected",
+        "xss_with_lfi_suspected",
+        "xss_with_rfi_suspected",
+        "xss_with_file_inclusion_suspected",
+        "mixed"
+      ]
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "enum": [
+              "xss_confirmed",
+              "sqli_suspected",
+              "information_disclosure",
+              "sql_error_observation",
+              "lfi_suspected",
+              "rfi_suspected"
+            ]
+          },
+          "certainty": {
+            "enum": [
+              "confirmed",
+              "suspected",
+              "observed"
+            ]
+          },
+          "evidenceRefs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "worker_proof",
+                    "behavior_fact",
+                    "legacy_member"
+                  ]
+                },
+                "id": {
+                  "type": "string"
+                },
+                "sourceInstanceId": {
+                  "type": "string"
+                },
+                "findingId": {
+                  "type": "string"
+                },
+                "pocRevision": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "pocSha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "contentSha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              },
+              "required": [
+                "kind",
+                "id",
+                "sourceInstanceId",
+                "findingId",
+                "pocRevision",
+                "pocSha256",
+                "contentSha256"
+              ],
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "code",
+          "certainty",
+          "evidenceRefs"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "gate": {
+      "enum": [
+        "eligible",
+        "no_mail",
+        "hold"
+      ]
+    },
+    "reasonCodes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reviewRequired": {
+      "type": "boolean"
+    },
+    "urgencyAllowed": {
+      "type": "boolean"
+    },
+    "decidedAt": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "coverage": {
+      "type": "object",
+      "properties": {
+        "profile": {
+          "type": "string"
+        },
+        "version": {
+          "enum": [
+            1,
+            "1"
+          ]
+        },
+        "requiredFamilies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evaluatedFamilies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "enum": [
+            "complete",
+            "partial",
+            "unknown"
+          ]
+        },
+        "pocRevision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pocSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "artifactSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "resultVersion": {
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "active",
+            "shadow"
+          ]
+        },
+        "evaluation": {
+          "type": "object",
+          "if": {
+            "properties": {
+              "schemaVersion": {
+                "const": 1
+              }
+            },
+            "required": [
+              "schemaVersion"
+            ]
+          },
+          "then": {
+            "$ref": "evaluation-coverage-v1.schema.json"
+          }
+        }
+      },
+      "required": [
+        "profile",
+        "version",
+        "requiredFamilies",
+        "evaluatedFamilies",
+        "status"
+      ],
+      "additionalProperties": true
+    },
+    "caseSummary": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "purity": {
+          "enum": [
+            "pure",
+            "mixed",
+            "unknown"
+          ]
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "xss_confirmed",
+              "sqli_suspected",
+              "information_disclosure",
+              "sql_error_observation",
+              "lfi_suspected",
+              "rfi_suspected"
+            ]
+          }
+        },
+        "hints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reviewReasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "purity",
+        "components",
+        "hints",
+        "reviewReasons"
+      ],
+      "additionalProperties": true
+    },
+    "workflow": {
+      "type": "object"
+    },
+    "wafBlockReview": {
+      "type": "object",
+      "properties": {
+        "pending": {
+          "type": "boolean"
+        },
+        "acknowledgementAccepted": {
+          "type": "boolean"
+        },
+        "fingerprint": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pendingFingerprints": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      },
+      "required": [
+        "pending",
+        "acknowledgementAccepted",
+        "fingerprint",
+        "pendingFingerprints"
+      ],
+      "additionalProperties": true
+    },
+    "wafBlockFingerprint": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "policyVersion",
+    "sourceInstanceId",
+    "findingId",
+    "decisionRevision",
+    "basisRevision",
+    "intake",
+    "poc",
+    "legacyBasis",
+    "claims",
+    "factIds",
+    "tags",
+    "selection",
+    "reportSelection",
+    "lane",
+    "components",
+    "gate",
+    "reasonCodes",
+    "reviewRequired",
+    "urgencyAllowed",
+    "decidedAt",
+    "coverage",
+    "caseSummary",
+    "wafBlockReview",
+    "wafBlockFingerprint"
+  ],
+  "additionalProperties": true
+}

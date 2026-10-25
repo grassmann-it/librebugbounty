@@ -1,0 +1,12 @@
+{
+  "input_url": "https://fixture.test/?file=https%3A%2F%2Fcdn.fixture.test%2Fdemo.php",
+  "final_url": null,
+  "body_sha256": "f2a63f1c8085d5a145406b2a89f805dc275bed24102376a7b1d3e92cfe22d0cd",
+  "request_pass": 2,
+  "capture_status": "captured",
+  "http_status": 500,
+  "content_type": "text/html; charset=UTF-8",
+  "body_truncated": false,
+  "capture_finished_at": "2026-01-01T00:00:00Z",
+  "provenance": "synthetic fixture, no target request"
+}

@@ -28,6 +28,7 @@ final class FindingAddCommand extends Command
             ->addArgument('url', InputArgument::REQUIRED)
             ->addOption('expected-payload', null, InputOption::VALUE_OPTIONAL, 'Expected payload or marker.')
             ->addOption('annotate', null, InputOption::VALUE_REQUIRED, 'Optional note or annotation.')
+            ->addOption('declared-type', null, InputOption::VALUE_REQUIRED, 'Optional intake intent; does not confirm a vulnerability.', 'unclassified')
         ;
     }
 
@@ -45,6 +46,7 @@ final class FindingAddCommand extends Command
             url: $url,
             expectedEvidence: $expected,
             privateNotes: $annotate,
+            type: (string) $input->getOption('declared-type'),
         );
 
         $io->success(sprintf('Stored finding %s for %s', $finding->getId(), $finding->getDomain()->getHostname()));

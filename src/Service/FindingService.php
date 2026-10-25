@@ -37,6 +37,7 @@ final class FindingService
         private readonly ?ScreenshotQueueService $screenshotQueue = null,
         private readonly ?ReviewNoticeService $reviewNotices = null,
         private readonly ?RecheckPolicy $recheckPolicy = null,
+        private readonly ?ReportProjectionService $reportProjection = null,
     ) {
     }
 
@@ -83,12 +84,14 @@ final class FindingService
         ?string $expectedEvidence = null,
         ?string $privateNotes = null,
         ?callable $onResult = null,
+        ?string $declaredType = null,
     ): FindingCreateResult {
         return $this->createFindingResult(
             url: $url,
             expectedEvidence: $expectedEvidence,
             privateNotes: $privateNotes,
             onResult: $onResult,
+            type: $declaredType,
         );
     }
 
@@ -155,8 +158,13 @@ final class FindingService
                 return new FindingCreateResult($existing, false);
             }
 
-            $title ??= 'reflected_xss';
-            $type ??= 'reflected_xss';
+            // Intake intent is not proof. Classifier/worker evidence supplies
+            // the report kind; no new row joins the fixed historical XSS cohort.
+            $type ??= 'unclassified';
+            if (!in_array($type, ['unclassified', 'xss', 'reflected_xss', 'sql_injection', 'information_disclosure', 'error_disclosure', 'stack_trace', 'local_file_inclusion', 'remote_file_inclusion', 'other'], true)) {
+                throw new \InvalidArgumentException('Unbekannte Fundart.');
+            }
+            $title ??= $type;
             $submittedAt ??= new \DateTimeImmutable();
             $expectedEvidence = $expectedEvidence !== null && trim($expectedEvidence) !== ''
                 ? $expectedEvidence
@@ -192,19 +200,16 @@ final class FindingService
             // newly committed finding without its durable screenshot work item.
             $this->entityManager->persist($finding);
             $this->entityManager->persist($initialScreenshotJob);
-            if (in_array($finding->getType(), ['reflected_xss', 'xss'], true)) {
-                $claim = new FindingClaim();
-                $claim->finding = $finding;
-                $claim->claim = 'xss';
-                $claim->state = 'observed';
-                $claim->reportSelected = true;
-                $claim->severity = $finding->getSeverity();
-                $claim->source = 'migration';
-                $claim->revision = 1;
-                $this->entityManager->persist($claim);
-                $this->entityManager->persist(new FindingClaimRevision($claim, null, [], 'Initial XSS claim from finding type'));
-            }
             $this->entityManager->flush();
+            if ($this->reportProjection?->available()) {
+                $declared = $type === 'xss' ? 'reflected_xss' : $type;
+                $this->reportProjection->setIntakeProfile($finding, [
+                    'schemaVersion' => 1,
+                    'sourceKind' => 'manual',
+                    'declaredClaims' => in_array($declared, ['unclassified', 'other'], true) ? [] : [$declared],
+                    'payloadKind' => in_array($type, ['xss', 'reflected_xss'], true) ? 'xss' : ($type === 'sql_injection' ? 'sql' : 'unknown'),
+                ]);
+            }
 
             return new FindingCreateResult($finding, true);
         };

@@ -25,6 +25,8 @@ final class InteractiveCaptureService
         private readonly SettingsService $settings,
         private readonly FindingWorkPolicy $workPolicy,
         private readonly ?FindingPocService $poc = null,
+        private readonly ?CribrumProcessingService $cribrum = null,
+        private readonly ?ReportProjectionService $reportProjection = null,
     ) {
     }
 
@@ -93,6 +95,7 @@ final class InteractiveCaptureService
 
         $selection = $this->pocSelection($finding, $context);
         $captureRequestedAt = new \DateTimeImmutable();
+        $captureRequestHash = WorkerProofResolver::requestContextSha256($finding);
         $sessionStartedAt = $this->sessionStartedAt($context);
         $requestedAt = $sessionStartedAt ?? $captureRequestedAt;
         $job = (new ScreenshotJob())->setUrl($context['start_url'])
@@ -142,7 +145,7 @@ final class InteractiveCaptureService
                 ->setStatus(ScreenshotJobStatus::AVAILABLE)
                 ->setCapturedAt($capturedAt)
                 ->setScreenshotPath($stored->relativePath)
-                ->setCaptureMetadata(array_replace($this->metadata($result, $context), [
+                ->setCaptureMetadata(array_replace($this->metadata($result, $context), $this->proofMetadata($finding, $result, $context, $selection, $expectedCandidateId), [
                     'sha256' => $stored->sha256,
                     'pocUrl' => $selection['mode'] === 'keep' ? $context['start_url'] : $selection['url'],
                     'queuedPocRevision' => $selection['revision'] + ($selection['mode'] !== 'keep' && $selection['url'] !== $context['start_url'] ? 1 : 0),
@@ -179,6 +182,39 @@ final class InteractiveCaptureService
             // pending assessments/notes remain untouched.
             if ($selection['mode'] !== 'keep') {
                 $finding->setPocUrl($boundFinding->getPocUrl(), $boundFinding->getPocRevision());
+            }
+            if ($result->observation !== null) {
+                try {
+                    $classificationFinding = $this->entityManager()->find(Finding::class, $finding->getId());
+                    if ($classificationFinding instanceof Finding) {
+                        $this->entityManager()->refresh($classificationFinding);
+                        $this->cribrum?->process(
+                            $classificationFinding,
+                            $result->observation,
+                            $job->getId(),
+                            null,
+                            (int) ($job->getCaptureMetadata()['queuedPocRevision'] ?? $selection['revision']),
+                            $selection['mode'] === 'keep' ? $context['start_url'] : (string) $selection['url'],
+                            $finding->getPayload(),
+                            $finding->getExpectedEvidence(),
+                            $result->dialogSeen,
+                            $result->dialogText,
+                            $captureRequestHash,
+                        );
+                    }
+                } catch (\Throwable) {
+                    // A classification failure must not invalidate an already
+                    // committed interactive proof or its evidence.
+                }
+            }
+            if ($this->reportProjection !== null) {
+                // Evidence has committed. Projection failure cannot roll it back
+                // or cause a retry to append duplicate screenshot evidence.
+                try { $this->reportProjection->refresh($boundFinding); }
+                catch (\Throwable) {
+                    try { $this->reportProjection->invalidate($boundFinding, 'interactive_proof_refresh_failed'); }
+                    catch (\Throwable) { /* Never turn committed evidence into a retryable capture failure. */ }
+                }
             }
             return new InteractiveCaptureSaveResult($job, $evidence);
         } catch (\Throwable $error) {
@@ -404,6 +440,40 @@ final class InteractiveCaptureService
             'dialogText' => $result->dialogText,
             'captureMethod' => $result->captureMethod ?? $worker['captureMethod'] ?? null,
         ]);
+    }
+
+    private function proofMetadata(Finding $finding, BrowserScreenshotResult $result, array $context, array $selection, ?string $expectedCandidateId): array
+    {
+        $pinned = is_array($context['proofContext'] ?? null) ? $context['proofContext'] : null;
+        $request = $this->entityManager()->getConnection()->fetchAssociative('SELECT method, request_params, payload, expected_evidence FROM finding WHERE id=?', [$finding->getId()]);
+        $requestHash = $request === false ? null : WorkerProofResolver::requestContextHashFromValues($request['method'], $request['request_params'] === null ? null : json_decode($request['request_params'], true, 512, JSON_THROW_ON_ERROR), $request['payload'], $request['expected_evidence']);
+        $worker = $result->metadata;
+        // These arrays have distinct provenance. In particular, dialogText may
+        // be a merged/legacy field and must never become a native event.
+        $native = is_array($worker['dialogEvents'] ?? null) ? $worker['dialogEvents'] : [];
+        $hooks = is_array($worker['hookedDialogEvents'] ?? null) ? $worker['hookedDialogEvents'] : [];
+        $source = $worker['sourceURL'] ?? $worker['dialogFramePageUrl'] ?? null;
+        $candidateMatches = $expectedCandidateId === null || ($worker['dialogCandidateId'] ?? null) === $expectedCandidateId;
+        $bound = $pinned !== null
+            && ($pinned['findingId'] ?? null) === $finding->getId()
+            && ($pinned['pocUrl'] ?? null) === $context['start_url']
+            && ($pinned['pocRevision'] ?? null) === $finding->getPocRevision()
+            && ($pinned['pocSha256'] ?? null) === hash('sha256', $context['start_url'])
+            && array_key_exists('expectedMarker', $pinned)
+            && $pinned['expectedMarker'] === $finding->getExpectedEvidence()
+            && $requestHash !== null && ($pinned['requestContextSha256'] ?? null) === $requestHash
+            && $source === $pinned['pocUrl'] && $candidateMatches
+            && ($selection['mode'] === 'keep' || $selection['url'] === $pinned['pocUrl']);
+        foreach ($native as $event) {
+            if (!is_array($event) || !is_string($event['message'] ?? null)
+                || (isset($event['origin']) && $event['origin'] !== 'native')
+                || (isset($event['pageUrl']) && $event['pageUrl'] !== $source)) $bound = false;
+        }
+        return ['proofContext' => $pinned, 'dialogEvents' => $native, 'hookedDialogEvents' => $hooks,
+            'dialogOrigin' => 'unknown', 'staleFindingContext' => !$bound,
+            'proofAttribution' => $bound && $native !== [] ? 'bound_native_events' : 'unproven',
+            'proofAttributionReason' => !$bound ? 'interactive_context_or_candidate_unattributed'
+                : ($native === [] ? 'native_dialog_events_missing' : null)];
     }
 
     private function challengeState(mixed $inspection, array $worker, string $phase): string

@@ -4,7 +4,7 @@
   "packs": {
     "core": "2026.10.19"
   },
-  "classifierVersion": "cribrum-1.0.0",
+  "classifierVersion": "cribrum-1.3.2",
   "cases": [
     {
       "id": "framework/whoops--there-was-an-error positive",
@@ -1047,8 +1047,10 @@
         "contentType": "text/html",
         "payload": null
       },
-      "claims": {},
-      "reason": "Documentation quotes the exact signature in a successful response."
+      "claims": {
+        "error_disclosure": "observed"
+      },
+      "reason": "The declarative core rule excludes HTTP 200; the independent diagnostic observer still recognizes the explicit SQL error. No documentation context is present in this body."
     },
     {
       "id": "database/you-have-an-error-in-your-sql-syntax/info positive",
@@ -1083,8 +1085,10 @@
         "contentType": "text/html",
         "payload": null
       },
-      "claims": {},
-      "reason": "Documentation quotes the exact signature in a successful response."
+      "claims": {
+        "error_disclosure": "observed"
+      },
+      "reason": "The declarative core rule excludes HTTP 200; the independent diagnostic observer still recognizes the explicit SQL error. No documentation context is present in this body."
     },
     {
       "id": "database/you-have-an-error-in-your-sql-syntax/sqli positive",
@@ -1831,8 +1835,10 @@
         "contentType": "text/html",
         "payload": null
       },
-      "claims": {},
-      "reason": "Documentation quotes the exact signature in a successful response."
+      "claims": {
+        "error_disclosure": "observed"
+      },
+      "reason": "The declarative core rule excludes HTTP 200; the independent diagnostic observer still recognizes the explicit SQL error. No documentation context is present in this body."
     },
     {
       "id": "database/unclosed-quotation-mark-after-the-character-stri/info positive",
@@ -1867,8 +1873,10 @@
         "contentType": "text/html",
         "payload": null
       },
-      "claims": {},
-      "reason": "Documentation quotes the exact signature in a successful response."
+      "claims": {
+        "error_disclosure": "observed"
+      },
+      "reason": "The declarative core rule excludes HTTP 200; the independent diagnostic observer still recognizes the explicit SQL error. No documentation context is present in this body."
     },
     {
       "id": "database/unclosed-quotation-mark-after-the-character-stri/sqli positive",
