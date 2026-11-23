@@ -40,7 +40,7 @@ Prioritäten: **P1** blockiert oder verfälscht einen fachlich wichtigen Arbeits
 
 Browserbestätigung mit echtem synthetischem Notice+Claims-Fall: aktivierter Keep-Button und laufender „Bewertung in 5 s“-Status haben 0×0 px bei **960 klassisch, 1440 Focus und 720 Focus**. Positive Kontrollen **1440 klassisch und 800 Focus** zeigen beide. Währenddessen sind Urteilsbuttons wegen des Delays tatsächlich gesperrt. Acknowledge-Buttons teilen denselben versteckten Container; deren Quellenbeleg ist eindeutig, die konkreten Buttons wurden nicht alle separat im Browser ausgeführt.
 
-**2.2.1:** fachliche Aktionen und Warte-/Ladestatus vom optionalen Fallkontext trennen; keine kopierten Formulare. Die gezielte Korrektur wird separat auf `feat/2.2.1` bearbeitet. Dieser Audit beschreibt weiterhin den veröffentlichten 2.2.0-Stand, nicht den späteren Fix. Abnahme: alle zulässigen Keep-/Acknowledge-Wege und Delaygründe in beiden Modi bei 375/720/800/960/1440 px sichtbar, per Maus und Tab/Enter erreichbar; Claimauswahl und Speichersequenz unverändert.
+**2.2.1:** fachliche Aktionen und Warte-/Ladestatus vom optionalen Fallkontext trennen; keine kopierten Formulare. Die gezielte Korrektur liegt auf `feat/2.2.1` (Fix `fe95c256`, CI-Integration `ba13790b`) und ist auch in `feat/2.3.0` enthalten. Dieser Audit beschreibt weiterhin den veröffentlichten 2.2.0-Stand, nicht den späteren Fix. Abnahme: alle zulässigen Keep-/Acknowledge-Wege und Delaygründe in beiden Modi bei 375/720/800/960/1440 px sichtbar, per Maus und Tab/Enter erreichbar; Claimauswahl und Speichersequenz unverändert.
 
 ### A02 · P1 · S · Formularfehler verlieren Entwürfe
 
@@ -98,7 +98,7 @@ Bei 390 px liegt die Navigation im Review und in Statistik am unteren Viewportra
 
 ## 2.2.1: begrenzter Fehlerkorrektur-Backlog
 
-Die Zuordnung bedeutet „geeigneter kleiner Kandidat“, nicht „alles bereits implementiert“. A01 wird separat korrigiert; die übrigen Punkte brauchen jeweils einen engen Diff mit dem angegebenen Nachweis.
+Die Zuordnung bedeutet „geeigneter kleiner Kandidat“, nicht „alles bereits implementiert“. A01 ist auf den Entwicklungsbranches korrigiert; die übrigen Punkte brauchen jeweils einen engen Diff mit dem angegebenen Nachweis.
 
 | ID / Prio | Änderung | Akzeptanzkriterium | Risiko / Prüfweg |
 | --- | --- | --- | --- |
