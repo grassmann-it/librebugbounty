@@ -249,11 +249,15 @@ REGEX],
     {
         $separator = '(?:[\t\r\n ]|<br\\s*/?>|</?li\\b[^>]{0,100}>){1,180}';
         $javaFrame = '(?:[A-Za-z][\\w.-]{0,100}(?:/[\\w.+-]{1,40})?/)?[A-Za-z_$][\\w$]*(?:[.$][\\w$<>]+){2,}\\((?:[\\w$.-]{1,100}\\.java:[1-9]\\d{0,7}|Unknown Source|Native Method)\\)';
-        $netFrame = '(?:(?:at|bei|à|en|v)\\s+)?[A-Za-z_][\\w]*(?:\\.[A-Za-z_][\\w]*){1,14}\\([^\\r\\n<>]{0,220}\\)(?:[ \\t]+\\+\\d{1,10})?';
+        $netFrame = '(?:(?:at|bei|à|en|v)\\s+)?[A-Za-z_][\\w]*+(?:\\.[A-Za-z_][\\w]*+){1,14}\\([^\\r\\n<>]{0,220}\\)(?:[ \\t]+\\+\\d{1,10})?';
+        $netStart = '(?:(?=(?:at|bei|à|en|v)\\s)|(?<![\\w])[^\\WA-Za-z_]*+\\K)';
         $patterns = [
             ['java_paragraph', '~<p\\b[^>]{0,120}>\\s*(?&frame)\\s*</p>(?:\\s*<p\\b[^>]{0,120}>\\s*(?&frame)\\s*</p>){1,11}(?(DEFINE)(?<frame>'.$javaFrame.'))~u'],
             ['java', '~(?<![\\w$./])(?&frame)(?:(?&separator)(?&frame)){1,11}(?(DEFINE)(?<frame>'.$javaFrame.')(?<separator>'.$separator.'))~u'],
-            ['net', '~(?&frame)(?:(?&separator)(?&frame)){1,11}(?(DEFINE)(?<frame>'.$netFrame.')(?<separator>'.$separator.'))~u'],
+            // Try only each word's first supported identifier or a native frame
+            // prefix. Keep the old span after digit/Unicode prefixes via \K;
+            // retrying every word suffix made long response bodies quadratic.
+            ['net', '~'.$netStart.'(?&frame)(?:(?&separator)(?&frame)){1,11}(?(DEFINE)(?<frame>'.$netFrame.')(?<separator>'.$separator.'))~u'],
             ['iphp', <<<'REGEX'
 ~(?<number>[1-9]\d{0,3})\.\s*(?:<b>)?[A-Za-z_][\w]*(?:(?:::|->)[A-Za-z_][\w]*)?\([^<>\r\n]{0,160}\)(?:</b>)?\s+in\s+(?:<b>)?iCMS://[\w./-]{1,260}\.php(?:</b>)?\s+on\s+line\s+(?:<b>)?[1-9]\d{0,7}(?:</b>)?(?:\s|<br\s*/?>){1,100}(?<next>[1-9]\d{0,3})\.\s*(?:<b>)?[A-Za-z_][\w]*(?:(?:::|->)[A-Za-z_][\w]*)?\([^<>\r\n]{0,160}\)(?:</b>)?\s+in\s+(?:<b>)?iCMS://[\w./-]{1,260}\.php(?:</b>)?\s+on\s+line\s+(?:<b>)?[1-9]\d{0,7}(?:</b>)?~
 REGEX],

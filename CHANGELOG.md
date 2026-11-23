@@ -116,6 +116,9 @@ require explicit selection and default to shadow evaluation.
 
 ### Fixed
 
+- Prevent repeated .NET stack-frame scans from stalling classification on large
+  ordinary response bodies, with regression coverage for long identifiers and
+  source-bound trace evidence.
 - Update compatible Symfony dependencies to patched releases, resolving the
   security advisories reported by the release-time Composer audit. PHP 8.3
   remains supported.

@@ -3,6 +3,7 @@
 import os
 from pathlib import Path
 import shutil
+import signal
 import socket
 import subprocess
 import tempfile
@@ -15,6 +16,8 @@ root = Path(tempfile.gettempdir()) / f"librebugbounty-studio-{run_id}"
 output = project / "var" / f"preferences-acceptance-{run_id}"
 output.mkdir(parents=True)
 env = os.environ.copy()
+# Browser tabs and API snapshots must not queue behind an idle PHP CLI connection.
+env["PHP_CLI_SERVER_WORKERS"] = "4"
 env["STUDIO_BROWSER_ROOT"] = str(root)
 env["STUDIO_BROWSER_OUTPUT"] = str(output)
 with socket.socket() as sock:
@@ -26,7 +29,7 @@ try:
     subprocess.run(["php", "tests/Support/studio_browser_router.php", "init"], cwd=project, env=env, check=True)
     with (output / "server.log").open("w") as log:
         server = subprocess.Popen(["php", "-S", f"127.0.0.1:{port}", "-t", "public", "tests/Support/studio_browser_router.php"],
-                                  cwd=project, env=env, stdout=log, stderr=subprocess.STDOUT)
+                                  cwd=project, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
         deadline = time.monotonic() + 20
         while True:
             if server.poll() is not None:
@@ -47,11 +50,17 @@ try:
     print(f"Settings smoke artifacts: {output}", flush=True)
 finally:
     if server is not None:
-        server.terminate()
+        try:
+            os.killpg(server.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
         try:
             server.wait(timeout=5)
         except subprocess.TimeoutExpired:
-            server.kill()
+            try:
+                os.killpg(server.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
             server.wait()
     if root.exists():
         shutil.rmtree(root)
