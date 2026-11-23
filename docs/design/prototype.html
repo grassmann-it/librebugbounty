@@ -1,0 +1,662 @@
+<!doctype html>
+<html lang="de" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="Experimenteller, eigenständiger Designprototyp für LibreBugBounty 2.3.0. Ausschließlich synthetische Daten und lokale Demoaktionen.">
+  <title>LibreBugBounty · Designexperiment 2.3.0</title>
+  <script>
+    (() => {
+      let preference = 'system';
+      try { preference = localStorage.getItem('lbb-design-230-theme') || 'system'; } catch (_) {}
+      if (!['dark', 'light', 'system'].includes(preference)) preference = 'system';
+      document.documentElement.dataset.preference = preference;
+      document.documentElement.dataset.theme = preference === 'system' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : preference;
+    })();
+  </script>
+  <style>
+    /* Experimental shared roles; no production styles or runtime are imported. */
+    :root {
+      color-scheme: dark;
+      --ui-bg-canvas: #121416;
+      --ui-bg-panel: #1b1e22;
+      --ui-bg-raised: #24282d;
+      --ui-bg-overlay: #1b1e22;
+      --ui-bg-inset: #15181c;
+      --ui-text-primary: #eef1f4;
+      --ui-text-secondary: #c0c7d0;
+      --ui-text-muted: #a4adb8;
+      --ui-border-subtle: #343a42;
+      --ui-border-control: #7d8793;
+      --ui-accent-solid: #6aa7ff;
+      --ui-accent-hover: #8abbff;
+      --ui-accent-soft: #25344a;
+      --ui-accent-ink: #a3c7ff;
+      --ui-accent-on-solid: #121416;
+      --ui-status-info-ink: #a3c7ff;
+      --ui-status-info-surface: #25344a;
+      --ui-status-info-border: #647fa4;
+      --ui-status-success-ink: #a7efcb;
+      --ui-status-success-surface: #20382d;
+      --ui-status-success-border: #648c76;
+      --ui-status-warning-ink: #e8be72;
+      --ui-status-warning-surface: #352c1d;
+      --ui-status-warning-border: #9b8054;
+      --ui-status-danger-ink: #f0a39b;
+      --ui-status-danger-surface: #3c2428;
+      --ui-status-danger-border: #a47070;
+      --ui-focus-ring: #8abbff;
+      --ui-media-bg: #0e1012;
+      --ui-media-overlay: #20242a;
+      --ui-media-text: #e9edf2;
+      --ui-proof-paper: #faf9f7;
+      --ui-proof-panel: #f0efec;
+      --ui-proof-line: #d5d4cf;
+      --ui-proof-ink: #252a2d;
+      --ui-proof-muted: #586267;
+      --ui-proof-highlight: #e1ecfc;
+      --ui-proof-blue: #245dad;
+      --ui-radius-sm: 4px;
+      --ui-radius-md: 6px;
+      --ui-radius-lg: 10px;
+      --ui-space-1: 4px;
+      --ui-space-2: 8px;
+      --ui-space-3: 12px;
+      --ui-space-4: 16px;
+      --ui-space-6: 24px;
+      --ui-space-8: 32px;
+      --ui-control-height: 36px;
+      --ui-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --ui-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --ui-bg-canvas: #f3f4f5;
+      --ui-bg-panel: #ffffff;
+      --ui-bg-raised: #eceff2;
+      --ui-bg-overlay: #ffffff;
+      --ui-bg-inset: #f6f7f8;
+      --ui-text-primary: #20252b;
+      --ui-text-secondary: #46515f;
+      --ui-text-muted: #596675;
+      --ui-border-subtle: #d6dbe1;
+      --ui-border-control: #78828d;
+      --ui-accent-solid: #245dad;
+      --ui-accent-hover: #164b93;
+      --ui-accent-soft: #e7effb;
+      --ui-accent-ink: #245dad;
+      --ui-accent-on-solid: #ffffff;
+      --ui-status-info-ink: #245dad;
+      --ui-status-info-surface: #e7effb;
+      --ui-status-info-border: #758fb5;
+      --ui-status-success-ink: #256342;
+      --ui-status-success-surface: #e9f4ed;
+      --ui-status-success-border: #738f7e;
+      --ui-status-warning-ink: #775311;
+      --ui-status-warning-surface: #fff4da;
+      --ui-status-warning-border: #9b824d;
+      --ui-status-danger-ink: #a13530;
+      --ui-status-danger-surface: #fbece9;
+      --ui-status-danger-border: #b47c77;
+      --ui-focus-ring: #245dad;
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; background: var(--ui-bg-canvas); color: var(--ui-text-primary); font: 14px/1.5 var(--ui-font-sans); }
+    button, input, select { font: inherit; }
+    button, select { cursor: pointer; }
+    button { color: inherit; }
+    button, a, input, select, summary { -webkit-tap-highlight-color: transparent; }
+    :focus-visible { outline: 3px solid var(--ui-focus-ring); outline-offset: 3px; }
+    button:disabled { color: var(--ui-text-muted); border-color: var(--ui-border-subtle); background: var(--ui-bg-raised); cursor: not-allowed; }
+    button:disabled:hover { background: var(--ui-bg-raised); }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 28px; font-weight: 600; line-height: 1.25; letter-spacing: -.7px; }
+    h2 { font-size: 20px; font-weight: 600; line-height: 1.35; letter-spacing: -.3px; }
+    h3 { font-size: 14px; font-weight: 650; }
+    a { color: var(--ui-accent-ink); text-underline-offset: 3px; }
+    svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto; }
+    code, .mono { font-family: var(--ui-font-mono); font-size: 12px; }
+    .muted { color: var(--ui-text-muted); }
+    .meta { color: var(--ui-text-muted); font-size: 12px; }
+    .eyebrow { color: var(--ui-text-muted); font-size: 11px; font-weight: 650; letter-spacing: 1.3px; text-transform: uppercase; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    .skip-link { position: fixed; z-index: 5; left: 16px; top: -100px; padding: 10px 16px; border-radius: var(--ui-radius-md); background: var(--ui-bg-overlay); }
+    .skip-link:focus { top: 12px; }
+    .app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+    .app-header { display: flex; flex-shrink: 0; justify-content: space-between; gap: 24px; align-items: center; min-height: 64px; padding: 12px 32px; border-bottom: 1px solid var(--ui-border-subtle); background: var(--ui-bg-panel); }
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .brand svg { width: 26px; height: 26px; color: var(--ui-accent-solid); }
+    .brand strong { font-size: 15px; font-weight: 650; letter-spacing: -.3px; }
+    .version { color: var(--ui-text-muted); font-size: 11px; padding-left: 8px; }
+    .header-tools { display: flex; align-items: center; gap: 16px; }
+    .theme-field { display: flex; align-items: center; gap: 8px; color: var(--ui-text-muted); font-size: 12px; }
+    .theme-field select { width: auto; min-height: 32px; padding-block: 3px; }
+    .experiment { font-size: 11px; color: var(--ui-text-muted); border: 1px solid var(--ui-border-subtle); border-radius: var(--ui-radius-sm); padding: 2px 7px; white-space: nowrap; }
+    main { width: 100%; max-width: 1580px; padding: 24px 32px 32px; margin: 0 auto; flex: 1; min-width: 0; min-height: 0; overflow: auto; scrollbar-width: thin; scrollbar-color: var(--ui-border-control) transparent; }
+    .page-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
+    .page-heading p { margin-top: 6px; color: var(--ui-text-muted); }
+    #screen-review .page-heading { margin-bottom: 16px; }
+    #screen-review .page-heading h1 { font-size: 24px; }
+    #screen-review .page-heading p { margin-top: 3px; font-size: 12px; }
+    .page-summary { display: flex; gap: 24px; font-size: 12px; color: var(--ui-text-muted); flex-shrink: 0; }
+    .page-summary strong { color: var(--ui-text-primary); font-weight: 600; margin-right: 5px; font-variant-numeric: tabular-nums; }
+    .demo-caption { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; color: var(--ui-text-muted); font-size: 12px; }
+    .demo-caption svg { width: 15px; height: 15px; }
+    .ui-button { display: inline-flex; gap: 8px; justify-content: center; align-items: center; min-height: var(--ui-control-height); padding: 7px 12px; border: 1px solid var(--ui-border-control); border-radius: var(--ui-radius-md); background: var(--ui-bg-panel); color: var(--ui-text-primary); font-size: 12px; font-weight: 600; line-height: 1.5; text-decoration: none; }
+    .ui-button:hover { background: var(--ui-bg-raised); }
+    .ui-button[data-variant="primary"] { color: var(--ui-accent-on-solid); background: var(--ui-accent-solid); border-color: var(--ui-accent-solid); }
+    .ui-button[data-variant="primary"]:hover { background: var(--ui-accent-hover); border-color: var(--ui-accent-hover); }
+    .ui-button[data-variant="quiet"] { color: var(--ui-text-secondary); border-color: transparent; background: transparent; }
+    .ui-button[data-variant="quiet"]:hover { color: var(--ui-text-primary); background: var(--ui-bg-raised); }
+    .ui-button[aria-pressed="true"] { background: var(--ui-accent-soft); border-color: var(--ui-accent-solid); color: var(--ui-accent-ink); }
+    .ui-button[data-size="compact"] { min-height: 32px; padding: 4px 10px; }
+    .ui-pill { display: inline-flex; align-items: center; gap: 6px; width: fit-content; max-width: 100%; padding: 2px 8px; border: 1px solid var(--ui-border-subtle); border-radius: var(--ui-radius-sm); background: var(--ui-bg-raised); color: var(--ui-text-secondary); font-size: 12px; font-weight: 500; white-space: nowrap; }
+    .ui-pill[data-tone="success"] { color: var(--ui-status-success-ink); background: var(--ui-status-success-surface); border-color: var(--ui-status-success-border); }
+    .ui-pill[data-tone="warning"] { color: var(--ui-status-warning-ink); background: var(--ui-status-warning-surface); border-color: var(--ui-status-warning-border); }
+    .ui-pill[data-tone="danger"] { color: var(--ui-status-danger-ink); background: var(--ui-status-danger-surface); border-color: var(--ui-status-danger-border); }
+    .ui-pill[data-tone="info"] { color: var(--ui-status-info-ink); background: var(--ui-status-info-surface); border-color: var(--ui-status-info-border); }
+    .ui-pill svg { width: 13px; height: 13px; }
+    .ui-input, select { min-height: var(--ui-control-height); max-width: 100%; min-width: 0; padding: 7px 10px; border: 1px solid var(--ui-border-control); border-radius: var(--ui-radius-md); background: var(--ui-bg-inset); color: var(--ui-text-primary); font-size: 12px; }
+    .ui-input::placeholder { color: var(--ui-text-muted); opacity: 1; }
+    .ui-input[aria-invalid="true"] { border-color: var(--ui-status-danger-ink); }
+    .ui-notice { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; border: 1px solid var(--ui-status-info-border); border-radius: var(--ui-radius-md); color: var(--ui-status-info-ink); background: var(--ui-status-info-surface); font-size: 12px; }
+    .ui-notice[data-tone="success"] { border-color: var(--ui-status-success-border); color: var(--ui-status-success-ink); background: var(--ui-status-success-surface); }
+    .ui-notice[data-tone="danger"] { border-color: var(--ui-status-danger-border); color: var(--ui-status-danger-ink); background: var(--ui-status-danger-surface); }
+    .review-panel { border: 1px solid var(--ui-border-subtle); border-radius: var(--ui-radius-lg); background: var(--ui-bg-panel); overflow: clip; }
+    .case-heading { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 12px 24px; border-bottom: 1px solid var(--ui-border-subtle); }
+    .case-heading h2 { margin: 2px 0; font-size: 20px; overflow-wrap: anywhere; }
+    .case-url { overflow-wrap: anywhere; color: var(--ui-text-muted); font-family: var(--ui-font-mono); font-size: 12px; }
+    .case-position { display: flex; gap: 16px; align-items: center; color: var(--ui-text-muted); white-space: nowrap; font-size: 12px; }
+    .review-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; }
+    .evidence { padding: 20px 24px 16px; min-width: 0; }
+    .evidence-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 16px; }
+    .tabs { display: flex; align-items: center; gap: 16px; }
+    .tab { min-height: 36px; padding: 6px 0; background: transparent; border: 0; border-bottom: 2px solid transparent; color: var(--ui-text-muted); font-size: 12px; font-weight: 600; }
+    .tab[aria-selected="true"] { color: var(--ui-accent-ink); border-bottom-color: var(--ui-accent-solid); }
+    .evidence-status { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px 16px; padding-bottom: 12px; }
+    .capture-status { display: inline-flex; align-items: center; gap: 6px; color: var(--ui-status-success-ink); font-size: 12px; }
+    .capture-status[data-state="pending"] { color: var(--ui-status-warning-ink); }
+    .capture-status[data-state="error"] { color: var(--ui-status-danger-ink); }
+    .capture-status[data-state="empty"] { color: var(--ui-text-muted); }
+    .capture-status svg { width: 15px; height: 15px; }
+    .media-stage { min-height: 360px; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--ui-media-bg); border: 1px solid var(--ui-border-subtle); border-radius: var(--ui-radius-md); }
+    .proof { width: min(100%, 710px); overflow: hidden; border: 1px solid var(--ui-proof-line); border-radius: 4px; background: var(--ui-proof-paper); color: var(--ui-proof-ink); font-size: 12px; }
+    .proof-chrome { display: flex; align-items: center; gap: 12px; padding: 9px 14px; background: var(--ui-proof-panel); color: var(--ui-proof-muted); border-bottom: 1px solid var(--ui-proof-line); font-size: 10px; }
+    .proof-dots { display: flex; gap: 4px; }
+    .proof-dots i { width: 5px; height: 5px; background: var(--ui-proof-muted); border-radius: 50%; }
+    .proof-address { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .proof-content { padding: 24px 28px 28px; }
+    .proof-brand { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--ui-proof-line); padding-bottom: 16px; }
+    .proof-brand strong { font-size: 14px; letter-spacing: -.2px; }
+    .proof-brand span { color: var(--ui-proof-muted); font-size: 10px; }
+    .proof-content h3 { margin: 24px 0 8px; font-size: 20px; font-weight: 550; }
+    .proof-content p { color: var(--ui-proof-muted); font-size: 11px; }
+    .proof-query { display: flex; gap: 8px; align-items: center; margin: 20px 0; border: 1px solid var(--ui-proof-line); border-radius: 4px; padding: 8px 12px; }
+    .proof-query svg { width: 14px; height: 14px; }
+    .proof-result { border-left: 3px solid var(--ui-proof-blue); background: var(--ui-proof-highlight); padding: 12px 16px; color: var(--ui-proof-ink); }
+    .proof-result strong { display: block; margin-bottom: 4px; font-weight: 600; }
+    .proof-result code { font-size: 11px; overflow-wrap: anywhere; }
+    .proof-footer { margin-top: 18px; color: var(--ui-proof-muted); font-size: 10px; }
+    .media-caption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; margin: 10px 0 16px; font-size: 11px; color: var(--ui-text-muted); }
+    .demo-state { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ui-text-muted); }
+    .demo-state select { min-height: 32px; padding-block: 4px; }
+    .media-empty { min-height: 360px; padding: 40px 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; border: 1px solid var(--ui-border-subtle); border-radius: var(--ui-radius-md); background: var(--ui-bg-inset); text-align: center; }
+    .media-empty > svg { width: 32px; height: 32px; color: var(--ui-text-muted); }
+    .media-empty p { max-width: 330px; color: var(--ui-text-muted); font-size: 12px; }
+    .media-empty[data-state="error"] > svg { color: var(--ui-status-danger-ink); }
+    .media-empty[data-state="pending"] > svg { color: var(--ui-status-warning-ink); }
+    .response { min-height: 360px; margin: 0; padding: 24px; border: 1px solid var(--ui-border-subtle); border-radius: var(--ui-radius-md); background: var(--ui-bg-inset); color: var(--ui-text-secondary); font: 12px/1.9 var(--ui-font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .response strong { color: var(--ui-accent-ink); font-weight: 500; }
+    .case-details { padding: 20px 24px; min-width: 0; border-left: 1px solid var(--ui-border-subtle); }
+    .detail-section + .detail-section { border-top: 1px solid var(--ui-border-subtle); margin-top: 20px; padding-top: 20px; }
+    .detail-section h3 { margin-bottom: 12px; }
+    .detail-section p { color: var(--ui-text-secondary); font-size: 12px; line-height: 1.65; }
+    .detail-section .ui-pill { margin-bottom: 10px; }
+    .facts { display: grid; gap: 10px; margin: 0; font-size: 12px; }
+    .facts > div { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 12px; }
+    .facts dt { color: var(--ui-text-muted); }
+    .facts dd { margin: 0; overflow-wrap: anywhere; color: var(--ui-text-secondary); }
+    .code-block { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--ui-border-subtle); border-radius: var(--ui-radius-sm); background: var(--ui-bg-inset); color: var(--ui-text-secondary); overflow-wrap: anywhere; }
+    .case-actions { flex-shrink: 0; display: grid; grid-template-columns: minmax(140px, 190px) minmax(0,1fr) 380px; align-items: center; gap: 24px; padding: 16px 32px; border-top: 1px solid var(--ui-border-subtle); background: var(--ui-bg-panel); }
+    .dock-context { min-width: 0; }
+    .dock-context strong { display: block; font-size: 14px; overflow-wrap: anywhere; }
+    .dock-context p { margin-top: 4px; font-size: 11px; color: var(--ui-text-muted); }
+    .claim-fieldset { min-width: 0; margin: 0; padding: 8px 12px 10px; border: 1px solid var(--ui-border-subtle); border-radius: var(--ui-radius-md); }
+    .claim-fieldset legend { padding: 0 4px; font-size: 12px; font-weight: 600; }
+    .claim-fieldset output { color: var(--ui-text-muted); font-weight: 400; margin-left: 8px; }
+    .claim-options { display: flex; flex-wrap: wrap; gap: 8px; }
+    .claim-option { display: flex; align-items: center; gap: 6px; min-height: 32px; border: 1px solid var(--ui-border-control); border-radius: var(--ui-radius-sm); padding: 4px 8px; font-size: 12px; cursor: pointer; }
+    .claim-option:has(input:checked) { border-color: var(--ui-accent-solid); background: var(--ui-accent-soft); }
+    .claim-option input { margin: 0; accent-color: var(--ui-accent-solid); }
+    .claim-option small { color: var(--ui-text-muted); font-size: 11px; }
+    .claim-fieldset p { margin-top: 6px; color: var(--ui-text-muted); font-size: 11px; }
+    .decision-cross { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); grid-template-rows: repeat(2,40px); gap: 8px; }
+    .decision-cross .ui-button { padding: 6px; font-size: 12px; }
+    .decision-cross .poc { grid-column: 2; grid-row: 1; }
+    .decision-cross .skip { grid-column: 3; grid-row: 1; }
+    .decision-cross .fixed { grid-column: 1; grid-row: 2; }
+    .decision-cross .back { grid-column: 2; grid-row: 2; }
+    .decision-cross .confirmed { grid-column: 3; grid-row: 2; }
+    .button-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    #review-feedback { margin-top: 16px; }
+    .focus-mode .review-layout { grid-template-columns: minmax(0, 1fr); }
+    .focus-mode .case-details { display: none; }
+    .focus-mode .media-stage, .focus-mode .media-empty, .focus-mode .response { min-height: 480px; }
+    main:has([data-screen="review"]:not([hidden]) .focus-mode) { padding-block: 12px; }
+    main:has([data-screen="review"]:not([hidden]) .focus-mode) > .demo-caption, #screen-review:has(.focus-mode) > .page-heading, .focus-mode .case-heading { display: none; }
+    .focus-mode .proof { width: min(100%, 1000px); }
+    .inventory-tools { padding: 20px 24px; background: var(--ui-bg-panel); border: 1px solid var(--ui-border-subtle); border-radius: var(--ui-radius-lg); }
+    .filter-row { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 16px; align-items: end; }
+    .field { display: grid; gap: 6px; min-width: 0; font-size: 12px; }
+    .field .ui-input { width: 100%; }
+    .search-wrap { display: flex; position: relative; }
+    .search-wrap svg { position: absolute; left: 12px; top: 9px; width: 16px; height: 16px; color: var(--ui-text-muted); pointer-events: none; }
+    .search-wrap .ui-input { padding-left: 36px; }
+    .active-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 16px; }
+    .filter-extra { margin-top: 16px; font-size: 12px; }
+    .filter-extra summary { width: fit-content; padding: 4px 0; cursor: pointer; color: var(--ui-text-secondary); }
+    .filter-extra .field { max-width: 240px; margin-top: 12px; }
+    .results-heading { display: flex; justify-content: space-between; gap: 16px; margin: 24px 0 12px; }
+    .inventory-table { width: 100%; border-spacing: 0; border: 1px solid var(--ui-border-subtle); border-radius: var(--ui-radius-md); overflow: hidden; background: var(--ui-bg-panel); text-align: left; }
+    .inventory-table th { padding: 10px 16px; background: var(--ui-bg-raised); color: var(--ui-text-muted); font-size: 12px; font-weight: 500; }
+    .inventory-table td { border-top: 1px solid var(--ui-border-subtle); padding: 16px; font-size: 12px; vertical-align: middle; }
+    .inventory-table tbody tr:hover { background: var(--ui-bg-inset); }
+    .inventory-table strong { display: block; color: var(--ui-text-primary); font-size: 14px; font-weight: 600; }
+    .inventory-table .domain { max-width: 300px; overflow-wrap: anywhere; }
+    .inventory-table .domain span { display: block; margin-top: 4px; color: var(--ui-text-muted); }
+    .inventory-table td:last-child { text-align: right; }
+    .mobile-label { display: none; }
+    .inventory-empty { padding: 48px 24px; border: 1px solid var(--ui-border-subtle); border-radius: var(--ui-radius-md); background: var(--ui-bg-panel); text-align: center; }
+    .inventory-empty h3 { margin-bottom: 8px; }
+    .inventory-empty p { margin-bottom: 16px; color: var(--ui-text-muted); font-size: 12px; }
+    .inventory-footer { margin-top: 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .settings-layout { max-width: 1000px; border: 1px solid var(--ui-border-subtle); border-radius: var(--ui-radius-lg); background: var(--ui-bg-panel); }
+    .settings-section { padding: 24px; }
+    .settings-section + .settings-section { border-top: 1px solid var(--ui-border-subtle); }
+    .section-heading { margin-bottom: 8px; }
+    .section-heading h2 { font-size: 16px; }
+    .section-heading p { margin-top: 4px; color: var(--ui-text-muted); font-size: 12px; }
+    .setting-row { display: grid; grid-template-columns: minmax(200px, 1fr) minmax(220px, 1fr); align-items: center; gap: 24px; padding-top: 20px; }
+    .setting-label { display: block; font-size: 14px; font-weight: 500; }
+    .setting-hint { display: block; margin-top: 4px; color: var(--ui-text-muted); font-size: 12px; }
+    .theme-buttons { display: flex; gap: 8px; }
+    .theme-buttons .ui-button { flex: 1; }
+    .setting-value { display: grid; gap: 8px; }
+    .setting-value .ui-input, .setting-value select { width: 100%; }
+    .field-error { font-size: 12px; color: var(--ui-status-danger-ink); }
+    .settings-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 24px; }
+    .component-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 16px; }
+    .prototype-note { max-width: 1000px; margin-top: 20px; color: var(--ui-text-muted); font-size: 12px; }
+    .workspace-nav { display: flex; flex-shrink: 0; justify-content: center; gap: 8px; border-top: 1px solid var(--ui-border-subtle); background: var(--ui-bg-panel); padding: 0 24px env(safe-area-inset-bottom, 0px); }
+    .nav-button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 60px; min-width: 150px; padding: 12px 16px; border: 0; border-bottom: 3px solid transparent; background: transparent; color: var(--ui-text-muted); font-size: 12px; font-weight: 500; }
+    .nav-button:hover { background: var(--ui-bg-raised); color: var(--ui-text-primary); }
+    .nav-button[aria-current="page"] { color: var(--ui-accent-ink); background: var(--ui-accent-soft); border-bottom-color: var(--ui-accent-solid); }
+    .nav-button:focus-visible { outline-offset: -5px; }
+    @media (min-width: 1600px) { .review-layout { grid-template-columns: minmax(0,1fr) 360px; } }
+    @media (max-width: 1100px) {
+      .review-layout { grid-template-columns: minmax(0,1fr) 280px; }
+      main { padding-inline: 24px; }
+      .app-header { padding-inline: 24px; }
+      .evidence, .case-details { padding-inline: 16px; }
+      .media-stage { padding: 16px; }
+      .proof-content { padding: 20px; }
+      .page-summary { gap: 16px; }
+      .case-actions { grid-template-columns: minmax(0,1fr) 350px; gap: 16px; padding: 12px 24px; }
+      .dock-context { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+      .dock-context p { margin: 0; }
+    }
+    @media (max-width: 800px) {
+      .review-layout { grid-template-columns: minmax(0, 1fr); }
+      .case-details { border-left: 0; border-top: 1px solid var(--ui-border-subtle); display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; padding: 24px; }
+      .detail-section + .detail-section { margin: 0; padding: 0; border: 0; }
+      .detail-section:last-child { grid-column: 1 / -1; border-top: 1px solid var(--ui-border-subtle); padding-top: 16px; }
+      .page-summary { flex-direction: column; gap: 4px; text-align: right; }
+      .inventory-table th:nth-child(4), .inventory-table td:nth-child(4) { display: none; }
+      .setting-row { grid-template-columns: 1fr; gap: 12px; }
+      .case-actions { grid-template-columns: minmax(0,1fr); gap: 12px; }
+      .claim-options { gap: 6px; }
+      .claim-fieldset p { display: none; }
+    }
+    @media (max-width: 560px) {
+      :root { --ui-control-height: 44px; }
+      .app-header { min-height: 64px; padding: 12px 16px; gap: 12px; }
+      .brand { gap: 8px; }
+      .brand strong { font-size: 13px; }
+      .brand svg { width: 22px; height: 22px; }
+      .version { display: block; padding: 0; font-size: 10px; }
+      .experiment, .theme-field > span { display: none; }
+      .header-tools { gap: 0; }
+      .theme-field select { min-height: 44px; max-width: 100px; }
+      main { padding: 20px 16px 24px; }
+      h1 { font-size: 25px; }
+      .page-heading { gap: 12px; margin-bottom: 20px; }
+      .page-heading p { font-size: 12px; max-width: 230px; }
+      .page-summary { gap: 3px; font-size: 11px; }
+      .page-summary span:last-child { display: none; }
+      .demo-caption { align-items: flex-start; font-size: 11px; }
+      .demo-caption svg { margin-top: 1px; }
+      .case-heading { display: block; padding: 16px; }
+      .case-heading h2 { font-size: 21px; }
+      .case-position { justify-content: space-between; margin-top: 12px; }
+      .case-url { font-size: 11px; }
+      .evidence { padding: 12px; }
+      .evidence-toolbar { gap: 12px; margin-bottom: 8px; }
+      .tabs { gap: 16px; }
+      .tab { min-height: 44px; }
+      .ui-button[data-size="compact"] { min-height: 44px; padding-inline: 10px; }
+      .media-stage { padding: 12px; min-height: 320px; }
+      .proof-content { padding: 16px; }
+      .proof-content h3 { margin-top: 16px; font-size: 18px; }
+      .proof-chrome { padding: 8px; gap: 6px; }
+      .proof-brand span { max-width: 70px; text-align: right; }
+      .proof-query { margin: 16px 0; padding: 7px 8px; }
+      .proof-result { padding: 10px; }
+      .proof-footer { margin-top: 12px; }
+      .media-caption { margin-bottom: 12px; }
+      .demo-state { justify-content: space-between; }
+      .demo-state select { min-height: 44px; }
+      .case-details { padding: 20px 16px; display: block; }
+      .detail-section + .detail-section { border-top: 1px solid var(--ui-border-subtle); margin-top: 20px; padding-top: 20px; }
+      .case-actions { padding: 8px 12px; gap: 8px; }
+      .dock-context strong { font-size: 12px; }
+      .dock-context p { font-size: 10px; }
+      .claim-fieldset { padding: 4px 8px 8px; }
+      .claim-fieldset legend { font-size: 11px; }
+      .claim-option { min-height: 44px; padding: 4px 6px; font-size: 11px; }
+      .claim-option small { font-size: 10px; }
+      .decision-cross { grid-template-rows: repeat(2,44px); gap: 6px; }
+      .decision-cross .ui-button { font-size: 11px; }
+      .ui-notice { align-items: flex-start; flex-direction: column; gap: 8px; }
+      .filter-row { grid-template-columns: minmax(0,1fr); gap: 12px; }
+      .inventory-tools { padding: 16px; }
+      .search-wrap svg { top: 13px; }
+      .inventory-table, .inventory-table tbody { display: block; }
+      .inventory-table thead { display: none; }
+      .inventory-table tr { display: grid; grid-template-columns: 1fr 1fr; padding: 16px; gap: 12px; }
+      .inventory-table tr + tr { border-top: 1px solid var(--ui-border-subtle); }
+      .inventory-table td { display: block; padding: 0; border: 0; }
+      .inventory-table .domain { grid-column: 1 / -1; max-width: 100%; }
+      .inventory-table td:last-child { grid-column: 1 / -1; text-align: left; }
+      .mobile-label { display: block; color: var(--ui-text-muted); font-size: 11px; margin-bottom: 5px; }
+      .inventory-footer { align-items: flex-start; flex-direction: column; gap: 12px; }
+      .settings-section { padding: 20px 16px; }
+      .theme-buttons { gap: 6px; }
+      .theme-buttons .ui-button { padding-inline: 8px; }
+      .workspace-nav { gap: 0; padding: 0; }
+      .nav-button { flex: 1; min-width: 0; min-height: 64px; flex-direction: column; gap: 4px; padding: 8px; font-size: 11px; }
+      .focus-mode .media-stage, .focus-mode .media-empty, .focus-mode .response { min-height: 380px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } }
+  </style>
+</head>
+<body>
+  <svg hidden aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="icon-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="icon-alert" viewBox="0 0 24 24"><path d="m12 3 10 18H2Z"/><path d="M12 9v4m0 4h.01"/></symbol>
+    <symbol id="icon-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1"/><path d="m3 17 6-6 4 4 3-3 5 5"/></symbol>
+    <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></symbol>
+    <symbol id="icon-expand" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></symbol>
+    <symbol id="icon-review" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16m-8-9 2 2 3-4"/></symbol>
+    <symbol id="icon-inventory" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16M8 6v12"/></symbol>
+    <symbol id="icon-settings" viewBox="0 0 24 24"><path d="M4 6h7m5 0h4M4 12h2m5 0h9M4 18h10m5 0h1"/><circle cx="13" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="18" r="2"/></symbol>
+    <symbol id="icon-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10h.01"/></symbol>
+    <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+  </svg>
+  <a class="skip-link" href="#main">Zum Inhalt</a>
+  <div class="app">
+    <header class="app-header">
+      <div class="brand">
+        <svg viewBox="0 0 28 28" aria-hidden="true"><path d="m14 2 10 5v8c0 5-5 9-10 11C9 24 4 20 4 15V7Z"/><path d="m9 14 3 3 7-8"/></svg>
+        <div><strong>LibreBugBounty</strong><span class="version">2.3.0 · Entwurf</span></div>
+      </div>
+      <div class="header-tools">
+        <span class="experiment">Designexperiment</span>
+        <label class="theme-field"><span>Darstellung</span><select id="header-theme" aria-label="Darstellung"><option value="dark">Dark</option><option value="light">Light</option><option value="system">System</option></select></label>
+      </div>
+    </header>
+    <main id="main" tabindex="-1">
+      <p class="demo-caption"><svg aria-hidden="true"><use href="#icon-info"/></svg>Experimenteller Prototyp · synthetische Daten · alle Aktionen sind lokale Demos.</p>
+      <section id="screen-review" aria-labelledby="review-title" data-screen="review">
+        <div class="page-heading">
+          <div><h1 id="review-title">Review</h1><p>Belege prüfen. Fälle nachvollziehbar einordnen.</p></div>
+          <div class="page-summary"><span><strong>3</strong> Demo-Fälle</span><span><strong>1</strong> Aufnahme ausstehend</span></div>
+        </div>
+        <article class="review-panel" id="review-panel" aria-labelledby="case-domain">
+          <header class="case-heading">
+            <div><p class="eyebrow">Fall DEMO-001</p><h2 id="case-domain">catalog.example</h2><p class="case-url">https://catalog.example/search?q=DEMO-MARKER</p></div>
+            <div class="case-position"><span>Fall 1 von 3</span><span class="ui-pill" id="assessment-top">Bewertung offen</span></div>
+          </header>
+          <div class="review-layout">
+            <section class="evidence" aria-label="Belege">
+              <div class="evidence-toolbar">
+                <div class="tabs" role="tablist" aria-label="Belegart">
+                  <button class="tab" id="tab-capture" type="button" role="tab" aria-selected="true" aria-controls="capture-panel" data-evidence="capture">Aufnahme</button>
+                  <button class="tab" id="tab-response" type="button" role="tab" aria-selected="false" aria-controls="response-panel" tabindex="-1" data-evidence="response">Antwort</button>
+                </div>
+                <button class="ui-button" data-variant="quiet" data-size="compact" id="focus-toggle" type="button" aria-pressed="false"><svg aria-hidden="true"><use href="#icon-expand"/></svg>Fokus</button>
+              </div>
+              <div id="capture-panel" role="tabpanel" aria-labelledby="tab-capture">
+                <div class="evidence-status"><span class="capture-status" id="capture-status" data-state="ready" role="status"><svg aria-hidden="true"><use href="#icon-check"/></svg><span>Aufnahme bereit</span></span><span class="meta">23.11.2026 · 10:42</span></div>
+                <div class="media-stage" id="capture-ready">
+                  <div class="proof" role="img" aria-label="Synthetischer Screenshot: Example Catalog zeigt einen Suchwert DEMO-MARKER in einem Ergebnis. Das ist keine bestätigte Schwachstelle.">
+                    <div class="proof-chrome"><span class="proof-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="proof-address">catalog.example/search?q=DEMO-MARKER</span></div>
+                    <div class="proof-content">
+                      <div class="proof-brand"><strong>Example Catalog</strong><span>Synthetische Website</span></div>
+                      <h3>Suche im Katalog</h3><p>Ein neutraler Beleg für die Review-Oberfläche.</p>
+                      <div class="proof-query"><svg aria-hidden="true"><use href="#icon-search"/></svg><span>DEMO-MARKER</span></div>
+                      <div class="proof-result"><strong>Suchwert in der Antwort gefunden</strong><code>query: "DEMO-MARKER"</code></div>
+                      <div class="proof-footer">1 Ergebnis · lokal erzeugte Vorschau</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="media-empty" id="capture-state" data-state="pending" hidden>
+                  <svg aria-hidden="true"><use id="state-icon" href="#icon-clock"/></svg><h3 id="state-title">Aufnahme ausstehend</h3><p id="state-description">Der Demo-Fall wartet auf einen Beleg. Die Bewertung bleibt offen.</p><button class="ui-button" id="retry-capture" type="button" hidden>Erneut versuchen · Demo</button>
+                </div>
+                <div class="media-caption"><span>Synthetischer Beleg · keine Live-Website</span><span>Medien bleiben im Originalfarbraum</span></div>
+                <label class="demo-state" for="capture-demo-state">Demo-Zustand<select id="capture-demo-state"><option value="ready">Bereit</option><option value="pending">Ausstehend</option><option value="error">Fehler</option><option value="empty">Kein Beleg</option></select></label>
+              </div>
+              <div id="response-panel" role="tabpanel" aria-labelledby="tab-response" hidden>
+                <pre class="response"><strong>HTTP/1.1 200 OK</strong>
+Content-Type: text/html; charset=utf-8
+X-Demo-Fixture: synthetic
+
+&lt;section aria-label="Suchergebnis"&gt;
+  &lt;h2&gt;Suchwert gefunden&lt;/h2&gt;
+  &lt;output&gt;<strong>DEMO-MARKER</strong>&lt;/output&gt;
+&lt;/section&gt;
+
+// Gekürzte, synthetische Antwort.
+// Ein reflektierter Marker allein belegt keine Schwachstelle.</pre>
+                <p class="media-caption">Textbeleg · ausschließlich Beispieldaten</p>
+              </div>
+            </section>
+            <aside class="case-details" aria-label="Falldetails">
+              <section class="detail-section"><h3>Bewertung</h3><span class="ui-pill" id="assessment-detail">Noch offen</span><p>Der Marker ist sichtbar. Die technische Einordnung erfolgt durch die prüfende Person.</p></section>
+              <section class="detail-section"><h3>Kontext</h3><dl class="facts"><div><dt>Methode</dt><dd>GET</dd></div><div><dt>Parameter</dt><dd><code>q</code></dd></div><div><dt>Claims</dt><dd id="claim-detail">1 von 2 ausgewählt</dd></div><div><dt>Workflow</dt><dd>Keine Meldung versendet</dd></div></dl></section>
+              <section class="detail-section"><h3>Beobachtung</h3><p>Suchwert in der HTML-Antwort wiedergefunden.</p><div class="code-block"><code>DEMO-MARKER</code></div><p style="margin-top:12px">Aufnahmestatus und Bewertung sind voneinander unabhängig.</p></section>
+            </aside>
+          </div>
+        </article>
+        <div class="ui-notice" data-tone="success" id="review-feedback" role="status" hidden><span id="review-feedback-text"></span><button class="ui-button" data-size="compact" type="button" id="undo-decision">Rückgängig</button></div>
+      </section>
+      <section id="screen-inventory" aria-labelledby="inventory-title" data-screen="inventory" hidden>
+        <div class="page-heading"><div><h1 id="inventory-title">Inventar</h1><p>Fälle, Bewertungen und Belege im Überblick.</p></div><span class="ui-pill">3 Demo-Fälle</span></div>
+        <div class="inventory-tools">
+          <div class="filter-row"><label class="field" for="inventory-search">Domain oder Fall-ID<span class="search-wrap"><svg aria-hidden="true"><use href="#icon-search"/></svg><input class="ui-input" id="inventory-search" type="search" placeholder="Zum Beispiel catalog.example" autocomplete="off"></span></label><label class="field" for="inventory-assessment">Bewertung<select id="inventory-assessment"><option value="all">Alle Bewertungen</option><option value="open">Offen</option><option value="confirmed">Bestätigt</option><option value="fixed">Behoben</option></select></label></div>
+          <div class="active-filters" id="active-filters"><span class="meta">Aktive Filter</span><span class="ui-pill" id="filter-summary">Keine Einschränkung</span><button class="ui-button" data-variant="quiet" data-size="compact" id="reset-filters" type="button" hidden>Zurücksetzen</button></div>
+          <details class="filter-extra"><summary>Weitere Filter</summary><label class="field" for="inventory-capture">Aufnahmestatus<select id="inventory-capture"><option value="all">Alle Aufnahmen</option><option value="ready">Bereit</option><option value="pending">Ausstehend</option><option value="error">Fehler</option></select></label></details>
+        </div>
+        <div class="results-heading"><h3>Fälle</h3><span class="meta" id="result-count" role="status">3 von 3 Demo-Fällen</span></div>
+        <table class="inventory-table" id="inventory-table"><caption class="sr-only">Synthetische Fälle mit getrennten Bewertungen und Aufnahmestatus</caption><thead><tr><th scope="col">Domain / Fall</th><th scope="col">Bewertung</th><th scope="col">Aufnahme</th><th scope="col">Letzte Prüfung</th><th scope="col"><span class="sr-only">Aktion</span></th></tr></thead><tbody>
+          <tr data-domain="catalog.example demo-001" data-assessment="open" data-capture="ready"><td class="domain"><strong>catalog.example</strong><span>DEMO-001 · Suchparameter</span></td><td><span class="mobile-label">Bewertung</span><span class="ui-pill">Offen</span></td><td><span class="mobile-label">Aufnahme</span><span class="ui-pill" data-tone="success"><svg aria-hidden="true"><use href="#icon-check"/></svg>Bereit</span></td><td class="muted">Heute · 10:42</td><td><button class="ui-button" data-variant="quiet" data-open-review type="button">Demo ansehen<svg aria-hidden="true"><use href="#icon-arrow"/></svg></button></td></tr>
+          <tr data-domain="portal.example demo-002" data-assessment="confirmed" data-capture="pending"><td class="domain"><strong>portal.example</strong><span>DEMO-002 · Formular</span></td><td><span class="mobile-label">Bewertung</span><span class="ui-pill" data-tone="info">Bestätigt</span></td><td><span class="mobile-label">Aufnahme</span><span class="ui-pill" data-tone="warning"><svg aria-hidden="true"><use href="#icon-clock"/></svg>Ausstehend</span></td><td class="muted">Heute · 09:18</td><td><span class="meta">Beispielzeile</span></td></tr>
+          <tr data-domain="docs.example demo-003" data-assessment="fixed" data-capture="error"><td class="domain"><strong>docs.example</strong><span>DEMO-003 · Dokumentation</span></td><td><span class="mobile-label">Bewertung</span><span class="ui-pill" data-tone="success">Behoben</span></td><td><span class="mobile-label">Aufnahme</span><span class="ui-pill" data-tone="danger"><svg aria-hidden="true"><use href="#icon-alert"/></svg>Fehler</span></td><td class="muted">Gestern · 16:30</td><td><span class="meta">Beispielzeile</span></td></tr>
+        </tbody></table>
+        <div class="inventory-empty" id="inventory-empty" hidden><h3>Keine passenden Demo-Fälle</h3><p>Die Kombination deiner Filter liefert kein Ergebnis.</p><button class="ui-button" id="empty-reset" type="button">Filter zurücksetzen</button></div>
+        <div class="inventory-footer"><span class="meta">Drei synthetische Fälle · keine Produktivdaten</span><div class="button-row"><button class="ui-button" type="button" disabled>Zurück</button><span class="meta">Seite 1 von 1</span><button class="ui-button" type="button" disabled>Weiter</button></div></div>
+      </section>
+      <section id="screen-settings" aria-labelledby="settings-title" data-screen="settings" hidden>
+        <div class="page-heading"><div><h1 id="settings-title">Einstellungen</h1><p>Eine gemeinsame Darstellung für alle Arbeitsbereiche.</p></div></div>
+        <div class="settings-layout">
+          <section class="settings-section"><div class="section-heading"><h2>Darstellung</h2><p>Die Theme-Auswahl wird nur für diesen Prototyp im Browser gespeichert.</p></div><div class="setting-row"><div><span class="setting-label" id="theme-label">Farbschema</span><span class="setting-hint">System folgt deiner Geräteeinstellung, auch bei Änderungen.</span></div><div class="setting-value"><div class="theme-buttons" role="group" aria-labelledby="theme-label"><button class="ui-button" type="button" data-theme-choice="dark" aria-pressed="false">Dark</button><button class="ui-button" type="button" data-theme-choice="light" aria-pressed="false">Light</button><button class="ui-button" type="button" data-theme-choice="system" aria-pressed="true">System</button></div><span class="meta" id="theme-resolved" role="status">Auswahl: System · aktuell Dark</span></div></div></section>
+          <form id="settings-form" class="settings-section" novalidate><div class="section-heading"><h2>Review</h2><p>Demo-Einstellungen zeigen Formulare und Validierung.</p></div><div class="setting-row"><div><label class="setting-label" for="demo-timeout">Zeitlimit für Aufnahmen</label><span class="setting-hint" id="timeout-hint">1 bis 120 Sekunden. Im Prototyp startet kein Auftrag.</span></div><div class="setting-value"><input class="ui-input" id="demo-timeout" type="number" min="1" max="120" step="1" value="30" aria-describedby="timeout-hint timeout-error"><span class="field-error" id="timeout-error" hidden>Bitte eine ganze Zahl von 1 bis 120 eingeben.</span></div></div><div class="setting-row"><div><label class="setting-label" for="demo-density">Einträge pro Seite</label><span class="setting-hint">Beispiel für einen gemeinsamen Auswahl-Dialog.</span></div><div class="setting-value"><select id="demo-density"><option>10</option><option>25</option><option>50</option></select></div></div><div class="settings-actions"><button class="ui-button" data-variant="primary" type="submit">Demo übernehmen</button><span class="meta" id="settings-result" role="status">Nur in dieser Vorschau gültig.</span></div></form>
+          <section class="settings-section"><div class="section-heading"><h2>Gemeinsame Zustände</h2><p>Status bleibt auch ohne Farbe verständlich: Symbol und Bezeichnung gehören zusammen.</p></div><div class="component-row"><span class="ui-pill" data-tone="info"><svg aria-hidden="true"><use href="#icon-info"/></svg>Information</span><span class="ui-pill" data-tone="success"><svg aria-hidden="true"><use href="#icon-check"/></svg>Erfolgreich</span><span class="ui-pill" data-tone="warning"><svg aria-hidden="true"><use href="#icon-clock"/></svg>Ausstehend</span><span class="ui-pill" data-tone="danger"><svg aria-hidden="true"><use href="#icon-alert"/></svg>Fehler</span></div><div class="component-row"><button class="ui-button" type="button" disabled>Nicht verfügbar</button><span class="meta">Tastatur: Tab zeigt den gemeinsamen Fokusring.</span></div></section>
+        </div>
+        <p class="prototype-note">Designstand 2.3.0 · Experimentelle Vorschau, keine abgeschlossene App-Migration. Theme-Auswahl und Demoaktionen sind vom produktiven LibreBugBounty getrennt.</p>
+      </section>
+    </main>
+    <section class="case-actions" id="review-actions" aria-label="Demoentscheidung für den angezeigten Fall">
+      <div class="dock-context"><strong>catalog.example</strong><p id="dock-feedback" role="status">Lokale Demo · ohne Backend</p></div>
+      <fieldset class="claim-fieldset"><legend>Befunde übernehmen <output id="claim-count">1 / 2</output></legend><div class="claim-options"><label class="claim-option"><input type="checkbox" name="demo-claim" checked><span>HTML-Reflexion <small>· beobachtet</small></span></label><label class="claim-option"><input type="checkbox" name="demo-claim"><span>Script-Kontext <small>· ungeprüft</small></span></label></div><p>Die Auswahl ist von der Bewertung getrennt.</p></fieldset>
+      <div class="decision-cross" aria-label="Entscheidungskreuz · alle Aktionen sind Demos">
+        <button class="ui-button poc" type="button" id="demo-poc">↑ PoC öffnen</button>
+        <button class="ui-button skip" data-variant="quiet" type="button" id="defer-case">Überspringen</button>
+        <button class="ui-button fixed" type="button" id="fixed-case">← Nicht anfällig</button>
+        <button class="ui-button back" type="button" id="back-case">↓ Zurück &amp; Reset</button>
+        <button class="ui-button confirmed" data-variant="primary" type="button" id="confirm-case">Anfällig →</button>
+      </div>
+    </section>
+    <nav class="workspace-nav" aria-label="Demo-Arbeitsbereiche">
+      <button class="nav-button" type="button" data-nav="review" aria-current="page"><svg aria-hidden="true"><use href="#icon-review"/></svg>Review</button>
+      <button class="nav-button" type="button" data-nav="inventory"><svg aria-hidden="true"><use href="#icon-inventory"/></svg>Inventar</button>
+      <button class="nav-button" type="button" data-nav="settings"><svg aria-hidden="true"><use href="#icon-settings"/></svg>Einstellungen</button>
+    </nav>
+  </div>
+  <script>
+    (() => {
+      'use strict';
+      const root = document.documentElement;
+      const $ = selector => document.querySelector(selector);
+      const $$ = selector => [...document.querySelectorAll(selector)];
+      const systemTheme = matchMedia('(prefers-color-scheme: dark)');
+      let preference = root.dataset.preference;
+      const themeNames = { dark: 'Dark', light: 'Light', system: 'System' };
+      function applyTheme(value, persist = true) {
+        preference = value;
+        root.dataset.preference = value;
+        const resolved = value === 'system' ? (systemTheme.matches ? 'dark' : 'light') : value;
+        root.dataset.theme = resolved;
+        $('#header-theme').value = value;
+        $$('[data-theme-choice]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.themeChoice === value)));
+        $('#theme-resolved').textContent = `Auswahl: ${themeNames[value]} · aktuell ${themeNames[resolved]}`;
+        if (persist) { try { localStorage.setItem('lbb-design-230-theme', value); } catch (_) { $('#theme-resolved').textContent += ' · Speicherung im Browser nicht verfügbar'; } }
+      }
+      applyTheme(preference, false);
+      $('#header-theme').addEventListener('change', event => applyTheme(event.target.value));
+      $$('[data-theme-choice]').forEach(button => button.addEventListener('click', () => applyTheme(button.dataset.themeChoice)));
+      systemTheme.addEventListener('change', () => { if (preference === 'system') applyTheme('system', false); });
+
+      function showScreen(name, moveFocus = true) {
+        $$('[data-screen]').forEach(screen => { screen.hidden = screen.dataset.screen !== name; });
+        $('#review-actions').hidden = name !== 'review';
+        $$('[data-nav]').forEach(button => { if (button.dataset.nav === name) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current'); });
+        if (moveFocus) { const heading = name === 'review' && $('#review-panel').classList.contains('focus-mode') ? $('#focus-toggle') : $(`#screen-${name} h1`); if (heading.tagName !== 'BUTTON') heading.setAttribute('tabindex', '-1'); heading.focus({ preventScroll: true }); $('#main').scrollTo(0, 0); }
+      }
+      $$('[data-nav]').forEach(button => button.addEventListener('click', () => showScreen(button.dataset.nav)));
+      $$('[data-open-review]').forEach(button => button.addEventListener('click', () => showScreen('review')));
+
+      function showEvidence(name, moveFocus = false) {
+        $$('[data-evidence]').forEach(button => { const active = button.dataset.evidence === name; button.setAttribute('aria-selected', String(active)); button.tabIndex = active ? 0 : -1; if (active && moveFocus) button.focus(); });
+        $('#capture-panel').hidden = name !== 'capture';
+        $('#response-panel').hidden = name !== 'response';
+      }
+      $$('[data-evidence]').forEach(button => {
+        button.addEventListener('click', () => showEvidence(button.dataset.evidence));
+        button.addEventListener('keydown', event => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          showEvidence(event.key === 'Home' ? 'capture' : event.key === 'End' ? 'response' : button.dataset.evidence === 'capture' ? 'response' : 'capture', true);
+        });
+      });
+      $('#focus-toggle').addEventListener('click', () => {
+        const focused = $('#review-panel').classList.toggle('focus-mode');
+        $('#focus-toggle').setAttribute('aria-pressed', String(focused));
+        $('#focus-toggle').lastChild.textContent = focused ? 'Fokus verlassen' : 'Fokus';
+        $('#main').scrollTo(0, 0);
+      });
+      const states = {
+        ready: ['Aufnahme bereit', '', '', 'check'],
+        pending: ['Aufnahme ausstehend', 'Aufnahme ausstehend', 'Der Demo-Fall wartet auf einen Beleg. Die Bewertung bleibt offen.', 'clock'],
+        error: ['Aufnahme fehlgeschlagen', 'Aufnahme nicht verfügbar', 'Das Demo-Zeitlimit wurde erreicht. Du kannst den Beleg lokal erneut anzeigen.', 'alert'],
+        empty: ['Kein Beleg vorhanden', 'Noch kein Beleg', 'Für diesen Demo-Zustand liegt keine Aufnahme vor. Das ist keine Bewertung des Falls.', 'image']
+      };
+      function setCaptureState(state) {
+        const [status, title, description, icon] = states[state];
+        $('#capture-demo-state').value = state;
+        $('#capture-status').dataset.state = state;
+        $('#capture-status span').textContent = status;
+        $('#capture-status use').setAttribute('href', `#icon-${icon}`);
+        $('#capture-ready').hidden = state !== 'ready';
+        $('#capture-state').hidden = state === 'ready';
+        $('#capture-state').dataset.state = state;
+        $('#state-title').textContent = title;
+        $('#state-description').textContent = description;
+        $('#state-icon').setAttribute('href', `#icon-${icon}`);
+        $('#retry-capture').hidden = state !== 'error';
+      }
+      $('#capture-demo-state').addEventListener('change', event => setCaptureState(event.target.value));
+      $('#retry-capture').addEventListener('click', () => { setCaptureState('ready'); $('#capture-demo-state').focus(); });
+      function decide(confirmed) {
+        for (const target of ['#assessment-top', '#assessment-detail']) { $(target).textContent = confirmed ? 'Bestätigt · Demo' : 'Behoben · Demo'; $(target).dataset.tone = confirmed ? 'info' : 'success'; }
+        $('#review-feedback-text').textContent = confirmed ? 'Demoentscheidung übernommen. Es wurde keine Meldung versendet.' : 'Demoentscheidung: Nicht anfällig → Behoben. Es wurde kein Auftrag gestartet.';
+        $('#dock-feedback').textContent = confirmed ? 'Demo: bestätigt · kein Versand' : 'Demo: behoben · kein Auftrag';
+        $('#review-feedback').hidden = false;
+        const row = $('tr[data-domain="catalog.example demo-001"]');
+        row.dataset.assessment = confirmed ? 'confirmed' : 'fixed';
+        row.querySelector('.ui-pill').textContent = confirmed ? 'Bestätigt · Demo' : 'Behoben · Demo';
+        row.querySelector('.ui-pill').dataset.tone = confirmed ? 'info' : 'success';
+        filterInventory();
+      }
+      $('#confirm-case').addEventListener('click', () => decide(true));
+      $('#fixed-case').addEventListener('click', () => decide(false));
+      $('#defer-case').addEventListener('click', () => { $('#dock-feedback').textContent = 'Demo: übersprungen · Bewertung unverändert'; });
+      $('#demo-poc').addEventListener('click', () => { showEvidence('response'); $('#main').scrollTo(0, 0); $('#dock-feedback').textContent = 'PoC-Demo: synthetische Antwort geöffnet'; });
+      function resetDecision() {
+        $('#assessment-top').textContent = 'Bewertung offen'; $('#assessment-detail').textContent = 'Noch offen';
+        ['#assessment-top', '#assessment-detail'].forEach(target => delete $(target).dataset.tone);
+        $('#review-feedback').hidden = true;
+        const row = $('tr[data-domain="catalog.example demo-001"]'); row.dataset.assessment = 'open'; row.querySelector('.ui-pill').textContent = 'Offen'; delete row.querySelector('.ui-pill').dataset.tone;
+        filterInventory(); $('#dock-feedback').textContent = 'Demo zurückgesetzt · Bewertung offen';
+      }
+      $('#undo-decision').addEventListener('click', () => { resetDecision(); $('#confirm-case').focus(); });
+      $('#back-case').addEventListener('click', resetDecision);
+      $$('[name="demo-claim"]').forEach(input => input.addEventListener('change', () => {
+        const count = $$('[name="demo-claim"]:checked').length;
+        $('#claim-count').textContent = `${count} / 2`;
+        $('#claim-detail').textContent = `${count} von 2 ausgewählt`;
+      }));
+      function filterInventory() {
+        const search = $('#inventory-search').value.trim().toLowerCase();
+        const assessment = $('#inventory-assessment').value;
+        const capture = $('#inventory-capture').value;
+        let count = 0;
+        $$('.inventory-table tbody tr').forEach(row => { row.hidden = !(row.dataset.domain.includes(search) && (assessment === 'all' || row.dataset.assessment === assessment) && (capture === 'all' || row.dataset.capture === capture)); if (!row.hidden) count++; });
+        $('#result-count').textContent = `${count} von 3 Demo-Fällen`;
+        $('#inventory-table').hidden = count === 0; $('#inventory-empty').hidden = count !== 0;
+        const filters = [];
+        if (search) filters.push(`Suche: ${$('#inventory-search').value.trim()}`);
+        if (assessment !== 'all') filters.push(`Bewertung: ${$('#inventory-assessment').selectedOptions[0].text}`);
+        if (capture !== 'all') filters.push(`Aufnahme: ${$('#inventory-capture').selectedOptions[0].text}`);
+        $('#filter-summary').textContent = filters.length ? filters.join(' · ') : 'Keine Einschränkung';
+        $('#filter-summary').style.whiteSpace = 'normal'; $('#filter-summary').style.overflowWrap = 'anywhere';
+        $('#reset-filters').hidden = filters.length === 0;
+      }
+      function resetFilters() { $('#inventory-search').value = ''; $('#inventory-assessment').value = 'all'; $('#inventory-capture').value = 'all'; filterInventory(); $('#inventory-search').focus(); }
+      $('#inventory-search').addEventListener('input', filterInventory);
+      ['#inventory-assessment', '#inventory-capture'].forEach(target => $(target).addEventListener('change', filterInventory));
+      ['#reset-filters', '#empty-reset'].forEach(target => $(target).addEventListener('click', resetFilters));
+      $('#settings-form').addEventListener('submit', event => {
+        event.preventDefault();
+        const input = $('#demo-timeout'); const value = Number(input.value);
+        const valid = input.value.trim() !== '' && Number.isInteger(value) && value >= 1 && value <= 120;
+        input.setAttribute('aria-invalid', String(!valid)); $('#timeout-error').hidden = valid;
+        $('#settings-result').textContent = valid ? 'Demo übernommen · nur für diese Vorschau.' : 'Bitte das markierte Feld prüfen.';
+        if (!valid) input.focus();
+      });
+    })();
+  </script>
+</body>
+</html>
