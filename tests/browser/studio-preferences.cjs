@@ -86,7 +86,15 @@ async function main() {
     assert.equal(await select(page, 'export_screenshot_mode').inputValue(), 'latest');
     assert.equal(await page.locator('.studio-settings-form input:not([type="hidden"]):not([name^="shortcut_bindings"]):not([name="paste_submit"]), .studio-settings-form select').count(), 8);
     assert.equal(await page.locator('[name="paste_submit"]').isChecked(), false);
-    assert.equal(await page.locator('[name^="shortcut_bindings"]').count(), 12);
+    const shortcutActions = await page.locator('[name^="shortcut_bindings"]').evaluateAll(inputs => inputs.map(input => input.name.slice('shortcut_bindings['.length, -1)).sort());
+    assert.deepEqual(shortcutActions, [
+      'review.fixed', 'review.confirmed', 'review.skip', 'review.back', 'review.poc', 'review.focus',
+      'review.menu', 'review.details', 'review.controls',
+      'nav.intake', 'nav.review', 'nav.inventory', 'nav.statistics', 'nav.export', 'nav.settings',
+    ].sort(), 'Settings exposes every review and navigation action, including the focus menu controls');
+    for (const [action, key] of [['review.menu', 'M'], ['review.details', 'I'], ['review.controls', 'H']]) {
+      assert.equal(await page.locator(`[name="shortcut_bindings[${action}]"]`).inputValue(), key);
+    }
     assert.equal(await page.locator('[name=recheck_interval_days]').inputValue(), '14');
     assert.equal(await page.locator('[name=recheck_error_backoff_days]').inputValue(), '3');
     assert.equal(await page.locator('[data-health-kind], [data-about-release], [data-documentation-links]').count(), 0);
