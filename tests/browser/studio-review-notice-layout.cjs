@@ -1,5 +1,7 @@
 /* Notice + claim choices must keep their actions and decision countdown visible.
- * Use the isolated Cribrum badge router (never the regular application DB):
+ * Run with automatic fixture/server cleanup:
+ *   python tests/browser/run_review_notice.py
+ * Or use the isolated Cribrum badge router (never the regular application DB):
  *   STUDIO_BROWSER_ROOT=/tmp/librebugbounty-cribrum-badges-notice-layout php tests/Support/cribrum_badges_browser_router.php init
  *   STUDIO_BROWSER_ROOT=/tmp/librebugbounty-cribrum-badges-notice-layout php -S 127.0.0.1:8099 -t public tests/Support/cribrum_badges_browser_router.php
  *   STUDIO_BROWSER_BASE=http://127.0.0.1:8099 node tests/browser/studio-review-notice-layout.cjs
@@ -51,6 +53,13 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
   };
   try {
     const fixture = await snapshot();
+    // Creation timestamps can tie; use the actual cursor order, not random UUID order.
+    const ordered = [...fixture.snapshot.finding].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id));
+    const position = ordered.findIndex(row => row.id === fixture.fixtures.waf.id);
+    assert.ok(position >= 0);
+    const query = new URLSearchParams({ kind: 'changed', images: 'all' });
+    if (position > 0) query.set('after', ordered[position - 1].id);
+    const reviewUrl = `${origin}/review?${query}`;
     await page.goto(origin + '/settings');
     await page.locator('[name="review_decision_delay_seconds"]').selectOption('5');
     await Promise.all([page.waitForNavigation(), page.locator('.studio-settings-actions button[type="submit"]').click()]);
@@ -61,7 +70,7 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
       for (const [width, height] of [[1440, 900], [960, 900], [800, 900], [720, 900], [390, 844]]) {
         for (const focus of [false, true]) {
           await page.setViewportSize({ width, height });
-          const response = await page.goto(`${origin}/review?kind=changed&images=all&after=${fixture.fixtures.dense.id}`);
+          const response = await page.goto(reviewUrl);
           assert.equal(response.status(), 200);
           assert.equal(await page.locator('body').getAttribute('data-current-id'), fixture.fixtures.waf.id);
           assert.equal(await page.locator('.review-has-notice.review-has-claims').count(), 1);
@@ -91,7 +100,7 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
     for (const [width, height] of [[960, 844], [390, 844], [844, 390]]) {
       for (const focus of [false, true]) {
         await page.setViewportSize({ width, height });
-        await page.goto(`${origin}/review?kind=changed&images=all&after=${fixture.fixtures.dense.id}`);
+        await page.goto(reviewUrl);
         if ((await page.locator('body').getAttribute('data-review-focus-mode') === 'true') !== focus) await page.keyboard.press('f');
         await page.evaluate(() => {
           const keep = document.querySelector('[data-review-keep]');
@@ -122,6 +131,9 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
     assert.deepEqual(blocked, []);
     await fs.writeFile(path.join(output, 'result.json'), JSON.stringify({ checks, multipleActions, errors, blocked }, null, 2));
     console.log(`PASS ${checks.length} bilingual classic/focus notice + claims layouts, visible countdown, keyboard and pointer access; ${multipleActions.length} multiple-action layout stress cases; no case mutations`);
+  } catch (error) {
+    await page.screenshot({ path: path.join(output, 'failure.png') }).catch(() => {});
+    throw error;
   } finally {
     await browser.close();
   }

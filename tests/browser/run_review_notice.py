@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+"""Run notice + claim layout checks against a disposable local fixture."""
+import os
+from pathlib import Path
+import shutil
+import signal
+import socket
+import subprocess
+import tempfile
+import time
+import uuid
+
+project = Path(__file__).resolve().parents[2]
+run_id = uuid.uuid4().hex
+root = Path(tempfile.gettempdir()) / f"librebugbounty-cribrum-badges-{run_id}"
+output = project / "var" / f"review-notice-acceptance-{run_id}"
+output.mkdir(parents=True)
+env = os.environ.copy()
+# Browser tabs and API snapshots must not queue behind an idle PHP CLI connection.
+env["PHP_CLI_SERVER_WORKERS"] = "2"
+env["STUDIO_BROWSER_ROOT"] = str(root)
+env["STUDIO_BROWSER_OUTPUT"] = str(output)
+with socket.socket() as sock:
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+env["STUDIO_BROWSER_BASE"] = f"http://127.0.0.1:{port}"
+# Some local PHP installations ship SQLite as an optional, disabled module.
+php = ["php"]
+if subprocess.check_output(["php", "-r", 'echo extension_loaded("pdo_sqlite") ? "yes" : "no";'], text=True) == "no":
+    php += ["-d", "extension=pdo_sqlite"]
+server = None
+try:
+    subprocess.run(php + ["tests/Support/cribrum_badges_browser_router.php", "init"], cwd=project, env=env, check=True)
+    with (output / "server.log").open("w") as log:
+        server = subprocess.Popen(php + ["-S", f"127.0.0.1:{port}", "-t", "public", "tests/Support/cribrum_badges_browser_router.php"],
+                                  cwd=project, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+        deadline = time.monotonic() + 20
+        while True:
+            if server.poll() is not None:
+                raise RuntimeError(f"Fixture server exited; see {output / 'server.log'}")
+            try:
+                with socket.create_connection(("127.0.0.1", port), timeout=0.2):
+                    break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    raise RuntimeError("Fixture server did not start")
+                time.sleep(0.1)
+        subprocess.run(["node", "tests/browser/studio-review-notice-layout.cjs"], cwd=project, env=env, check=True, timeout=180)
+    print(f"Review notice layout artifacts: {output}", flush=True)
+finally:
+    if server is not None:
+        try:
+            os.killpg(server.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+        try:
+            server.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(server.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            server.wait()
+    if root.exists():
+        shutil.rmtree(root)
