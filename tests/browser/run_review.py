@@ -19,14 +19,16 @@ project = Path(__file__).resolve().parents[2]
 run_id = uuid.uuid4().hex
 root = Path(tempfile.gettempdir()) / f"librebugbounty-studio-review-{run_id}"
 review_mode = os.environ.get("STUDIO_REVIEW_ONLY")
-suite_name = {"recovery": "review-recovery", "claims": "review-claim-selection", "queue": "review-queue"}.get(review_mode, "review-focus")
+suite_name = {"recovery": "review-recovery", "claims": "review-claim-selection", "queue": "review-queue", "preloads": "review-preloads"}.get(review_mode, "review-focus")
 output = project / "var" / f"{suite_name}-acceptance-{run_id}"
 output.mkdir(parents=True)
 env = os.environ.copy()
 if review_mode in {"claims", "queue"}:
     env["STUDIO_CLAIM_SELECTION_FIXTURE"] = "1"
+if review_mode == "preloads":
+    env["STUDIO_REVIEW_PRELOAD_FIXTURE"] = "1"
 # Concurrent fixture requests must not wait behind an idle browser connection.
-env["PHP_CLI_SERVER_WORKERS"] = "4"
+env["PHP_CLI_SERVER_WORKERS"] = "2" if review_mode == "preloads" else "4"
 env["STUDIO_BROWSER_ROOT"] = str(root)
 env["STUDIO_BROWSER_OUTPUT"] = str(output)
 with socket.socket() as sock:
@@ -52,6 +54,11 @@ try:
                 if time.monotonic() >= deadline:
                     raise RuntimeError("Fixture server did not start")
                 time.sleep(0.1)
+        if review_mode == "preloads":
+            subprocess.run(["node", "tests/browser/studio-review-preload-settings.cjs"], cwd=project,
+                           env=env, check=True, timeout=300)
+            print(f"Review configurable preload artifacts: {output}", flush=True)
+            sys.exit(0)
         if review_mode == "queue":
             subprocess.run(["node", "tests/browser/studio-review-queue.cjs"], cwd=project,
                            env=env, check=True, timeout=300)

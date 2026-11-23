@@ -436,9 +436,12 @@ crossfade together, avoiding an empty gap between animations. Slow or broken
 images fall back without motion rather than blocking review. Leaving focus mode,
 resizing or enabling reduced motion cancels the effect cleanly.
 The browser's reduced-motion preference disables these movements.
-In both layouts, Review quietly prepares up to five upcoming cards and decodes
-their stored screenshots, loading images one at a time after the current image.
-A matching image is reused on arrival. These previews are read-only: they do not
+In both layouts, **Settings → Review → Cases to preload** controls how many
+upcoming cards and stored screenshots Review prepares (0–50, default 5; 0 disables
+preloading). Cards load in small batches, and images load and decode one at a
+time after the current image. After each assessment, the buffer refills immediately
+without waiting for that assessment to finish saving. A matching image is reused
+on arrival. Larger buffers use more browser memory. These previews are read-only: they do not
 change the review trail, create screenshot jobs or run checks. Background tabs,
 Save-Data and very slow connections pause new preloads. Missing or failed images
 retain the normal loading fallback.
@@ -756,7 +759,7 @@ preferences and case/domain restrictions. Status and About open dialogs without
 leaving your current work; Escape closes them. On small screens the dialogs
 fill the viewport. Direct `/status` and `/about` pages also work without JavaScript.
 
-Open the gear icon for **Settings**. Eight settings are available:
+Open the gear icon for **Settings**. The following preferences are available:
 
 - **Default marker:** prefilled when a new URL is entered. Existing cases keep
   their saved marker.
@@ -766,6 +769,10 @@ Open the gear icon for **Settings**. Eight settings are available:
 - **Review decision pause:** Off, 3 seconds, or 5 seconds. With JavaScript,
   assessment controls unlock after the displayed image is ready and the pause
   has elapsed. This does not delay saving an assessment you already made.
+- **Cases to preload:** 0–50 upcoming Review cases and stored screenshots; the
+  default is 5. Set 0 to disable preloading. After each assessment, Review refills
+  the buffer without waiting for the save. More preloaded images use more browser
+  memory; this setting never starts a new capture or target check.
 - **Cases per page:** 10, 25, 50, or 100 cases per page; the factory default
   is 10. **All** is available only as an explicit choice on Inventory.
 - **Preferred export preset:** URL list, Current case state, or Report with

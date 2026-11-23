@@ -3,6 +3,13 @@
 The release history of LibreBugBounty. Historical dates below follow the
 repository's tagged commits.
 
+## Unreleased
+
+- Review preloading is configurable in Settings from 0 to 50 upcoming cases and
+  stored screenshots (default 5; 0 disables it). Small batches fill the buffer,
+  and each assessment immediately starts replenishing it while saves remain
+  serialized in the background.
+
 ## 2.2.0 — Cribrum (2026-11-23)
 
 Cribrum focuses on the local response classifier: explainable evidence, multiple

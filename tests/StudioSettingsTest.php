@@ -43,6 +43,11 @@ final class StudioSettingsTest extends DatabaseTestCase
             self::assertSame(3, $xpath->query('//select[@name="review_decision_delay_seconds"]/option')->length);
             self::assertSame(1, $xpath->query('//label[@for="settings-review-decision-delay"]')->length);
             self::assertSame('settings-review-decision-delay-hint', $xpath->evaluate('string(//select[@name="review_decision_delay_seconds"]/@aria-describedby)'));
+            self::assertSame('5', $xpath->evaluate('string(//input[@name="review_preload_count"]/@value)'));
+            self::assertSame('0', $xpath->evaluate('string(//input[@name="review_preload_count"]/@min)'));
+            self::assertSame('50', $xpath->evaluate('string(//input[@name="review_preload_count"]/@max)'));
+            self::assertSame(1, $xpath->query('//label[@for="settings-review-preload-count"]')->length);
+            self::assertSame('settings-review-preload-count-hint', $xpath->evaluate('string(//input[@name="review_preload_count"]/@aria-describedby)'));
             self::assertSame('10', $xpath->evaluate('string(//select[@name="inventory_page_size"]/option[@selected]/@value)'));
             self::assertSame('report', $xpath->evaluate('string(//select[@name="export_profile"]/option[@selected]/@value)'));
             self::assertSame('latest', $xpath->evaluate('string(//select[@name="export_screenshot_mode"]/option[@selected]/@value)'));
@@ -123,12 +128,14 @@ final class StudioSettingsTest extends DatabaseTestCase
                 'default_payload' => $payload,
                 'review_timeout_ms' => $timeout,
                 'review_decision_delay_seconds' => '5',
+                'review_preload_count' => '30',
             ]);
             self::assertSame(Response::HTTP_UNPROCESSABLE_ENTITY, $response->getStatusCode());
             $xpath = $this->xpath($response->getContent());
             self::assertSame($payload, $xpath->evaluate('string(//input[@name="default_payload"]/@value)'));
             self::assertSame($timeout, $xpath->evaluate('string(//input[@name="review_timeout_ms"]/@value)'));
             self::assertSame('5', $xpath->evaluate('string(//select[@name="review_decision_delay_seconds"]/option[@selected]/@value)'));
+            self::assertSame('30', $xpath->evaluate('string(//input[@name="review_preload_count"]/@value)'));
             self::assertGreaterThanOrEqual(1, $xpath->query('//*[@aria-invalid="true"]')->length);
             self::assertSame($before, $this->rows());
         }
@@ -214,6 +221,7 @@ final class StudioSettingsTest extends DatabaseTestCase
         $settings = self::getContainer()->get(SettingsService::class);
         $settings->save([
             'review.decision_delay_seconds' => '3',
+            'review.preload_count' => '30',
             'inventory.page_size' => '25',
             'export.default_profile' => 'urls',
             'export.screenshot_mode' => 'none',
@@ -230,10 +238,71 @@ final class StudioSettingsTest extends DatabaseTestCase
         self::assertSame('RELEASE-MARKER', $settings->getDefaultPayload());
         self::assertSame(120000, $settings->getReviewScanTimeoutMs());
         self::assertSame(3, $settings->getReviewDecisionDelaySeconds());
+        self::assertSame(30, $settings->getReviewPreloadCount());
         self::assertSame('25', $settings->getInventoryPageSize());
         self::assertSame('urls', $settings->getExportProfile());
         self::assertSame('none', $settings->getExportScreenshotMode());
         self::assertSame(200, $this->request($response->headers->get('Location'))->getStatusCode());
+    }
+
+    #[DataProvider('aboutLocales')]
+    public function testReviewPreloadCountCanBeConfiguredAndDisabledInBothLanguages(string $locale): void
+    {
+        self::getContainer()->set(UiTranslator::class, new UiTranslator($locale));
+        $settings = self::getContainer()->get(SettingsService::class);
+        foreach (['30', '50', '0', ' 030 '] as $value) {
+            $response = $this->request('/settings', 'POST', [
+                'default_payload' => 'RELEASE-MARKER',
+                'review_timeout_ms' => '45000',
+                'review_preload_count' => $value,
+            ]);
+
+            self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
+            self::assertSame((int) $value, $settings->getReviewPreloadCount());
+            $before = $this->rows();
+            $xpath = $this->xpath($this->request('/settings')->getContent());
+            self::assertSame((string) (int) $value, $xpath->evaluate('string(//input[@name="review_preload_count"]/@value)'));
+            self::assertSame($locale === 'de' ? 'Fälle vorladen' : 'Cases to preload', trim($xpath->evaluate('string(//label[@for="settings-review-preload-count"])')));
+            self::assertSame($before, $this->rows());
+        }
+    }
+
+    public function testInvalidReviewPreloadCountRetainsInputsAndDoesNotPartiallySave(): void
+    {
+        self::getContainer()->get(SettingsService::class)->save([
+            'intake.default_payload' => 'ORIGINAL',
+            'review.scan_timeout_ms' => '45000',
+            'review.preload_count' => '30',
+        ]);
+        $before = $this->rows();
+        $parameters = ['default_payload' => 'CHANGED', 'review_timeout_ms' => '60000'];
+
+        foreach (['', '-1', '51', '30.5', '3e1', '+30', 'invalid', str_repeat('9', 100)] as $value) {
+            $response = $this->request('/settings', 'POST', $parameters + ['review_preload_count' => $value]);
+            self::assertSame(Response::HTTP_UNPROCESSABLE_ENTITY, $response->getStatusCode());
+            $xpath = $this->xpath($response->getContent());
+            self::assertSame('CHANGED', $xpath->evaluate('string(//input[@name="default_payload"]/@value)'));
+            self::assertSame('60000', $xpath->evaluate('string(//input[@name="review_timeout_ms"]/@value)'));
+            self::assertSame($value, $xpath->evaluate('string(//input[@name="review_preload_count"]/@value)'));
+            self::assertSame(1, $xpath->query('//input[@name="review_preload_count" and @aria-invalid="true"]')->length);
+            foreach (explode(' ', $xpath->evaluate('string(//input[@name="review_preload_count"]/@aria-describedby)')) as $id) {
+                self::assertSame(1, $xpath->query('//*[@id="'.$id.'"]')->length);
+            }
+            self::assertSame($before, $this->rows());
+        }
+        foreach ([null, ['30']] as $value) {
+            self::assertSame(Response::HTTP_BAD_REQUEST, $this->request('/settings', 'POST', $parameters + ['review_preload_count' => $value])->getStatusCode());
+            self::assertSame($before, $this->rows());
+        }
+    }
+
+    public function testInvalidStoredReviewPreloadCountDisplaysTheDefaultWithoutRepairingIt(): void
+    {
+        self::getContainer()->get(SettingsService::class)->save(['review.preload_count' => 'invalid']);
+        $before = $this->rows();
+        $xpath = $this->xpath($this->request('/settings')->getContent());
+        self::assertSame('5', $xpath->evaluate('string(//input[@name="review_preload_count"]/@value)'));
+        self::assertSame($before, $this->rows());
     }
 
     public function testDecisionPauseCanBeEnabledChangedAndDisabled(): void

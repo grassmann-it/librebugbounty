@@ -138,7 +138,7 @@ foreach ($detail?->screenshots ?? [] as $index => $shot) {
   <script src="/js/studio-review.js?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/js/studio-review.js'), 0, 16) ?>" defer></script>
   <script type="module" src="/js/studio-review-novnc.js?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/js/studio-review-novnc.js'), 0, 16) ?>"></script>
 </head>
-<body data-studio data-studio-review data-review-trail="<?= $escape($reviewTrailId) ?>" data-review-decision-delay="<?= $reviewDecisionDelaySeconds ?>" data-total="<?= $view->total ?>" data-remaining="<?= $view->remaining ?>" data-current-id="<?= $escape($finding?->getId() ?? '') ?>">
+<body data-studio data-studio-review data-review-trail="<?= $escape($reviewTrailId) ?>" data-review-decision-delay="<?= $reviewDecisionDelaySeconds ?>" data-review-preload-count="<?= $reviewPreloadCount ?>" data-total="<?= $view->total ?>" data-remaining="<?= $view->remaining ?>" data-current-id="<?= $escape($finding?->getId() ?? '') ?>">
   <div data-review-preloads="<?= $escape(json_encode($view->preloadImages, JSON_THROW_ON_ERROR)) ?>" class="studio-shell studio-review-shell<?= $finding !== null || $reviewBackAvailable ? ' review-has-card' : '' ?><?= $canKeep ? ' review-has-notice' : '' ?><?= $finding !== null && $view->claims !== [] ? ' review-has-claims' : '' ?>">
     <header class="studio-header">
       <?php require __DIR__.'/brand.php'; ?>

@@ -373,7 +373,7 @@
       if (!nextShell || !nextRoot) throw new Error('Invalid review response');
       lifecycle.abort();
       root.querySelector('.studio-review-shell').replaceWith(nextShell);
-      ['reviewTrail', 'reviewDecisionDelay', 'total', 'remaining', 'currentId'].forEach((key) => { root.dataset[key] = nextRoot.dataset[key] || ''; });
+      ['reviewTrail', 'reviewDecisionDelay', 'reviewPreloadCount', 'total', 'remaining', 'currentId'].forEach((key) => { root.dataset[key] = nextRoot.dataset[key] || ''; });
       window.LibreBugBountyShortcuts?.update(page);
       document.title = page.title;
       if (url) window.history.pushState(null, '', url);

@@ -12,6 +12,7 @@ final class SettingsService
         'intake.paste_submit' => '0',
         'review.scan_timeout_ms' => '45000',
         'review.decision_delay_seconds' => '0',
+        'review.preload_count' => '5',
         'inventory.page_size' => '10',
         'export.default_profile' => 'report',
         'export.screenshot_mode' => 'latest',
@@ -104,6 +105,15 @@ final class SettingsService
         $value = trim($this->getString('review.decision_delay_seconds', self::DEFAULTS['review.decision_delay_seconds']));
 
         return in_array($value, ['0', '3', '5'], true) ? (int) $value : 0;
+    }
+
+    public function getReviewPreloadCount(): int
+    {
+        $value = trim($this->getString('review.preload_count', self::DEFAULTS['review.preload_count']));
+
+        return ctype_digit($value) && (int) $value <= 50
+            ? (int) $value
+            : (int) self::DEFAULTS['review.preload_count'];
     }
 
     public function getInventoryPageSize(): string

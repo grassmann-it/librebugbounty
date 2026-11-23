@@ -16,6 +16,7 @@ use App\Service\EvidenceStorageInterface;
 use App\Service\FindingNavigation;
 use App\Service\FindingService;
 use App\Service\ReviewQueueService;
+use App\Service\SettingsService;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
@@ -577,6 +578,68 @@ final class StudioReviewTest extends DatabaseTestCase
         $findings->assess($findings->getFindingOrFail($second->getId()), 'confirmed');
         $queue = self::getContainer()->get(ReviewQueueService::class);
         self::assertSame([$thirdImage->getId(), $fourthImage->getId()], array_column($queue->get([])->preloadImages, 'evidenceId'));
+    }
+
+    public function testConfiguredPreloadsUseThirtyRealImagesWhilePreviewRequestsStayBoundedAndReadOnly(): void
+    {
+        $findings = [];
+        $images = [];
+        for ($index = 0; $index <= 30; ++$index) {
+            $finding = $this->finding('configured-preload-'.$index);
+            $findings[] = $finding;
+            $images[] = $this->image($finding);
+        }
+        $settings = self::getContainer()->get(SettingsService::class);
+        $queue = self::getContainer()->get(ReviewQueueService::class);
+        $connection = $this->entityManager->getConnection();
+        $upcomingIds = array_map(static fn (Evidence $image): string => $image->getId(), array_slice($images, 1));
+
+        foreach (['0' => 0, '30' => 30, '50' => 30, 'invalid' => 5] as $stored => $expectedCount) {
+            $settings->save(['review.preload_count' => (string) $stored]);
+            $before = $this->snapshot();
+            $connection->executeStatement('PRAGMA query_only = ON');
+            try {
+                $view = $queue->get([]);
+                self::assertSame(array_slice($upcomingIds, 0, $expectedCount), array_column($view->preloadImages, 'evidenceId'));
+                $response = $this->request('/review');
+                self::assertSame(200, $response->getStatusCode());
+                $xpath = $this->xpath($response->getContent());
+                self::assertSame($stored === 'invalid' ? '5' : (string) $stored, $xpath->evaluate('string(//body/@data-review-preload-count)'));
+                $hints = json_decode($xpath->evaluate('string(//*[@data-review-preloads]/@data-review-preloads)'), true, flags: JSON_THROW_ON_ERROR);
+                self::assertSame($view->preloadImages, $hints);
+            } finally {
+                $connection->executeStatement('PRAGMA query_only = OFF');
+            }
+            self::assertSame($before, $this->snapshot());
+        }
+
+        $settings->save(['review.preload_count' => '30']);
+        $form = $this->form($this->request('/review')->getContent());
+        $trail = $this->session->get('studio_review_trails');
+        $before = $this->snapshot();
+        $connection->executeStatement('PRAGMA query_only = ON');
+        try {
+            self::assertCount(10, $queue->preview(['after' => $findings[0]->getId()], 30));
+            $response = $this->request('/review/preview?'.http_build_query([
+                'trail' => $form['trail_id'],
+                'after' => $findings[0]->getId(),
+                'limit' => 30,
+            ]));
+            self::assertSame(200, $response->getStatusCode());
+            $preview = json_decode($response->getContent(), true, flags: JSON_THROW_ON_ERROR);
+            self::assertSame(
+                array_map(static fn (Finding $finding): string => $finding->getId(), array_slice($findings, 1, 10)),
+                array_column($preview['cards'], 'id'),
+            );
+            self::assertFalse($preview['exhausted']);
+            foreach ($preview['cards'] as $card) {
+                self::assertSame('30', $this->xpath($card['html'])->evaluate('string(//body/@data-review-preload-count)'));
+            }
+        } finally {
+            $connection->executeStatement('PRAGMA query_only = OFF');
+        }
+        self::assertSame($trail, $this->session->get('studio_review_trails'));
+        self::assertSame($before, $this->snapshot());
     }
 
     private function finding(string $label): Finding

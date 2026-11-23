@@ -42,8 +42,8 @@ of reports unless explicitly selected. See the [Cribrum user guide](USAGE.md#cri
 and the [changelog](CHANGELOG.md) for the release scope.
 
 The redesigned Review keeps screenshots large, brings the controls together, and
-preloads up to five cases so you can keep reviewing while assessments save in
-order. Cribrum is still improving: it can miss signals or suggest the wrong
+preloads a configurable number of cases so you can keep reviewing while assessments
+save in order. Cribrum is still improving: it can miss signals or suggest the wrong
 classification. Inspect the evidence and make the final decision yourself.
 
 ## Help make Cribrum better
@@ -114,8 +114,10 @@ image information sits with zoom controls at the bottom right. A compact menu
 provides navigation and display controls: **M** opens it, **I** toggles details,
 and **H** hides or shows controls to inspect covered evidence.
 Choose **Vulnerable** or **Not vulnerable**, skip, open the stored PoC URL, or go
-back and reset a decision. Up to five upcoming cards and screenshots preload
-quietly. With a next card ready, assessments save in order in the background
+back and reset a decision. **Settings → Cases to preload** controls the number
+of upcoming cards and screenshots kept ready (0–50; default 5). Each assessment
+starts refilling the buffer immediately. With a next card ready, assessments save
+in order in the background
 while you continue reviewing. A pending count shows progress; failed saves stay
 in the review queue with a recovery notice. An optional decision pause helps
 prevent accidental classifications.

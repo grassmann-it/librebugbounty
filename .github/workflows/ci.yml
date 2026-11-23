@@ -134,6 +134,10 @@ jobs:
         run: python tests/browser/run_review.py
         env:
           STUDIO_REVIEW_ONLY: queue
+      - name: Test configurable Review preloads and immediate refill while saving
+        run: python tests/browser/run_review.py
+        env:
+          STUDIO_REVIEW_ONLY: preloads
       - name: Test Review deferral and resume with a fresh isolated fixture
         run: python tests/browser/run_review.py
         env:
@@ -167,6 +171,7 @@ jobs:
             var/review-claim-selection-acceptance-*/
             var/review-notice-acceptance-*/
             var/review-queue-acceptance-*/
+            var/review-preloads-acceptance-*/
             var/review-recovery-acceptance-*/
             var/intake-acceptance-*/
             var/utilities-ui-acceptance/

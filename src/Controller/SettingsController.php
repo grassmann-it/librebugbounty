@@ -40,6 +40,7 @@ final class SettingsController
             defaultPayload: (string) ($settings['intake.default_payload'] ?? SettingsService::DEFAULTS['intake.default_payload']),
             reviewTimeout: (string) $this->settings->getReviewScanTimeoutMs(),
             reviewDecisionDelay: (string) $this->settings->getReviewDecisionDelaySeconds(),
+            reviewPreloadCount: (string) $this->settings->getReviewPreloadCount(),
             inventoryPageSize: $this->settings->getInventoryPageSize(),
             exportProfile: $this->settings->getExportProfile(),
             exportScreenshotMode: $this->settings->getExportScreenshotMode(),
@@ -70,6 +71,7 @@ final class SettingsController
         }
         $optional = [
             'review_decision_delay_seconds' => (string) $this->settings->getReviewDecisionDelaySeconds(),
+            'review_preload_count' => (string) $this->settings->getReviewPreloadCount(),
             'inventory_page_size' => $this->settings->getInventoryPageSize(),
             'export_profile' => $this->settings->getExportProfile(),
             'export_screenshot_mode' => $this->settings->getExportScreenshotMode(),
@@ -99,6 +101,7 @@ final class SettingsController
         $defaultPayload = trim($parameters['default_payload']);
         $reviewTimeout = trim($parameters['review_timeout_ms']);
         $reviewDecisionDelay = $optional['review_decision_delay_seconds'];
+        $reviewPreloadCount = $optional['review_preload_count'];
         $inventoryPageSize = $optional['inventory_page_size'];
         $exportProfile = $optional['export_profile'];
         $exportScreenshotMode = $optional['export_screenshot_mode'];
@@ -132,6 +135,9 @@ final class SettingsController
         if (!in_array($reviewDecisionDelay, ['0', '3', '5'], true)) {
             $errors['review_decision_delay_seconds'] = $this->i18n->trans('Wähle für die Entscheidungspause Aus, 3 oder 5 Sekunden.');
         }
+        if (!ctype_digit($reviewPreloadCount) || (int) $reviewPreloadCount > 50) {
+            $errors['review_preload_count'] = $this->i18n->trans('Die Anzahl der Vorladungen muss eine ganze Zahl zwischen 0 und 50 sein.');
+        }
         if (!in_array($inventoryPageSize, ['10', '25', '50', '100'], true)) {
             $errors['inventory_page_size'] = $this->i18n->trans('Wähle 10, 25, 50 oder 100 Fälle pro Seite.');
         }
@@ -149,7 +155,7 @@ final class SettingsController
         }
 
         if ($errors !== []) {
-            return $this->render($request, $defaultPayload, $reviewTimeout, $reviewDecisionDelay, $inventoryPageSize, $exportProfile, $exportScreenshotMode, $recheckIntervalDays, $recheckErrorBackoffDays, $errors, null, Response::HTTP_UNPROCESSABLE_ENTITY, $shortcutBindings, $pasteSubmitEnabled);
+            return $this->render($request, $defaultPayload, $reviewTimeout, $reviewDecisionDelay, $reviewPreloadCount, $inventoryPageSize, $exportProfile, $exportScreenshotMode, $recheckIntervalDays, $recheckErrorBackoffDays, $errors, null, Response::HTTP_UNPROCESSABLE_ENTITY, $shortcutBindings, $pasteSubmitEnabled);
         }
 
         $previousIntervalDays = $this->settings->getRecheckIntervalDays();
@@ -165,6 +171,7 @@ final class SettingsController
         }
         foreach ([
             'review_decision_delay_seconds' => 'review.decision_delay_seconds',
+            'review_preload_count' => 'review.preload_count',
             'inventory_page_size' => 'inventory.page_size',
             'export_profile' => 'export.default_profile',
             'export_screenshot_mode' => 'export.screenshot_mode',
@@ -263,6 +270,7 @@ final class SettingsController
         string $defaultPayload,
         string $reviewTimeout,
         string $reviewDecisionDelay,
+        string $reviewPreloadCount,
         string $inventoryPageSize,
         string $exportProfile,
         string $exportScreenshotMode,

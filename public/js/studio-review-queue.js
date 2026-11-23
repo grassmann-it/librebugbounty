@@ -3,7 +3,11 @@
   if (!window.fetch || !window.AbortController || !window.crypto?.getRandomValues) return;
 
   const t = window.LibreBugBountyI18n?.t || ((key) => key);
-  const limit = 5;
+  const batchSize = 5;
+  const preloadLimit = root => {
+    const value = root.dataset.reviewPreloadCount;
+    return /^\d+$/.test(value || '') ? Math.min(50, Number(value)) : 5;
+  };
   const maxPending = 10;
   const lifetime = 60000;
   const operationId = () => {
@@ -15,9 +19,9 @@
   };
   const jobs = [];
   const failures = [];
-  let state, cards = [], fetching, pumping, timer, advancing = false, dirty = false, blocked = false, native = false;
+  let state, cards = [], fetching, pumping, timer, expiryTimer, stoppedAt, advancingId, advancing = false, dirty = false, blocked = false, native = false, suspended = false;
   let restoredTrail, status, statusText, recovery, dismiss;
-  const allowed = () => !document.hidden && !navigator.connection?.saveData && !['slow-2g', '2g'].includes(navigator.connection?.effectiveType);
+  const allowed = () => !suspended && !document.hidden && !navigator.connection?.saveData && !['slow-2g', '2g'].includes(navigator.connection?.effectiveType);
   const generationOf = form => {
     try { return JSON.parse(atob(form?.querySelector('[name="queued_card"]')?.value || '')).generation ?? null; }
     catch (_) { return null; }
@@ -58,6 +62,10 @@
     }
     state.root.dataset.reviewPending = String(jobs.length);
     state.root.dataset.reviewQueueReady = String(cards.length);
+    clearTimeout(expiryTimer);
+    if (cards.length) expiryTimer = setTimeout(() => {
+      if (expireCards()) { renderStatus(); schedule(true); }
+    }, Math.max(1, cards[0].at + lifetime - Date.now() + 1));
     status.hidden = jobs.length === 0 && failures.length === 0;
     status.dataset.failed = String(failures.length > 0);
     recovery.hidden = dismiss.hidden = failures.length === 0;
@@ -79,39 +87,80 @@
     if (!page.querySelector('.studio-review-shell') || body?.dataset.currentId !== id || body?.dataset.reviewTrail !== state.trail) throw new Error('Invalid review preview');
     return page;
   };
-  const schedule = () => {
+  const discardCards = () => {
+    cards = []; stoppedAt = null;
+    clearTimeout(expiryTimer);
+    if (state) state.context = {};
+    fetching?.abort(); fetching = null;
+  };
+  const expireCards = () => {
+    if (!cards.some(card => Date.now() - card.at >= lifetime)) return false;
+    // Dropping only expired entries would skip their cases and leave a newer
+    // suffix from later batches. Rebuild the contiguous buffer from this case.
+    discardCards();
+    return true;
+  };
+  const tail = () => cards.at(-1)?.id || advancingId || state?.id;
+  const schedule = (immediate = false) => {
     clearTimeout(timer);
-    if (!state?.generation || native || state.root.dataset.reviewSubmitting === 'true' || !allowed() || fetching || advancing || cards.length >= limit) return;
-    timer = setTimeout(() => { void prefetch(); }, 200);
+    if (expireCards()) renderStatus();
+    if (!state?.generation || !state.limit || native || blocked || state.root.dataset.reviewSubmitting === 'true' || !allowed() || fetching || advancing || cards.length >= state.limit || stoppedAt?.cursor === tail()) return;
+    timer = setTimeout(() => { void prefetch(); }, immediate === true ? 0 : 200);
   };
   const prefetch = async () => {
-    if (!state?.generation || native || state.root.dataset.reviewSubmitting === 'true' || !allowed() || fetching || advancing || cards.length >= limit || !state.id) return;
-    const generation = state;
-    const after = cards.at(-1)?.id || state.id;
+    if (!state?.generation || !state.limit || native || blocked || state.root.dataset.reviewSubmitting === 'true' || !allowed() || fetching || advancing || cards.length >= state.limit || !state.id || stoppedAt?.cursor === tail()) return;
+    const context = state.context;
+    const after = tail();
     const url = new URL('/review/preview', location.href);
     for (const key of ['trail', 'kind', 'images']) url.searchParams.set(key, state[key]);
-    url.searchParams.set('after', after); url.searchParams.set('limit', String(limit - cards.length));
+    url.searchParams.set('after', after);
+    // Make the first cards usable promptly, then fill a larger configured buffer
+    // without one large render request or parallel speculative requests.
+    const count = Math.min(batchSize, state.limit - cards.length);
+    url.searchParams.set('limit', String(count));
     const request = new AbortController();
     fetching = request;
     const deadline = setTimeout(() => request.abort(), 15000);
+    let progressed = false;
     try {
       const response = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' }, signal: request.signal });
-      if (!response.ok) return;
+      if (!response.ok) throw new Error('Review preview unavailable');
       const batch = await response.json();
-      if (state !== generation || !Array.isArray(batch.cards)) return;
-      for (const card of batch.cards.slice(0, limit - cards.length)) {
-        if (typeof card.id !== 'string' || typeof card.html !== 'string' || typeof card.url !== 'string') continue;
+      // A normal forward transition preserves context and the tail cursor. Do
+      // not throw away an in-flight refill merely because its first card moved.
+      if (request.signal.aborted || state?.context !== context || native || blocked || tail() !== after) return;
+      if (!Array.isArray(batch.cards) || batch.cards.length > count) throw new Error('Invalid review preview batch');
+      const staged = [];
+      let cursor = after;
+      for (const card of batch.cards) {
+        if (typeof card.id !== 'string' || typeof card.html !== 'string' || typeof card.url !== 'string') throw new Error('Invalid review preview card');
         const destination = new URL(card.url, location.href);
-        if (destination.origin !== location.origin || destination.pathname !== '/review' || card.id === state.id || cards.some(c => c.id === card.id) || jobs.some(job => job.id === card.id)) continue;
+        if (destination.origin !== location.origin || destination.pathname !== '/review' || destination.username || destination.password
+            || card.id === state.id || card.id === advancingId || cards.some(c => c.id === card.id) || staged.some(c => c.id === card.id) || jobs.some(job => job.id === card.id)) throw new Error('Invalid review preview destination');
         const page = parse(card.html, card.id);
-        if (!page.querySelector('[data-review-form] [name="queued_card"]') || !page.querySelector('[data-review-form] [name="queued_token"]')) continue;
-        if (generationOf(page.querySelector('[data-review-form]')) !== state.generation) continue;
-        cards.push({ id: card.id, url: destination.href, page, at: Date.now() });
+        const form = page.querySelector('[data-review-form]');
+        if (!form?.querySelector('[name="queued_card"]')?.value || !form.querySelector('[name="queued_token"]')?.value
+            || generationOf(form) !== state.generation || form.querySelector('[name="after"]')?.value !== cursor
+            || form.querySelector('[name="kind"]')?.value !== state.kind || form.querySelector('[name="images"]')?.value !== state.images
+            || destination.searchParams.get('after') !== cursor || destination.searchParams.get('trail') !== state.trail
+            || (destination.searchParams.get('kind') || 'all') !== state.kind || (destination.searchParams.get('images') || 'ready') !== state.images) throw new Error('Invalid review preview context');
+        staged.push({ id: card.id, url: destination.href, page, at: Date.now() });
+        cursor = card.id;
       }
-    } catch (_) { /* Speculation never blocks the native review flow. */ }
-    finally {
-      clearTimeout(deadline); if (fetching === request) fetching = null; renderStatus();
-      if (state !== generation) schedule();
+      // A malformed middle entry must not leave a gap and silently bypass its
+      // case. Commit only a complete, contiguous batch.
+      cards.push(...staged);
+      progressed = staged.length > 0;
+      stoppedAt = batch.exhausted === true || !progressed ? { cursor: tail(), reason: 'end' } : null;
+    } catch (_) {
+      // Retry only after another real interaction/network visibility update,
+      // never spin on a failed, malformed or empty speculative response.
+      if (fetching === request && state?.context === context && !native && !blocked) stoppedAt = { cursor: tail(), reason: 'error' };
+    } finally {
+      clearTimeout(deadline);
+      if (fetching === request) fetching = null;
+      renderStatus();
+      if (progressed || state?.context !== context || tail() !== after) schedule(true);
     }
   };
   const pump = () => {
@@ -147,10 +196,16 @@
       const images = form?.querySelector('[name="images"]')?.value || 'ready';
       const id = root.dataset.currentId;
       const generation = generationOf(form);
-      const same = state?.trail === trail && state?.kind === kind && state?.images === images && state?.generation === generation;
-      if (!same) { cards = []; fetching?.abort(); fetching = null; }
-      else cards = cards.filter(card => card.id !== id && Date.now() - card.at < lifetime);
-      state = { root, callbacks, trail, kind, images, id, generation };
+      const limit = preloadLimit(root);
+      const same = state?.trail === trail && state?.kind === kind && state?.images === images && state?.generation === generation && state?.limit === limit;
+      if (!same || !limit) discardCards();
+      else {
+        cards = cards.filter(card => card.id !== id).slice(0, limit);
+        expireCards();
+        if (state.id !== id && stoppedAt?.reason === 'error') stoppedAt = null;
+      }
+      const context = same ? state.context : {};
+      state = { root, callbacks, trail, kind, images, id, generation, limit, context };
       native = false;
       if (dirty) {
         const back = root.querySelector('[data-review-back]');
@@ -171,9 +226,9 @@
 
     trySubmit(form, submitter) {
       if (blocked) return true;
-      if (!state || advancing || jobs.length >= maxPending || !form.matches('[data-review-form]') || !['confirmed', 'fixed', 'keep'].includes(submitter.value)) return false;
+      if (!state?.limit || advancing || jobs.length >= maxPending || !form.matches('[data-review-form]') || !['confirmed', 'fixed', 'keep'].includes(submitter.value)) return false;
       if (!form.querySelector('[name="queued_card"]')?.value || !form.querySelector('[name="queued_token"]')?.value) return false;
-      cards = cards.filter(card => Date.now() - card.at < lifetime);
+      if (expireCards()) renderStatus();
       const next = cards[0];
       if (!next || !state.callbacks?.advance) { schedule(); return false; }
       const data = new FormData(form);
@@ -184,7 +239,7 @@
       if (url.origin !== location.origin || !url.pathname.endsWith('/assessment')) return false;
       url.pathname = url.pathname.replace(/\/assessment$/, '/queued-assessment');
       const job = { id: state.id, operationId: operation, data, url: url.href };
-      jobs.push(job); cards.shift(); dirty = true; advancing = true;
+      jobs.push(job); cards.shift(); dirty = true; advancing = true; advancingId = next.id;
       state.root.dataset.reviewArriving = 'true';
       persist(); renderStatus();
       const callback = state.callbacks.advance;
@@ -196,14 +251,18 @@
         blocked = true;
         state.root.dataset.reviewSubmitting = 'true';
         state.root.querySelectorAll('[data-review-confirm], [data-review-fixed], [data-review-keep], [data-review-skip], [data-review-back], [data-review-form] button[type="submit"], [data-review-defer-form] button[type="submit"]').forEach(button => { button.disabled = true; });
-      }).finally(() => { advancing = false; delete state.root.dataset.reviewArriving; schedule(); });
+      }).finally(() => {
+        advancing = false; advancingId = null; delete state.root.dataset.reviewArriving;
+        schedule(true);
+        window.LibreReviewPreload?.refill();
+      });
       return true;
     },
 
     async prepareNative(form) {
       if (blocked) throw new Error('Review needs recovery');
       const data = new FormData(form);
-      native = true; clearTimeout(timer); fetching?.abort(); fetching = null; cards = []; renderStatus();
+      native = true; clearTimeout(timer); discardCards(); renderStatus();
       if (!dirty) return data;
       await drain();
       // Skip/Back still use their audited native trail. Refresh only their
@@ -240,7 +299,21 @@
     if (!jobs.length) return;
     event.preventDefault(); event.returnValue = '';
   });
-  document.addEventListener('visibilitychange', schedule);
-  navigator.connection?.addEventListener('change', schedule);
-  window.addEventListener('pagehide', () => { clearTimeout(timer); fetching?.abort(); persist(); });
+  const resume = () => {
+    if (stoppedAt?.reason === 'error') stoppedAt = null;
+    schedule();
+  };
+  document.addEventListener('visibilitychange', resume);
+  navigator.connection?.addEventListener('change', resume);
+  window.addEventListener('pagehide', () => {
+    suspended = true; clearTimeout(timer); clearTimeout(expiryTimer);
+    // BFCache can resume before an aborted fetch settles. Detach it now so
+    // pageshow can refill, and a late rejection cannot pause the new request.
+    if (state) state.context = {};
+    const request = fetching; fetching = null; request?.abort();
+    persist();
+  });
+  window.addEventListener('pageshow', event => {
+    if (event.persisted) { suspended = false; renderStatus(); resume(); }
+  });
 })();

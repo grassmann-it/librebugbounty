@@ -985,6 +985,7 @@ final class ReviewController
         $reviewBackToken = $this->csrf->getToken('review_back_'.$reviewTrailId.'_'.$reviewTrailVersion)->getValue();
         $reviewSkipToken = $this->csrf->getToken('review_skip_'.$reviewTrailId.'_'.$reviewTrailVersion)->getValue();
         $reviewDecisionDelaySeconds = $this->settings->getReviewDecisionDelaySeconds();
+        $reviewPreloadCount = $this->settings->getReviewPreloadCount();
         $isFirstStart = $view->detail === null && $this->findings->count([]) === 0;
         $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $locale = $this->i18n->locale();

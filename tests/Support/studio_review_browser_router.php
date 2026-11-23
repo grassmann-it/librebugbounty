@@ -113,7 +113,7 @@ if (PHP_SAPI === 'cli') {
     $kernel->boot();
     $manager = $kernel->getContainer()->get('doctrine')->getManager();
     (new Doctrine\ORM\Tools\SchemaTool($manager))->createSchema($manager->getMetadataFactory()->getAllMetadata());
-    if (getenv('STUDIO_CLAIM_SELECTION_FIXTURE') === '1') {
+    if (getenv('STUDIO_CLAIM_SELECTION_FIXTURE') === '1' || getenv('STUDIO_REVIEW_PRELOAD_FIXTURE') === '1') {
         require_once dirname(__DIR__, 2).'/migrations/Version20261022000000.php';
         $migration = new \DoctrineMigrations\Version20261022000000($manager->getConnection(), new \Psr\Log\NullLogger());
         $migration->up(new \Doctrine\DBAL\Schema\Schema());
@@ -127,6 +127,9 @@ if (PHP_SAPI === 'cli') {
     $claimSelectionFixture = getenv('STUDIO_CLAIM_SELECTION_FIXTURE') === '1';
     $selectionNames = ['claimSelection', 'claimSelectionKeyboard', 'claimSelectionSwipe', 'claimSelectionNoJs'];
     if ($claimSelectionFixture) array_push($names, ...$selectionNames);
+    $preloadNames = getenv('STUDIO_REVIEW_PRELOAD_FIXTURE') === '1'
+        ? array_map(static fn (int $index): string => sprintf('preload%02d', $index), range(0, 39)) : [];
+    array_push($names, ...$preloadNames);
     foreach ($names as $index => $name) {
         $finding = (new App\Entity\Finding())->setDomain($domain)
             ->setTitle($name === 'main' ? 'Lokaler Review-Fall · <script>window.__reviewFixtureExecuted=true</script>' : 'Lokaler Review-Fall: '.$name)
@@ -184,6 +187,10 @@ if (PHP_SAPI === 'cli') {
         $addImage($name, 'local.png', $png(2));
     }
     if ($claimSelectionFixture) foreach ($selectionNames as $name) $addImage($name, 'mixed.png', $png(1));
+    if ($preloadNames !== []) {
+        $preloadImage = $png(1);
+        foreach ($preloadNames as $name) $addImage($name, 'preload.png', $preloadImage);
+    }
     $addImage('missing', 'gone.png', null);
     foreach (['main' => 'inconclusive', 'readyError' => 'error', 'readyNoJsFixed' => 'error', 'readyNoJsConfirmed' => 'inconclusive', 'noImage' => 'inconclusive', 'missing' => 'error', 'confirmed' => 'inconclusive', 'archived' => 'error', 'duplicate' => 'inconclusive', 'vulnerable' => 'still_vulnerable', 'autoFixed' => 'not_vulnerable'] as $name => $result) {
         $run = (new App\Entity\RetestRun())->setFinding($findings[$name])->setMode('browser')->setResult($result)
@@ -247,6 +254,14 @@ if (PHP_SAPI === 'cli') {
     $fixtures['_expect'] = ['total' => count($names), 'ready' => 7, 'missing' => 3, 'all' => 10,
         'readyOrder' => array_map(static fn (string $name): string => $fixtures[$name]['id'], ['main', 'readyError', 'readyUnchecked', 'readyNoJsFixed', 'readyNoJsConfirmed', 'readyTouchConfirm', 'legacyManual']),
         'allOrder' => array_map(static fn (string $name): string => $fixtures[$name]['id'], ['main', 'readyError', 'readyUnchecked', 'readyNoJsFixed', 'readyNoJsConfirmed', 'readyTouchConfirm', 'noImage', 'missing', 'queued', 'legacyManual'])];
+    if ($preloadNames !== []) {
+        $fixtures['_expect']['ready'] += count($preloadNames);
+        $fixtures['_expect']['all'] += count($preloadNames);
+        $preloadIds = array_map(static fn (string $name): string => $fixtures[$name]['id'], $preloadNames);
+        $fixtures['_expect']['readyOrder'] = array_merge($fixtures['_expect']['readyOrder'], $preloadIds);
+        $fixtures['_expect']['allOrder'] = array_merge($fixtures['_expect']['allOrder'], $preloadIds);
+        $fixtures['_expect']['preloadOrder'] = $fixtures['_expect']['readyOrder'];
+    }
     file_put_contents($root.'/fixtures.json', json_encode($fixtures, JSON_THROW_ON_ERROR));
     echo 'Initialized isolated Studio review fixtures at '.$root."\n";
     exit;

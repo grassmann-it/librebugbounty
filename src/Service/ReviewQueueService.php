@@ -30,6 +30,8 @@ final class ReviewQueueService
           AND (r.id IS NULL OR r.result IN ('inconclusive', 'error'))
         SQL;
 
+    private readonly SettingsService $settings;
+
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly EvidenceStorageInterface $storage,
@@ -40,7 +42,9 @@ final class ReviewQueueService
         private readonly ?CribrumClaimService $claims = null,
         private readonly ?ReportProjectionService $reports = null,
         private readonly ?CribrumReviewSelectionService $selection = null,
+        ?SettingsService $settings = null,
     ) {
+        $this->settings = $settings ?? new SettingsService($entityManager);
     }
 
     /** @param array<string, mixed> $query */
@@ -139,7 +143,7 @@ final class ReviewQueueService
             $cursor = [$currentDetail->finding->getCreatedAt()->format('Y-m-d H:i:s'), $id];
             $upcoming = array_slice(array_values(array_filter($filtered,
                 static fn (array $candidate): bool => [$candidate['created_at'], $candidate['id']] > $cursor,
-            )), 0, 5);
+            )), 0, $this->settings->getReviewPreloadCount());
             foreach ($upcoming as $candidate) {
                 $shot = $ready[$candidate['id']] ?? null;
                 if ($shot === null) { continue; }

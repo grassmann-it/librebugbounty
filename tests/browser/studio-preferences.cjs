@@ -84,7 +84,8 @@ async function main() {
     assert.equal(await select(page, 'inventory_page_size').inputValue(), '10');
     assert.equal(await select(page, 'export_profile').inputValue(), 'report');
     assert.equal(await select(page, 'export_screenshot_mode').inputValue(), 'latest');
-    assert.equal(await page.locator('.studio-settings-form input:not([type="hidden"]):not([name^="shortcut_bindings"]):not([name="paste_submit"]), .studio-settings-form select').count(), 8);
+    assert.equal(await page.locator('.studio-settings-form input:not([type="hidden"]):not([name^="shortcut_bindings"]):not([name="paste_submit"]), .studio-settings-form select').count(), 9);
+    assert.equal(await page.locator('[name="review_preload_count"]').inputValue(), '5');
     assert.equal(await page.locator('[name="paste_submit"]').isChecked(), false);
     const shortcutActions = await page.locator('[name^="shortcut_bindings"]').evaluateAll(inputs => inputs.map(input => input.name.slice('shortcut_bindings['.length, -1)).sort());
     assert.deepEqual(shortcutActions, [
@@ -111,6 +112,8 @@ async function main() {
       if (await page.locator('html').getAttribute('lang') !== locale) {
         await Promise.all([page.waitForNavigation(), page.locator(`[data-language-switcher] a[href^="/language/${locale}?"]`).click()]);
       }
+      assert.equal(await page.locator('label[for="settings-review-preload-count"]').innerText(), locale === 'de' ? 'Fälle vorladen' : 'Cases to preload');
+      assert.equal(await page.locator('[name="review_preload_count"]').inputValue(), '5');
       await page.locator('.studio-shortcut-editor').evaluate(node => { node.open = true; });
       for (const width of [320, 375, 390, 960, 1440]) {
         await page.setViewportSize({ width, height: 900 });
@@ -135,7 +138,7 @@ async function main() {
         await page.locator('#settings-export-screenshots').scrollIntoViewIfNeeded();
         await page.screenshot({ path: path.join(output, `settings-preferences-${locale}-${width}.png`), fullPage: true });
         await page.locator('.studio-settings-main').evaluate(node => { node.scrollTop = 0; });
-        mark(`${locale}/${width}: five settings groups and eight native controls remain usable`);
+        mark(`${locale}/${width}: five settings groups and nine native controls remain usable`);
       }
       const aboutResponse = await page.goto(base + '/about');
       assert.equal(aboutResponse.status(), 200);

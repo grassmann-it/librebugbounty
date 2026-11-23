@@ -2,6 +2,7 @@
 /** @var string $defaultPayload */
 /** @var string $reviewTimeout */
 /** @var string $reviewDecisionDelay */
+/** @var string $reviewPreloadCount */
 /** @var string $inventoryPageSize */
 /** @var string $exportProfile */
 /** @var string $exportScreenshotMode */
@@ -93,6 +94,10 @@
               </select>
               <p class="studio-settings-field-hint" id="settings-review-decision-delay-hint"><?= $escape($t('Neue Fälle können erst nach Ablauf der Pause bewertet werden.')) ?></p>
               <?php if (isset($errors['review_decision_delay_seconds'])): ?><p class="studio-settings-field-error" id="settings-review-decision-delay-error"><?= $escape($errors['review_decision_delay_seconds']) ?></p><?php endif; ?>
+              <label for="settings-review-preload-count"><?= $escape($t('Fälle vorladen')) ?></label>
+              <input id="settings-review-preload-count" name="review_preload_count" value="<?= $escape($reviewPreloadCount) ?>" inputmode="numeric" pattern="[0-9]+" min="0" max="50" aria-describedby="settings-review-preload-count-hint<?= isset($errors['review_preload_count']) ? ' settings-review-preload-count-error' : '' ?>"<?= isset($errors['review_preload_count']) ? ' aria-invalid="true"' : '' ?>>
+              <p class="studio-settings-field-hint" id="settings-review-preload-count-hint"><?= $escape($t('Lädt die nächsten Fälle und vorhandenen Screenshots vor und füllt nach jeder Bewertung nach. 0 schaltet das Vorladen aus; maximal 50. Es werden keine neuen Aufnahmen gestartet.')) ?></p>
+              <?php if (isset($errors['review_preload_count'])): ?><p class="studio-settings-field-error" id="settings-review-preload-count-error"><?= $escape($errors['review_preload_count']) ?></p><?php endif; ?>
               </fieldset>
 
               <fieldset class="studio-settings-group">

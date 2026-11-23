@@ -3,11 +3,15 @@
   if (!window.Image || !Image.prototype.decode || !window.AbortController) return;
 
   // Only stored artifacts, never /review HTML (GET changes the session trail).
-  // Keep at most five detached images and one speculative download/decode active.
+  // Keep only the configured upcoming images and one speculative decode active.
   const cache = new Map();
   const selected = '[data-review-shot]:not([hidden]) [data-review-image]';
   const lifetime = 60000;
-  let state, timer, idle, running = 0, suspended = false;
+  const preloadLimit = root => {
+    const value = root.dataset.reviewPreloadCount;
+    return /^\d+$/.test(value || '') ? Math.min(50, Number(value)) : 5;
+  };
+  let state, timer, idle, expiryTimer, running = 0, suspended = false;
   const source = (hint) => {
     if (!hint || typeof hint.evidenceId !== 'string' || typeof hint.url !== 'string' || typeof hint.sha256 !== 'string') return null;
     try {
@@ -21,19 +25,34 @@
     if (idle !== undefined) window.cancelIdleCallback?.(idle);
     idle = undefined;
   };
+  const release = entry => {
+    clearTimeout(entry.deadline);
+    if (entry.background) { running--; entry.background = false; }
+  };
   const drop = (key, entry) => {
     cache.delete(key);
-    clearTimeout(entry.deadline);
+    release(entry);
     entry.image.removeAttribute('src');
   };
+  const expire = () => {
+    clearTimeout(expiryTimer);
+    let next = Infinity;
+    for (const [key, entry] of cache) {
+      // Failed speculation stays suppressed until the case/hints change.
+      if (entry.status === 'failed') continue;
+      if (Date.now() - entry.at >= lifetime) drop(key, entry);
+      else next = Math.min(next, entry.at + lifetime);
+    }
+    if (next !== Infinity) expiryTimer = setTimeout(() => { expire(); schedule(true); }, Math.max(1, next - Date.now() + 1));
+  };
   const allowed = () => !suspended && !document.hidden && !navigator.connection?.saveData && !['slow-2g', '2g'].includes(navigator.connection?.effectiveType);
-  const schedule = () => {
+  const schedule = (immediate = false) => {
     stop();
     if (!state || state.signal.aborted || !state.ready || !allowed()) return;
     timer = setTimeout(() => {
-      if (window.requestIdleCallback) idle = window.requestIdleCallback(pump, { timeout: 800 });
+      if (immediate !== true && window.requestIdleCallback) idle = window.requestIdleCallback(pump, { timeout: 800 });
       else pump();
-    }, 150);
+    }, immediate === true ? 0 : 150);
   };
   const pump = () => {
     if (!state || state.signal.aborted || !state.ready || !allowed() || running) return;
@@ -50,13 +69,16 @@
     image.src = hint.url;
     entry.deadline = setTimeout(() => {
       // A failed speculative fetch does not delay review or retry in a loop.
-      if (!entry.claimed) { entry.status = 'failed'; image.removeAttribute('src'); }
+      if (!entry.claimed) {
+        entry.status = 'failed'; release(entry); image.removeAttribute('src');
+        expire(); schedule();
+      }
     }, 10000);
-    image.decode().then(() => { entry.status = 'ready'; }, () => { entry.status = 'failed'; }).finally(() => {
-      clearTimeout(entry.deadline);
-      if (entry.background) { running--; entry.background = false; }
-      schedule();
+    image.decode().then(() => { if (entry.status !== 'failed') entry.status = 'ready'; }, () => { entry.status = 'failed'; }).finally(() => {
+      release(entry);
+      expire(); schedule();
     });
+    expire();
   };
 
   window.LibreReviewPreload = {
@@ -65,12 +87,13 @@
       let hints = [];
       try {
         const raw = JSON.parse(root.querySelector('[data-review-preloads]')?.dataset.reviewPreloads || '[]');
-        if (Array.isArray(raw)) hints = raw.slice(0, 5).map(source).filter(Boolean);
+        if (Array.isArray(raw)) hints = raw.slice(0, preloadLimit(root)).map(source).filter(Boolean);
       } catch (_) {}
       const wanted = new Set(hints.map(hint => hint.key));
       for (const [key, entry] of cache) {
         if (!wanted.has(key) || Date.now() - entry.at >= lifetime) drop(key, entry);
       }
+      expire();
       const current = root.querySelector(selected);
       state = { root, signal, hints, ready: !current || current.complete };
       const currentState = state;
@@ -84,6 +107,8 @@
       navigator.connection?.addEventListener('change', schedule, { signal });
       schedule();
     },
+
+    refill() { schedule(true); },
 
     importShell(page) {
       const original = page.querySelector('.studio-review-shell');
@@ -101,8 +126,8 @@
       // for our deliberately no-cache artifact endpoint.
       cache.delete(hint.key);
       entry.claimed = true;
-      if (entry.background) { running--; entry.background = false; }
-      clearTimeout(entry.deadline);
+      release(entry);
+      expire();
       const attributes = Array.from(fresh.attributes, attr => [attr.name, attr.value]);
       fresh.removeAttribute('src');
       const shell = document.importNode(original, true);
@@ -115,7 +140,7 @@
   };
   window.addEventListener('pagehide', () => {
     suspended = true;
-    stop();
+    stop(); clearTimeout(expiryTimer);
     for (const [key, entry] of cache) drop(key, entry);
   });
   window.addEventListener('pageshow', event => { if (event.persisted) { suspended = false; schedule(); } });
