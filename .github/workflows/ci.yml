@@ -152,6 +152,10 @@ jobs:
         run: node tests/browser/studio-utilities-ui.cjs
         env:
           STUDIO_BROWSER_OUTPUT: var/utilities-ui-acceptance
+      - name: Test email preparation, local draft retention and responsive layout with mocked API responses
+        run: node tests/browser/email-preparation.cjs
+        env:
+          EMAIL_UI_OUTPUT: var/email-preparation-ui-ci
       - name: Test embedded noVNC controls with synthetic RFB fixtures
         run: node tests/browser/studio-review-novnc-ui.cjs
         env:
@@ -175,6 +179,7 @@ jobs:
             var/review-recovery-acceptance-*/
             var/intake-acceptance-*/
             var/utilities-ui-acceptance/
+            var/email-preparation-ui-ci/
             var/novnc-ui-acceptance/
             var/novnc-e2e-acceptance/
           if-no-files-found: ignore

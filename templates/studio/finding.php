@@ -403,6 +403,13 @@ $storedTime = static function (?string $value) use ($formatTime, $t): string {
       </div>
 
       <?php require __DIR__.'/follow-up.php'; ?>
+      <section class="studio-inspector-section" aria-labelledby="studio-prepare-email-title">
+        <div class="studio-source-heading">
+          <h2 id="studio-prepare-email-title"><?= $escape($locale === 'de' ? 'E-Mail vorbereiten' : 'Prepare email') ?></h2>
+          <a class="studio-detail-button" href="<?= $escape($findingPath) ?>/prepare-email"><?= $escape($locale === 'de' ? 'Entwurf vorbereiten' : 'Prepare draft') ?> →</a>
+        </div>
+        <p class="studio-detail-hint"><?= $escape($locale === 'de' ? 'Ausgewählte Erkenntnisse prüfen und mit OpenAI einen bearbeitbaren Entwurf erstellen.' : 'Review the selected findings and create an editable draft with OpenAI.') ?></p>
+      </section>
       <?php require __DIR__.'/disclosure-record.php'; ?>
       <?php require __DIR__.'/comparison.php'; ?>
 

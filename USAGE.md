@@ -273,6 +273,15 @@ with sample size and missing/invalid dates. This is not measured first contact o
 a response rate. These cards use retained all-time records and the selected TLD,
 independently of the chart period; reason links open matching Inventory cases.
 
+## Prepare email (2.3.0 development)
+
+Case details offer **Prepare email** for a local German or English draft. Review
+the exact outgoing data before starting an OpenAI request, then edit, copy or
+download the result. PoCs and recipients remain local; preparing text does not
+mark a report as sent. Drafts are held only on the current page. See the
+[AI email guide](docs/AI_EMAIL.md) for server configuration, API credits, scope
+and a direct curl example.
+
 ## Disclosure record and reminders (2.0.2)
 
 **Disclosure & history** in a case records **Report submitted**, **Response

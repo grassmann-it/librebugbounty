@@ -1,4 +1,6 @@
 parameters:
+  app.email_model: 'gpt-6.2-sol'
+  app.email_reasoning: 'medium'
   app.cribrum_candidate_directory: ''
   app.cribrum_candidate_mode: 'shadow'
   app.evidence_storage_dir: '%env(resolve:EVIDENCE_STORAGE_DIR)%'
@@ -26,6 +28,24 @@ services:
       - '../src/DependencyInjection/'
       - '../src/Entity/'
       - '../src/Kernel.php'
+      - '../src/Service/EmailPreparationException.php'
+
+  App\Service\EmailDraftClientInterface: '@App\Service\OpenAiEmailDraftClient'
+
+  # Dedicated untraced, non-retrying transport: credentials and draft data must
+  # not be collected by the application's HTTP profiler.
+  app.email_draft_transport:
+    class: Symfony\Contracts\HttpClient\HttpClientInterface
+    factory: ['Symfony\Component\HttpClient\HttpClient', 'create']
+    arguments:
+      - { max_redirects: 0, verify_peer: true, verify_host: true }
+
+  App\Service\OpenAiEmailDraftClient:
+    arguments:
+      $client: '@app.email_draft_transport'
+      $apiKey: '%env(default::OPENAI_API_KEY)%'
+      $model: '%env(default:app.email_model:OPENAI_EMAIL_MODEL)%'
+      $reasoning: '%env(default:app.email_reasoning:OPENAI_EMAIL_REASONING)%'
 
   App\Service\BrowserRetestClientInterface: '@App\Service\PlaywrightBrowserRetestClient'
   App\Cribrum\CribrumClassifier:

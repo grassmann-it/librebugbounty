@@ -9,6 +9,8 @@
 /.vscode/
 /.env
 /.env.test
+/.env.local
+/.env.*.local
 
 # Personal architecture and design notes stay local.
 /architecture/

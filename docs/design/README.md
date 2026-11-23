@@ -5,6 +5,7 @@ Ausgangspunkt ist LibreBugBounty 2.2.0. Diese Unterlagen halten den UX/UI-Audit,
 - [UX/UI-Audit](ux-ui-audit-2026-11-23.md): belegte Probleme, vorhandene Stärken, begrenzte 2.2.1-Kandidaten und priorisierte 2.3.0-Pakete mit Abnahmekriterien.
 - [Designsystem](2.3.0-design-system.md): Farbrollen, Typografie, Abstände, Controls, Zustände, Theming und schrittweise Migration. MeowChan dient als gezielt untersuchte Musterreferenz.
 - [Interaktiver Prototyp](prototype.html): Review, Inventar und Einstellungen mit synthetischen Daten. Direkt im Browser öffnen; alle Assets sind enthalten, es werden keine externen Ressourcen benötigt. Die Aktionen bleiben lokal in dieser Vorschau.
+- [KI-Entwürfe und MCP](2.3.0-ai-email-and-mcp.md): Architektur für wiederverwendbare Schreibprofile, Fallprojektion, direkten API-Zugriff und eine spätere MCP-Anbindung. Der erste Ablauf „E-Mail vorbereiten“ ist separat im [Benutzer- und Konfigurationsleitfaden](../AI_EMAIL.md) beschrieben.
 
 Alternativ lässt sich der Prototyp lokal aus diesem Verzeichnis öffnen:
 
