@@ -5,9 +5,23 @@ namespace App\Tests\Support;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
-/** Only loaded by the disposable browser router, never by the application. */
+/** Explicit test topology; never loaded by the production application. */
 final class StudioHealthFixture
 {
+    /** @return array<string, array<string, string>> */
+    public static function workers(): array
+    {
+        // Four lanes exercise fresh, stale and missing signals together,
+        // independently of the smaller default DDEV deployment.
+        $workers = ['recheck' => [], 'screenshot' => []];
+        foreach (range(1, 4) as $id) {
+            $workers['recheck']['recheck-'.$id] = '%env(PLAYWRIGHT_WORKER_URL)%';
+            $workers['screenshot']['shot-'.$id] = 'http://playwright-shot-'.$id.':3000';
+        }
+
+        return $workers;
+    }
+
     public static function httpClient(): MockHttpClient
     {
         return new MockHttpClient(static function (string $method, string $url): MockResponse {

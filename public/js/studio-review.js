@@ -14,6 +14,12 @@
     Object.keys(preferences).forEach((key) => { if (typeof stored?.[key] === 'boolean') preferences[key] = stored[key]; });
   } catch (_) {}
   const savePreferences = () => { try { sessionStorage.setItem('lbb.review.focus', JSON.stringify(preferences)); } catch (_) {} };
+  const layout = { inspector: false, queue: false };
+  try {
+    const stored = JSON.parse(sessionStorage.getItem('lbb.review.layout') || '{}');
+    Object.keys(layout).forEach((key) => { if (typeof stored?.[key] === 'boolean') layout[key] = stored[key]; });
+  } catch (_) {}
+  const saveLayout = () => { try { sessionStorage.setItem('lbb.review.layout', JSON.stringify(layout)); } catch (_) {} };
   const initialize = () => {
     lifecycle?.abort();
     lifecycle = new AbortController();
@@ -27,6 +33,7 @@
     const form = root.querySelector('[data-review-form]');
     const skipForm = root.querySelector('[data-review-skip-form]');
     const backForm = root.querySelector('[data-review-back-form]');
+    const deferForm = root.querySelector('[data-review-defer-form]');
     const fixed = root.querySelector('[data-review-fixed]');
     const confirm = root.querySelector('[data-review-confirm]');
     const keep = root.querySelector('[data-review-keep]');
@@ -50,9 +57,53 @@
     const modeToggle = root.querySelector('[data-review-focus-toggle]');
     const queuePanel = root.querySelector('[data-review-queue]');
     const navigation = root.querySelector('[data-review-navigation]');
+    const menu = root.querySelector('[data-review-menu]');
+    const imageTools = root.querySelector('[data-review-image-tools]');
+    const imageMeta = root.querySelector('[data-review-image-meta]');
     const pin = root.querySelector('[data-review-pin]');
     const header = root.querySelector('.studio-header');
-    const narrow = window.matchMedia('(max-width: 760px)');
+    const positionQueue = () => {
+      if (!preferences.active || !queuePanel) return;
+      const box = queuePanel.closest('.review-overview').getBoundingClientRect();
+      const dockBox = root.querySelector('[data-review-dock]')?.getBoundingClientRect() || box;
+      const above = box.top - 12;
+      const below = window.innerHeight - box.bottom - 12;
+      const right = window.innerWidth - dockBox.right - 24;
+      const toolsBox = imageTools && !preferences.hidden ? imageTools.getBoundingClientRect() : null;
+      const besideTools = toolsBox ? toolsBox.left - dockBox.right - 24 : right;
+      const side = right >= 300;
+      const upperWidth = toolsBox && toolsBox.bottom <= dockBox.top ? toolsBox.left - box.left - 12 : box.width;
+      const width = side ? Math.min(390, besideTools >= 300 ? besideTools : right)
+        : Math.min(box.width, upperWidth >= 300 ? upperWidth : box.width);
+      const bottom = toolsBox && dockBox.right + 12 + width > toolsBox.left - 12
+        ? Math.min(dockBox.bottom, toolsBox.top - 12) : dockBox.bottom;
+      queuePanel.dataset.expand = side ? 'right' : below > above ? 'down' : 'up';
+      queuePanel.style.setProperty('--review-queue-room', `${Math.max(0, side ? bottom - 12 : Math.max(above, below))}px`);
+      queuePanel.style.setProperty('--review-queue-width', `${width}px`);
+      const panelHeight = Math.min(queuePanel.querySelector('.review-queue-content')?.getBoundingClientRect().height || 260, Math.max(0, bottom - 12));
+      queuePanel.style.setProperty('--review-queue-offset', `${Math.max(12, bottom - panelHeight) - box.top}px`);
+    };
+    on(queuePanel?.querySelector('summary'), 'click', positionQueue);
+    on(queuePanel, 'toggle', positionQueue);
+    on(window, 'resize', positionQueue);
+    const positionImageTools = () => {
+      if (!imageTools || !preferences.active) return;
+      imageTools.style.removeProperty('bottom');
+      const toolsBox = imageTools.getBoundingClientRect();
+      root.style.setProperty('--review-image-tools-height', `${toolsBox.height}px`);
+      const dockBox = root.querySelector('[data-review-dock]')?.getBoundingClientRect();
+      if (window.innerWidth > 760 && dockBox && dockBox.right + 12 > toolsBox.left) {
+        imageTools.style.bottom = `${window.innerHeight - dockBox.top + 12}px`;
+      }
+    };
+    const toolsObserver = new ResizeObserver(() => { positionImageTools(); positionQueue(); });
+    if (imageTools) toolsObserver.observe(imageTools);
+    const queueContent = queuePanel?.querySelector('.review-queue-content');
+    if (queueContent) toolsObserver.observe(queueContent);
+    const actionDock = root.querySelector('[data-review-dock]');
+    if (actionDock) toolsObserver.observe(actionDock);
+    on(window, 'resize', positionImageTools);
+    signal.addEventListener('abort', () => toolsObserver.disconnect(), { once: true });
     const viewer = window.LibreReviewViewer.mount(root, signal);
     // Keep one copy of the forms, evidence and navigation. The native markup is
     // the classic layout; placeholders put each node back without losing state.
@@ -67,20 +118,28 @@
       };
     };
     const placements = [
-      relocate(modeToggle, root.querySelector('.studio-review-shell')),
+      relocate(modeToggle, root.querySelector('.review-focus-menu-actions')),
+      relocate(chromeToggle, root.querySelector('.review-focus-menu-actions'), true),
       relocate(header, navigation),
+      relocate(navigation, root.querySelector('.review-focus-menu-panel')),
       relocate(root.querySelector('.review-case-heading'), root.querySelector('.review-overview'), true),
+      relocate(root.querySelector('.review-overview'), root.querySelector('.review-dock-inner'), true),
       ...Array.from(root.querySelectorAll('.review-evidence > .review-section-heading, .review-evidence > .review-capture-state, .review-evidence > .review-shot-picker'))
         .reverse().map(node => relocate(node, root.querySelector('.review-source'), true))
     ];
-    let classicInspectorOpen = !narrow.matches || Boolean(root.querySelector('[data-review-error]'));
+    const captions = Array.from(root.querySelectorAll('[data-review-shot]')).map(shot => {
+      const caption = shot.querySelector('figcaption');
+      return { shot, caption, place: relocate(caption, imageMeta) };
+    });
+    const updateCaptions = () => captions.forEach(({ shot, caption }) => { if (caption) caption.hidden = preferences.active && shot.hidden; });
+    let classicInspectorOpen = layout.inspector || Boolean(root.querySelector('[data-review-error]'));
     let focusInspectorOpen = Boolean(preferences.pinned) || Boolean(root.querySelector('[data-review-error]'));
     const applyPreferences = () => {
       root.dataset.reviewChromeHidden = String(preferences.active && preferences.hidden);
       root.dataset.reviewPinned = String(preferences.active && preferences.pinned);
       chromeToggle.hidden = !preferences.active;
       chromeToggle.setAttribute('aria-pressed', String(Boolean(preferences.hidden)));
-      chromeToggle.textContent = preferences.hidden ? t('Bedienelemente anzeigen') : t('Bedienelemente ausblenden');
+      chromeToggle.querySelector('[data-review-chrome-label]').textContent = preferences.hidden ? t('Bedienelemente anzeigen') : t('Bedienelemente ausblenden');
       if (pin) {
         pin.hidden = !preferences.active;
         pin.setAttribute('aria-pressed', String(Boolean(preferences.pinned)));
@@ -90,7 +149,11 @@
     const applyMode = () => {
       root.dataset.reviewFocusMode = String(preferences.active);
       placements.forEach(place => place(preferences.active));
-      if (queuePanel) queuePanel.open = !preferences.active;
+      captions.forEach(({ place }) => place(preferences.active));
+      updateCaptions();
+      if (menu) { menu.hidden = !preferences.active; menu.open = false; }
+      if (imageTools) imageTools.hidden = !preferences.active;
+      if (queuePanel) queuePanel.open = !preferences.active && (layout.queue || !root.querySelector('[data-review-card]'));
       if (navigation) navigation.open = !preferences.active;
       if (inspector) inspector.open = preferences.active ? focusInspectorOpen && !preferences.hidden : classicInspectorOpen;
       modeToggle.hidden = false;
@@ -102,6 +165,7 @@
       modeToggle.title = focusTitle;
       applyPreferences();
       viewer.setActive(preferences.active);
+      positionImageTools();
     };
     const toggleMode = () => {
       if (inspector) {
@@ -113,13 +177,42 @@
       applyMode(); savePreferences(); focusCard();
     };
     on(modeToggle, 'click', toggleMode);
-    on(narrow, 'change', () => {
-      if (!preferences.active && inspector) inspector.open = classicInspectorOpen = !narrow.matches;
-    });
-    on(chromeToggle, 'click', () => {
+    const toggleChrome = () => {
       preferences.hidden = !preferences.hidden;
       if (preferences.hidden) [inspector, queuePanel, navigation].forEach(panel => { if (panel) panel.open = false; });
+      if (menu) menu.open = false;
       applyPreferences(); savePreferences(); focusCard();
+    };
+    on(chromeToggle, 'click', toggleChrome);
+    const toggleMenu = () => {
+      if (!menu) return;
+      menu.open = !menu.open;
+      if (menu.open) {
+        if (queuePanel) queuePanel.open = false;
+        if (inspector && !preferences.pinned) inspector.open = false;
+        menu.querySelector('summary').focus({ preventScroll: true });
+      } else focusCard();
+    };
+    const toggleInspector = () => {
+      if (!inspector) return;
+      if (menu) menu.open = false;
+      if (queuePanel) queuePanel.open = false;
+      preferences.hidden = false; applyPreferences(); savePreferences();
+      inspector.open = !inspector.open;
+      if (inspector.open) inspector.querySelector('summary').focus({ preventScroll: true }); else focusCard();
+    };
+    on(document, 'pointerdown', event => { if (menu?.open && !menu.contains(event.target)) menu.open = false; });
+    on(menu?.querySelector('summary'), 'click', () => {
+      if (!menu.open) {
+        if (queuePanel) queuePanel.open = false;
+        if (inspector && !preferences.pinned) inspector.open = false;
+      }
+    });
+    on(queuePanel?.querySelector('summary'), 'click', () => {
+      if (preferences.active && !queuePanel.open) {
+        if (menu) menu.open = false;
+        if (inspector && !preferences.pinned) inspector.open = false;
+      }
     });
     on(pin, 'click', () => { preferences.pinned = !preferences.pinned; applyPreferences(); savePreferences(); });
     // Close synchronously on summary activation (mouse OR Enter/Space), so the
@@ -128,10 +221,16 @@
     [navigation, queuePanel, inspector].filter(Boolean).forEach(panel => {
       const summary = panel.querySelector('summary');
       on(summary, 'click', (event) => {
-        if (!panel.open || (!preferences.active && panel !== inspector)) return;
+        if (!panel.open || (!preferences.active && panel === navigation)) return;
         event.preventDefault(); panel.open = false; focusCard();
       });
       on(panel, 'toggle', () => {
+        if (!preferences.active && panel === inspector) {
+          classicInspectorOpen = layout.inspector = panel.open; saveLayout();
+        }
+        if (!preferences.active && panel === queuePanel && root.querySelector('[data-review-card]')) {
+          layout.queue = panel.open; saveLayout();
+        }
         if (panel === inspector && preferences.active && !panel.open && preferences.pinned) {
           preferences.pinned = false; applyPreferences(); savePreferences();
         }
@@ -141,6 +240,8 @@
       });
     });
     root.querySelectorAll('[data-review-open-details]').forEach((button) => on(button, 'click', () => {
+      if (menu) menu.open = false;
+      if (preferences.active && queuePanel) queuePanel.open = false;
       preferences.hidden = false; applyPreferences(); savePreferences();
       if (inspector) { inspector.open = true; inspector.querySelector('summary').focus({ preventScroll: true }); }
     }));
@@ -154,7 +255,7 @@
     on(document, 'keydown', (event) => {
       if (document.querySelector('dialog[open]')) return;
       if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing) return;
-      const panels = preferences.active ? [navigation, inspector, queuePanel] : narrow.matches ? [inspector] : [];
+      const panels = preferences.active ? [menu, navigation, inspector, queuePanel] : [inspector, queuePanel];
       const panel = panels.find(panel => panel?.open && panel.contains(document.activeElement)) || panels.find(panel => panel?.open);
       if (panel) { event.preventDefault(); panel.open = false; focusCard(); }
       else if (preferences.active && preferences.hidden) {
@@ -278,17 +379,46 @@
       if (url) window.history.pushState(null, '', url);
       initialize();
     };
+    const advance = async (page, url, direction) => {
+      const nextShell = window.LibreReviewPreload?.importShell(page) || document.importNode(page.querySelector('.studio-review-shell'), true);
+      const ready = preferences.active && !reducedMotion.matches && !document.hidden && await prepareImage(nextShell);
+      const snapshot = ready && preferences.active && !reducedMotion.matches && !document.hidden && Element.prototype.animate ? snapshotImage() : null;
+      try {
+        if (snapshot) {
+          // Lock before mounting the new form, including the preparation frames.
+          root.dataset.reviewArriving = 'true';
+          root.dataset.reviewTransition = direction;
+          snapshot.image.removeAttribute('data-review-image');
+          snapshot.card.append(snapshot.image);
+          root.append(snapshot.layer);
+        }
+        install(page, url, nextShell);
+        if (snapshot) {
+          // Aborting the old viewer restores native image attributes; keep
+          // its last zoom/pan geometry for this one inert outgoing layer.
+          snapshot.image.setAttribute('style', snapshot.imageStyle);
+          await animateSwap(snapshot, direction);
+        }
+      } finally {
+        snapshot?.layer.remove();
+        delete root.dataset.reviewArriving;
+        delete root.dataset.reviewTransition;
+      }
+    };
     const send = async (actionForm, submitter) => {
       // A lost response may follow a committed POST. Never retry it automatically.
-      const data = new FormData(actionForm);
-      if (submitter.name) data.append(submitter.name, submitter.value);
-      const direction = actionForm === backForm ? 'back' : actionForm === skipForm ? 'skip' : submitter.value;
+      const direction = actionForm === backForm ? 'back' : [skipForm, deferForm].includes(actionForm) ? 'skip' : submitter.value;
       networkMessage.textContent = submitStatus?.textContent || t('Bewertung wird gespeichert …');
       // Quick saves should not flash a status banner over every card.
       const progressTimer = window.setTimeout(() => { if (!signal.aborted) network.hidden = false; }, 180);
       const request = new AbortController();
-      const deadline = window.setTimeout(() => request.abort(), 30000);
+      let deadline;
       try {
+        const data = window.LibreReviewQueue ? await window.LibreReviewQueue.prepareNative(actionForm) : new FormData(actionForm);
+        if (submitter.name) data.append(submitter.name, submitter.value);
+        // Queue draining has its own status and timeout; budget the POST only
+        // once it starts, allowing SQLite's 60-second contention wait to finish.
+        deadline = window.setTimeout(() => request.abort(), 90000);
         const response = await fetch(actionForm.action, { method: 'POST', body: data, credentials: 'same-origin', signal: request.signal, headers: { Accept: 'text/html' } });
         const html = await response.text();
         const page = new DOMParser().parseFromString(html, 'text/html');
@@ -299,30 +429,7 @@
           throw new Error('Review request failed');
         }
         if (!response.redirected || destination.pathname !== '/review') throw new Error('Missing confirmation');
-        const nextShell = window.LibreReviewPreload?.importShell(page) || document.importNode(page.querySelector('.studio-review-shell'), true);
-        const ready = preferences.active && !reducedMotion.matches && !document.hidden && await prepareImage(nextShell);
-        const snapshot = ready && preferences.active && !reducedMotion.matches && !document.hidden && Element.prototype.animate ? snapshotImage() : null;
-        try {
-          if (snapshot) {
-            // Lock before mounting the new form, including the preparation frames.
-            root.dataset.reviewArriving = 'true';
-            root.dataset.reviewTransition = direction;
-            snapshot.image.removeAttribute('data-review-image');
-            snapshot.card.append(snapshot.image);
-            root.append(snapshot.layer);
-          }
-          install(page, destination.href, nextShell);
-          if (snapshot) {
-            // Aborting the old viewer restores native image attributes; keep
-            // its last zoom/pan geometry for this one inert outgoing layer.
-            snapshot.image.setAttribute('style', snapshot.imageStyle);
-            await animateSwap(snapshot, direction);
-          }
-        } finally {
-          snapshot?.layer.remove();
-          delete root.dataset.reviewArriving;
-          delete root.dataset.reviewTransition;
-        }
+        await advance(page, destination.href, direction);
       } catch (_) {
         network.hidden = false; network.setAttribute('role', 'alert');
         networkMessage.textContent = t('Der Speicherstand ist unklar. Bitte lade Review neu, bevor du weiter bewertest.');
@@ -384,7 +491,7 @@
     };
 
     // Keep the submitter enabled: its name/value belongs in the native POST.
-    [form, skipForm, backForm].filter(Boolean).forEach((actionForm) => {
+    [form, skipForm, backForm, deferForm].filter(Boolean).forEach((actionForm) => {
       on(actionForm, 'submit', (event) => {
         if (submitting || root.dataset.reviewArriving === 'true' || !event.submitter || event.submitter.disabled || (actionForm === form && event.submitter.value !== 'keep' && delayLocked)) {
           event.preventDefault();
@@ -394,6 +501,7 @@
           const reason = form.querySelector('[name="discard_reason"]');
           if (reason) reason.value = '';
         }
+        if (window.LibreReviewQueue?.trySubmit(actionForm, event.submitter)) { event.preventDefault(); return; }
         submitting = true;
         root.dataset.reviewSubmitting = 'true';
         actionForm.dataset.submitting = 'true';
@@ -406,14 +514,14 @@
       });
     });
     on(root, 'click', (event) => {
-      if ((submitting || root.dataset.reviewArriving === 'true') && event.target instanceof Element && event.target.closest('a, button, summary') && !event.target.closest('[data-review-recover], [data-review-focus-toggle], [data-review-chrome-toggle], [data-review-open-details], [data-review-inspector] > summary')) event.preventDefault();
+      if ((submitting || root.dataset.reviewArriving === 'true') && event.target instanceof Element && event.target.closest('a, button, summary') && !event.target.closest('[data-review-recover], [data-review-focus-toggle], [data-review-chrome-toggle], [data-review-open-details], [data-review-menu] > summary, [data-review-inspector] > summary')) event.preventDefault();
     });
     on(window, 'pageshow', (event) => {
       if (!event.persisted) return;
       submitting = false;
       delete root.dataset.reviewSubmitting;
       [fixed, confirm, keep, skip, back].forEach((button) => button?.removeAttribute('aria-disabled'));
-      [form, skipForm, backForm].filter(Boolean).forEach((actionForm) => {
+      [form, skipForm, backForm, deferForm].filter(Boolean).forEach((actionForm) => {
         delete actionForm.dataset.submitting;
         actionForm.removeAttribute('aria-busy');
       });
@@ -426,6 +534,7 @@
       const selected = shots.find((shot) => shot.dataset.reviewShot === id);
       if (!selected || submitting || root.dataset.reviewArriving === 'true') return;
       shots.forEach((shot) => { shot.hidden = shot !== selected; });
+      updateCaptions();
       root.querySelectorAll('[data-review-shot-link]').forEach((link) => {
         if (link.dataset.reviewShotLink === id) link.setAttribute('aria-current', 'true');
         else link.removeAttribute('aria-current');
@@ -490,7 +599,7 @@
         if (!submitting && event.detail > 0 && !hasSelection()) focusCard();
       });
     });
-    const defaultKeys = { fixed: 'ArrowLeft', confirmed: 'ArrowRight', skip: 'Enter', back: 'ArrowDown', poc: 'ArrowUp', focus: 'f' };
+    const defaultKeys = { fixed: 'ArrowLeft', confirmed: 'ArrowRight', skip: 'Enter', back: 'ArrowDown', poc: 'ArrowUp', focus: 'f', menu: 'm', details: 'i', controls: 'h' };
     const matchesShortcut = (event, action) => window.LibreBugBountyShortcuts
       ? window.LibreBugBountyShortcuts.matches(event, `review.${action}`)
       : !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && event.key === defaultKeys[action];
@@ -499,9 +608,10 @@
       if (document.querySelector('dialog[open]')) return;
       if (event.target instanceof Element && event.target.closest('[data-review-novnc]')) return;
       const nativeActivation = ['Enter', ' '].includes(event.key) && interactive(event.target);
-      if (matchesShortcut(event, 'focus') && !event.defaultPrevented && !event.isComposing && !editable(event.target) && !nativeActivation && !hasSelection()) {
+      const displayAction = ['focus', ...(preferences.active ? ['menu', 'details', 'controls'] : [])].find(action => matchesShortcut(event, action));
+      if (displayAction && !event.defaultPrevented && !event.isComposing && !editable(event.target) && !nativeActivation && !hasSelection()) {
         event.preventDefault();
-        if (!event.repeat) toggleMode();
+        if (!event.repeat) ({ focus: toggleMode, menu: toggleMenu, details: toggleInspector, controls: toggleChrome })[displayAction]();
         return;
       }
       // Native Enter still activates a focused action once, regardless of its
@@ -512,7 +622,7 @@
         return;
       }
       if (event.defaultPrevented || event.isComposing || interactive(event.target) || hasSelection()) return;
-      const action = Object.keys(defaultKeys).find(action => action !== 'focus' && matchesShortcut(event, action));
+      const action = ['fixed', 'confirmed', 'skip', 'back', 'poc'].find(action => matchesShortcut(event, action));
       if (!action) return;
       event.preventDefault();
       if (event.repeat || submitting || root.dataset.reviewArriving === 'true') return;
@@ -593,6 +703,7 @@
     }
 
     window.LibreReviewPreload?.update(root, signal);
+    window.LibreReviewQueue?.update(root, { advance });
 
     // The new card is the primary destination after a native redirect. Errors
     // receive focus first and retain the form values instead of advancing.

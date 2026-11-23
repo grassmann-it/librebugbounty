@@ -32,10 +32,27 @@ Installation of source code alone must not reclassify the full inventory.
 The application opt-in is `CRIBRUM_CANDIDATE_DIRECTORY` (empty by default) and
 `CRIBRUM_CANDIDATE_MODE` (`shadow` by default; `active` requires explicit opt-in).
 An empty directory setting selects no candidate packs. Use the complete reviewed
-`behavior-triage` **1.5.1** candidate manifest (all four detectors, including
-`reflection-triage-v1`) for active evaluation; an incomplete registered detector/output
+`behavior-triage` **1.5.2** candidate manifest with engine **1.3.7** (all four
+detectors, including `reflection-triage-v1`) for active evaluation; an incomplete
+registered detector/output
 selection is rejected. These settings affect processing of observations presented
 to the application. They do not enqueue a full inventory reclassification.
+
+Engines 1.3.5 and 1.3.6 change core suspicion helpers, not the candidate manifest or
+activation contract. The native MySQL/MariaDB partial-input, PDO query-input and
+PHQL ORM parser/input
+hints do not run as new active structural detectors, emit qualified SQLi facts or
+grant report eligibility.
+The strict candidate detector and report policy retain their evidence requirements.
+
+Engine 1.3.7 adds core serialized-alert/Access helpers with the same SQL
+active-mode boundary. Its PHP runtime carrier correction also affects the
+context detector's observed `error_response` output in explicit active mode.
+A bounded native PostgreSQL `query was:` carrier can also add query disclosure
+and active `internal_information_exposed`; later request dumps supply no input
+relationship. Neither path adds SQL structural evidence. The candidate manifest
+stays at 1.5.2. Source-bound cause badges are presentation metadata, not facts.
+See the [1.3.7 correction card](rule-cards/native-carriers-and-runtime-1.3.7.md).
 
 From the isolated checkout, run focused tests first. `tests/bootstrap.php` creates
 and removes a unique temporary SQLite database and artifact root and overrides
@@ -92,8 +109,32 @@ coverage workflow.
 
 ## Rollback
 
-For the 1.5.1 correction, retain the preceding **engine 1.3.1 plus candidate
-1.5.0** source pair. The [correction card](rule-cards/http-response-triage-1.5.1.md)
+For engine 1.3.7, retain **engine 1.3.6 plus candidate 1.5.2**, including the
+preceding runtime detector implementation. Reverting only the unchanged
+candidate manifest cannot undo core helpers or the PHP runtime carrier change.
+
+For the engine 1.3.6 PHQL hint, retain **engine 1.3.5 plus candidate 1.5.2**.
+The unchanged candidate cannot revert the core helper by itself. Preserve the
+distinction between ORM parsing and native SQL diagnostics. See the
+[engine 1.3.6 rule card](rule-cards/phql-input-suspicion-1.3.6.md).
+
+For the historical engine 1.3.5 native SQL suspicion extensions, retain **engine 1.3.4 plus
+candidate 1.5.2** as the preceding runtime pair. The candidate manifest is unchanged;
+reverting only its version cannot restore the preceding core helper behavior.
+See the [engine 1.3.5 rule card](rule-cards/native-sql-suspicion-1.3.5.md).
+
+For the historical engine 1.3.4 core MySQL suspicion hint, retain **engine 1.3.3 plus
+candidate 1.5.2** as the preceding runtime pair. The candidate manifest is unchanged;
+reverting its version cannot restore the older core helper. See the
+[engine 1.3.4 rule card](rule-cards/mysql-syntax-suspicion-1.3.4.md).
+
+For the historical engine 1.3.3 / candidate 1.5.2 `DB ERR` correction, retain the preceding **engine 1.3.2 plus
+candidate 1.5.1** source pair. The
+[1.5.2 correction card](rule-cards/http-response-triage-1.5.2.md) records the narrow
+observed-diagnostic change. A pack-only downgrade does not restore engine behavior.
+
+For the historical 1.5.1 correction, retain the preceding **engine 1.3.1 plus
+candidate 1.5.0** source pair. The [correction card](rule-cards/http-response-triage-1.5.1.md)
 records the changed detection boundaries.
 
 For the historical 1.5.0 candidate, retain the exact secured **engine1.2.0 source/WIP plus

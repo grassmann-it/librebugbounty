@@ -3,7 +3,7 @@
   if (!window.Image || !Image.prototype.decode || !window.AbortController) return;
 
   // Only stored artifacts, never /review HTML (GET changes the session trail).
-  // Keep at most two detached images and one speculative download/decode active.
+  // Keep at most five detached images and one speculative download/decode active.
   const cache = new Map();
   const selected = '[data-review-shot]:not([hidden]) [data-review-image]';
   const lifetime = 60000;
@@ -65,7 +65,7 @@
       let hints = [];
       try {
         const raw = JSON.parse(root.querySelector('[data-review-preloads]')?.dataset.reviewPreloads || '[]');
-        if (Array.isArray(raw)) hints = raw.slice(0, 2).map(source).filter(Boolean);
+        if (Array.isArray(raw)) hints = raw.slice(0, 5).map(source).filter(Boolean);
       } catch (_) {}
       const wanted = new Set(hints.map(hint => hint.key));
       for (const [key, entry] of cache) {

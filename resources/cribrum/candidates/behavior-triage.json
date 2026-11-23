@@ -1,7 +1,7 @@
 {
   "schema": 2,
   "id": "behavior-triage",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "rules": [
     {
       "id": "sql-triage-v1",

@@ -1,5 +1,17 @@
 # Contributing rules and detectors
 
+Cribrum is useful today and still has blind spots. Missed diagnostics, false
+positives, unusual response formats and better regexes are all useful
+contributions. [Open an issue](https://github.com/grassmann-it/librebugbounty/issues)
+with the engine/pack version, expected result, actual result and a small sanitized
+or synthetic example. A clear bug report is welcome even without a patch.
+
+For a regex or detector change, include a matching example and a close example
+that must not match. Preserve the relevant request/response relationship and
+encoding, and explain whether the result is an observation or a suspicion.
+Use synthetic domains and remove credentials, private URLs and personal data.
+The workflow below explains how to turn that example into a tested contribution.
+
 Submit a pull request against this repository. A useful change contains a small
 rule card, a versioned candidate manifest, independently written expected results,
 synthetic positive and negative fixtures, and focused offline regression tests.
@@ -17,7 +29,7 @@ Schema 1 remains compatible with existing literal claim-suggestion rules.
 code-registered detectors. The [example candidate](examples/contributor-triage.json)
 shows SQL and reflection rules in the format. It deliberately lacks file/context
 families, so it is a shadow-only partial example. The complete shipped candidate
-`resources/cribrum/candidates/behavior-triage.json` is version **1.5.0** and selects
+`resources/cribrum/candidates/behavior-triage.json` is version **1.5.2** and selects
 all four detectors. Registered capabilities are `sql-triage-v1`, `file-triage-v1`,
 `context-triage-v1`, and `reflection-triage-v1` (`input_reflected`). A pack cannot supply a PHP filename, evaluate arbitrary
 code, change report eligibility, or select a model/provider. New capabilities
@@ -25,8 +37,9 @@ need reviewed detector code and registration in the core. Schema-2 candidates
 remain shadow by default; a manifest with `shadow: false` is rejected. Only
 explicit runtime/CLI mode can opt into active evaluation.
 
-The [HTTP-response rule card](rule-cards/http-response-triage-1.5.0.md) describes
-the additional diagnostic variants and counterexamples in this candidate version.
+The [1.5.2 correction card](rule-cards/http-response-triage-1.5.2.md) describes
+the latest bounded diagnostic variant and its counterexamples; the linked
+preceding cards retain the earlier candidate changes.
 
 For example, adding a WAF vendor today is a PHP pull request against
 `src/Cribrum/Detector/ContextTriageDetector.php` plus synthetic positive and negative

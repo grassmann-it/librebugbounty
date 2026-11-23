@@ -49,9 +49,14 @@ final class DiagnosticClaimAdapter
                         'representation' => $span['representation'] === 'dom_text' ? 'text' : $span['representation'],
                         'start' => $span['start'], 'length' => $span['length'], 'excerpt' => $span['excerpt'],
                     ], $signal['spans']);
+                    $databaseResultError = ($signal['attributes']['runtimeDetails']['diagnosticKind'] ?? null) === 'database_result_type';
+                    $reason = $claim === Taxonomy::ERROR_DISCLOSURE
+                        ? ($databaseResultError
+                            ? 'A database-result API received a boolean instead of the expected result or resource. This runtime diagnostic alone does not establish SQL injection.'
+                            : 'A concrete runtime or database diagnostic was returned.')
+                        : 'A runtime diagnostic exposes concrete internal details.';
                     $suggestions[] = new ClaimSuggestion($claim, Taxonomy::OBSERVED, 86,
-                        ['builtin/'.$stage],
-                        [$claim === Taxonomy::ERROR_DISCLOSURE ? 'A concrete runtime or database diagnostic was returned.' : 'A runtime diagnostic exposes concrete internal details.'],
+                        ['builtin/'.($databaseResultError ? 'database-result-runtime' : $stage)], [$reason],
                         $spans);
                     } catch (\Throwable) {
                         // One bad emission cannot discard a later independent source.

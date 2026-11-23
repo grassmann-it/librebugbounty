@@ -173,7 +173,7 @@ final class CribrumPersistenceTest extends DatabaseTestCase
         $entity = $processor->process($finding, $observation, dialogSeen: false, dialogText: null, requestContextSha256: \App\Service\WorkerProofResolver::requestContextSha256($finding));
         self::assertNotNull($entity);
         self::assertNotNull($entity->getArtifactPath());
-        self::assertSame('cribrum-1.3.2', $entity->getClassification()['classifierVersion']);
+        self::assertSame('cribrum-1.3.8', $entity->getClassification()['classifierVersion']);
         $claims = $this->claims->currentClaims($finding);
         self::assertSame(['error_disclosure', 'information_disclosure', 'sql_injection', 'xss'], array_map(static fn ($claim): string => $claim->claim, $claims));
         self::assertNotNull($processor->process($finding, $observation, requestContextSha256: \App\Service\WorkerProofResolver::requestContextSha256($finding)));

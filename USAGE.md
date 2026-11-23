@@ -111,7 +111,8 @@ SQLi/LFI/RFI remain suspicion, and all suggestions require manual assessment.
 ## Keyboard shortcuts and paste intake
 
 In **Settings → Configure keyboard shortcuts**, change or record keys for image
-Review decisions, skip, back/reset, opening the PoC and focus mode. Existing
+Review decisions, skip, back/reset, opening the PoC, focus mode and its menu,
+details and control visibility. Existing
 Review keys remain the defaults. Leave a binding empty to disable it, or restore
 the defaults before saving. Hints on actions and keyboard help use the saved
 bindings, including after a Review case changes without a page reload.
@@ -392,21 +393,30 @@ technical errors, or cases without a technical observation.
 | **Open PoC** / up arrow | Opens the stored URL in another tab; the review remains on the same case |
 | **Discard case** | Preserves the case in the archive and removes it from normal review |
 
-Review starts in the classic layout. **Focus mode** (or **F**) switches to an
+Review starts in the classic layout with the queue and details collapsed to
+leave more room for the screenshot. Expand the **Review** header for queue counts,
+filters and round controls. **Details & options** opens the sidebar; payload,
+request parameters and history have their own disclosures. Queue and sidebar
+choices persist within the tab across cards and reloads. Critical notices remain
+visible with details closed, and Escape closes the current panel.
+
+**Focus mode** (or **F**) switches to an
 image view filling the browser window; the same button or F returns to the
 classic layout. This is an in-page focus mode, not browser fullscreen. The chosen
 mode persists within the tab, including across cards and reloads. F does not
 intercept typing or selection in form fields.
 
-In focus mode, case/queue information and assessment controls float over the
-image. Navigation is a compact, initially closed menu at the top right, not an
-additional footer. Open **Details & options** for the scrolling sidebar; on wide
+In focus mode, website and queue information sit directly above the assessment
+controls in the same floating panel. Queue information expands to its right
+when space allows; narrower windows use the available space above or below.
+The compact menu at the top right contains display controls and navigation.
+Use **M** to toggle the menu or **I** to toggle **Details & options**; on wide
 screens, **Pin sidebar** reserves space beside the image. The controls retain the
 arrow-key layout: Open PoC above Back, with Skip beside Open PoC and above Vulnerable.
 
-**Hide controls** clears the overlays for inspecting covered areas. **Show controls**
-or Escape restores them; review shortcuts remain available while controls are
-hidden. The focus-mode exit button, critical notices and errors remain visible.
+**Hide controls** or **H** clears the overlays for inspecting covered areas.
+**Show controls**, H or Escape restores them; review shortcuts remain available
+while controls are hidden. The menu, critical notices and errors remain visible.
 These display preferences are remembered within the browser tab. Closing
 navigation, queue information or details restores review keyboard focus without
 an extra mouse assessment. Escape closes an open panel before restoring controls.
@@ -415,24 +425,37 @@ In focus mode, use **Fit** to see the whole screenshot, **1:1** for one image pi
 and +/− or the mouse wheel to zoom. Drag or pinch the image to inspect details.
 When the image viewer has keyboard focus, +/− zoom, 0 fits, 1 selects original
 size, and the arrow keys pan an enlarged image. Image gestures never assess a
-case. **Open original** still opens the saved image separately.
+case. Image information and **Open original** sit with the zoom controls at the
+bottom right. These controls move clear of the decision panel in narrow windows.
+**Open original** opens the saved image separately.
 
-After a confirmed save in focus mode, the image card exits right for Vulnerable or left for
+After an assessment in focus mode, the image card exits right for Vulnerable or left for
 Not vulnerable. Skip uses a neutral transition; Back brings the previous case
 back into view. The next stored image is decoded before the old and new cards
 crossfade together, avoiding an empty gap between animations. Slow or broken
 images fall back without motion rather than blocking review. Leaving focus mode,
 resizing or enabling reduced motion cancels the effect cleanly.
 The browser's reduced-motion preference disables these movements.
-In both layouts, Review quietly preloads and decodes the stored screenshots for
-the next two cards in the selected queue, one at a time after the current image
-loads. A matching image is reused directly on arrival, not downloaded again.
-These short-lived hints never preload review pages, change the review trail,
-create screenshot jobs or run checks; the fresh server response still determines
-the next case and evidence. Background tabs, Save-Data and very slow connections
-pause new preloads. Missing or failed images retain the normal loading fallback.
-If a response is interrupted, Review blocks further assessments and offers a
-reload to reconcile the saved state instead of resubmitting the action.
+In both layouts, Review quietly prepares up to five upcoming cards and decodes
+their stored screenshots, loading images one at a time after the current image.
+A matching image is reused on arrival. These previews are read-only: they do not
+change the review trail, create screenshot jobs or run checks. Background tabs,
+Save-Data and very slow connections pause new preloads. Missing or failed images
+retain the normal loading fallback.
+
+When a next card is ready, an assessment advances immediately and saves in a
+background queue. Saves run one at a time, each retaining that case's selected
+findings and evidence. A visible pending count tracks progress. Back, Skip and
+Defer wait for queued saves before continuing; when no next card is ready,
+Review waits for the normal save response. Leaving the page while saves are
+pending triggers a browser warning.
+
+A failed save leaves its case in the review queue and shows a notice with
+**Review open cases**. If a response is lost, the save may already have completed:
+use that link to reconcile the current state. Review never automatically retries
+an uncertain assessment. Reloading retains a notice about unconfirmed saves,
+not a queue that silently resubmits them. An interrupted ordinary save blocks
+further assessments and offers a reload before continuing.
 
 The shortcuts work when focus is outside editable fields and other controls.
 Enter still activates a deliberately focused button or link normally. Holding
@@ -472,7 +495,7 @@ the embedded live-browser panel replaces the empty image area. Click **Start
 interactive review** to open a fresh worker Chromium at the reported URL and
 control it with normal mouse/keyboard input through noVNC inside LBB. This does
 not resume the screenshot's cookies, storage or fingerprint. The dedicated
-interactive desktop has one active operator globally; four automatic screenshot
+interactive desktop has one active operator globally; two automatic screenshot
 lanes remain independent. A second tab can explicitly take over the same finding
 without replacing its context or extending its absolute 20-minute expiry.
 Another finding requires confirmed **End and start**. A worker restart loses
@@ -790,9 +813,9 @@ a problem; it is not a continuously refreshed live indicator.
 
 Expected IDs and browser URLs live in `app.health_workers` in
 `config/services.yaml`. Keep this roster aligned with `.ddev/config.yaml` and
-the screenshot sidecars when reducing the deployment size. Four recheck workers
-use IDs `recheck-1` through `recheck-4`; screenshot lanes use `shot-1` through
-`shot-4`. Existing daemons adopt these per-worker signals after their next DDEV
+the screenshot sidecars when reducing the deployment size. Two recheck workers
+use IDs `recheck-1` and `recheck-2`; screenshot lanes use `shot-1` and
+`shot-2`. Existing daemons adopt these per-worker signals after their next DDEV
 restart. Old shared signals and ad-hoc workers do not count as expected lanes.
 
 The inventory and export defaults are saved for this installation. Explicit
@@ -851,13 +874,13 @@ identifiers in JSON remain unchanged.
 
 ## Troubleshooting
 
-**Screenshots stay queued.** Four independent headed capture lanes process
+**Screenshots stay queued.** Two independent headed capture lanes process
 work in parallel; a slow capture delays only its own lane. Inspect the workers
 and browser services:
 
 ```bash
 ddev exec supervisorctl status 'webextradaemons:screenshot-worker-*'
-ddev exec sh -c 'for n in 1 2 3 4; do curl -fsS http://playwright-shot-$n:3000/health; echo; done'
+ddev exec sh -c 'for n in 1 2; do curl -fsS http://playwright-shot-$n:3000/health; echo; done'
 ```
 
 All queue workers and health requests should succeed.
@@ -873,14 +896,14 @@ Existing evidence remains available when a newer capture fails.
 the counts for cases without readable images. Waiting jobs may finish later;
 you can also view cases without images, or leave them for a later round.
 
-**How are old cases rechecked?** Four recheck workers run in the background
+**How are old cases rechecked?** Two recheck workers run in the background
 and retest open and wontfix findings after the configured interval (14 days
 by default) following their last check. They run
 headless and keep a one-hour minimum interval per domain even across the
 parallel workers. A case currently marked for manual checking pauses its
 automatic recheck until your review finishes. The technical pass itself takes
 no screenshots, so it can run in parallel. When the result changes, or a new `inconclusive`/`error`
-observation needs review, a screenshot is queued separately and one of the four
+observation needs review, a screenshot is queued separately and one of the two
 headed screenshot lanes captures it. A finding the browser reports as fixed
 is marked as fixed directly; only unclear results enter your review queue, and
 error results retry after the configured backoff (3 days by default). Fixed
@@ -892,7 +915,7 @@ ddev exec supervisorctl status 'webextradaemons:recheck-worker-*'
 
 **Catch-up: recheck everything older than 14 days at once.** The catch-up
 command reschedules every stale recheck slot to now and then burns the
-backlog down with a fleet of local workers running next to the four
+backlog down with a fleet of local workers running next to the two
 supervised ones. All workers claim findings atomically in the database, so
 no case is checked twice; slots currently leased by a running worker stay
 untouched. Protected cases (a recorded human decision) keep their regular

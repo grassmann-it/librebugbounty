@@ -28,8 +28,8 @@ hooks:
     - exec: "mkdir -p storage/database storage/artifacts storage/test/database storage/test/artifacts"
     - composer: install
     - exec: "php bin/console app:db:init"
-    - exec: "supervisorctl restart webextradaemons:screenshot-worker-1 webextradaemons:screenshot-worker-2 webextradaemons:screenshot-worker-3 webextradaemons:screenshot-worker-4"
-    - exec: "supervisorctl restart webextradaemons:recheck-worker-1 webextradaemons:recheck-worker-2 webextradaemons:recheck-worker-3 webextradaemons:recheck-worker-4"
+    - exec: "supervisorctl restart webextradaemons:screenshot-worker-1 webextradaemons:screenshot-worker-2"
+    - exec: "supervisorctl restart webextradaemons:recheck-worker-1 webextradaemons:recheck-worker-2"
 web_extra_daemons:
   - name: update-worker
     command: "until [ -f vendor/autoload.php ]; do sleep 1; done; exec php bin/console app:update:worker --no-interaction"
@@ -40,21 +40,9 @@ web_extra_daemons:
   - name: screenshot-worker-2
     command: "until [ -f vendor/autoload.php ]; do sleep 1; done; PLAYWRIGHT_WORKER_URL=http://playwright-shot-2:3000 exec php bin/console app:screenshot:worker --sleep=2 --worker-id=shot-2 --no-interaction"
     directory: /var/www/html
-  - name: screenshot-worker-3
-    command: "until [ -f vendor/autoload.php ]; do sleep 1; done; PLAYWRIGHT_WORKER_URL=http://playwright-shot-3:3000 exec php bin/console app:screenshot:worker --sleep=2 --worker-id=shot-3 --no-interaction"
-    directory: /var/www/html
-  - name: screenshot-worker-4
-    command: "until [ -f vendor/autoload.php ]; do sleep 1; done; PLAYWRIGHT_WORKER_URL=http://playwright-shot-4:3000 exec php bin/console app:screenshot:worker --sleep=2 --worker-id=shot-4 --no-interaction"
-    directory: /var/www/html
   - name: recheck-worker-1
     command: "until [ -f vendor/autoload.php ]; do sleep 1; done; exec php bin/console app:recheck:worker --sleep=300 --worker-id=recheck-1 --no-interaction"
     directory: /var/www/html
   - name: recheck-worker-2
     command: "until [ -f vendor/autoload.php ]; do sleep 1; done; exec php bin/console app:recheck:worker --sleep=300 --worker-id=recheck-2 --no-interaction"
-    directory: /var/www/html
-  - name: recheck-worker-3
-    command: "until [ -f vendor/autoload.php ]; do sleep 1; done; exec php bin/console app:recheck:worker --sleep=300 --worker-id=recheck-3 --no-interaction"
-    directory: /var/www/html
-  - name: recheck-worker-4
-    command: "until [ -f vendor/autoload.php ]; do sleep 1; done; exec php bin/console app:recheck:worker --sleep=300 --worker-id=recheck-4 --no-interaction"
     directory: /var/www/html

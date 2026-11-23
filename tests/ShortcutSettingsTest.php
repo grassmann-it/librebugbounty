@@ -68,6 +68,8 @@ final class ShortcutSettingsTest extends DatabaseTestCase
     public static function invalidBindings(): iterable
     {
         yield 'duplicate' => [['review.fixed' => 'Enter']];
+        yield 'explicit display collision' => [['review.fixed' => 'M', 'review.menu' => 'M']];
+        yield 'duplicate display keys' => [['review.menu' => 'I', 'review.details' => 'I']];
         yield 'context collision' => [['review.fixed' => 'Alt+Shift+B', 'nav.inventory' => 'Alt+Shift+B']];
         yield 'browser paste' => [['review.fixed' => 'Ctrl+V']];
         yield 'browser tab' => [['nav.inventory' => 'Ctrl+Shift+T']];
@@ -99,6 +101,28 @@ final class ShortcutSettingsTest extends DatabaseTestCase
             self::getContainer()->get(SettingsService::class)->save(['ui.shortcuts' => $corrupt]);
             self::assertSame(ShortcutSettings::DEFAULTS, self::getContainer()->get(ShortcutSettings::class)->bindings());
         }
+    }
+
+    public function testNewDisplayDefaultsPreserveOlderCustomBindings(): void
+    {
+        $legacy = ['review.fixed' => 'm', 'review.confirmed' => 'I', 'review.focus' => 'H'];
+        $settings = self::getContainer()->get(SettingsService::class);
+        $settings->save(['ui.shortcuts' => json_encode($legacy)]);
+        $bindings = self::getContainer()->get(ShortcutSettings::class)->bindings();
+        self::assertSame('M', $bindings['review.fixed']);
+        self::assertSame('I', $bindings['review.confirmed']);
+        self::assertSame('H', $bindings['review.focus']);
+        foreach (['review.menu', 'review.details', 'review.controls'] as $action) {
+            self::assertSame('', $bindings[$action], 'A new shortcut must not displace a saved binding.');
+        }
+        self::assertSame('Enter', $bindings['review.skip']);
+        self::assertSame($bindings, ShortcutSettings::validate($legacy));
+        self::assertSame($bindings, ShortcutSettings::validate($bindings));
+
+        $uncontested = ShortcutSettings::validate(['review.fixed' => 'A']);
+        self::assertSame('M', $uncontested['review.menu']);
+        self::assertSame('I', $uncontested['review.details']);
+        self::assertSame('H', $uncontested['review.controls']);
     }
 
     private function token(): string

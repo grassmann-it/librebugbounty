@@ -16,6 +16,7 @@ use App\Service\ReviewTrail;
 use App\Service\SettingsService;
 use App\Service\UiTranslator;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -107,7 +108,7 @@ final class ReviewController
         $claimDecisions = [];
         $claimSelection = null;
         $rawClaims = $parameters['claims'] ?? [];
-        foreach (['assessment', 'discard_reason', 'observation_id', 'evidence_id', 'displayed_evidence_id', 'kind', 'images', 'after', '_token', 'context_token', 'trail_id', 'trail_version'] as $field) {
+        foreach (['assessment', 'discard_reason', 'observation_id', 'evidence_id', 'displayed_evidence_id', 'kind', 'images', 'after', '_token', 'context_token', 'trail_id', 'trail_version', 'queued_card', 'queued_token', 'operation_id'] as $field) {
             if (array_key_exists($field, $parameters) && !is_string($parameters[$field])) {
                 $malformed = true;
             }
@@ -145,6 +146,9 @@ final class ReviewController
             $submitted['claim_selection_observation'] = is_string($parameters['claim_selection_observation'] ?? null) ? $parameters['claim_selection_observation'] : '';
         } elseif (array_key_exists('claim_selection', $parameters) || array_key_exists('claim_selection_observation', $parameters)) {
             $malformed = true;
+        }
+        if ($request->attributes->get('_review_queued')) {
+            return $this->saveQueuedAssessment($id, $request, $submitted, $malformed, $claimDecisions, $claimSelection);
         }
         $query = array_intersect_key($parameters, array_flip(['kind', 'images', 'after']));
         $query['evidence'] = $submitted['displayed_evidence_id'];
@@ -209,6 +213,129 @@ final class ReviewController
         $nextPath = $this->queue->path($view->kind, $view->images, $id, null, $trail['id']);
 
         return new RedirectResponse($nextPath.(str_contains($nextPath, '?') ? '&' : '?').'message='.rawurlencode($message).'&reviewed='.rawurlencode($id), Response::HTTP_SEE_OTHER, ['Cache-Control' => 'no-store']);
+    }
+
+    #[Route(path: '/review/preview', name: 'studio_review_preview', methods: ['GET'])]
+    public function preview(Request $request): Response
+    {
+        try {
+            $query = $request->query->all();
+            if (!is_string($query['trail'] ?? null) || !is_string($query['limit'] ?? '5')
+                || !ctype_digit($query['limit'] ?? '5')) {
+                throw new \InvalidArgumentException('Ungültige Review-Auswahl.');
+            }
+            if (!$this->queue->queuedAvailable()) return $this->queuedError('', '', 'Die Speicherwarteschlange ist noch nicht verfügbar. Bitte Review neu laden.', 503);
+            $trail = $this->trails->open($request->getSession(), $query['trail']);
+            if (!isset($trail['queue_generation'])) throw new \UnexpectedValueException('Der Review-Durchlauf wurde inzwischen fortgesetzt. Bitte die aktuelle Karte erneut prüfen.');
+            $request->attributes->set('_review_trail', $trail);
+            $request->attributes->set('_review_preview', true);
+            $limit = min(10, max(1, (int) ($query['limit'] ?? 5)));
+            unset($query['card'], $query['evidence'], $query['reviewed']);
+            // Queue scanning and detail hydration need no session mutation.
+            // Release PHP's session-file lock so this speculative read cannot
+            // hold an assessment POST behind the expensive projection work.
+            $request->getSession()->save();
+            $views = $this->queue->preview($query, $limit);
+            $trail = $this->trails->checkQueue($request->getSession(), $trail['id'], $trail['queue_generation']);
+            $request->attributes->set('_review_trail', $trail);
+            $cards = [];
+            foreach ($views as $view) {
+                $cards[] = ['id' => $view->detail->finding->getId(), 'url' => $view->currentPath, 'html' => $this->render($request, $view)->getContent()];
+            }
+            $last = $views === [] ? null : $views[array_key_last($views)];
+            return new JsonResponse(['cards' => $cards, 'exhausted' => $last === null || $last->remaining <= 1], 200, ['Cache-Control' => 'no-store']);
+        } catch (\InvalidArgumentException $exception) {
+            return $this->queuedError('', '', $exception->getMessage(), 400);
+        } catch (\UnexpectedValueException $exception) {
+            return $this->queuedError('', '', $exception->getMessage(), 409);
+        }
+    }
+
+    #[Route(path: '/review/{id}/queued-assessment', name: 'studio_review_queued_assessment', methods: ['POST'])]
+    public function queuedAssessment(string $id, Request $request): Response
+    {
+        if (!Uuid::isValid($id) || !$this->findings->find($id) instanceof Finding) {
+            $operation = $request->request->all()['operation_id'] ?? '';
+            return $this->queuedError($id, is_string($operation) ? $operation : '', 'Fall nicht gefunden.', 404);
+        }
+        $request->attributes->set('_review_queued', true);
+        return $this->assess($id, $request);
+    }
+
+    private function saveQueuedAssessment(string $id, Request $request, array $submitted, bool $malformed, array $claimDecisions, ?array $claimSelection): Response
+    {
+        $operation = $submitted['operation_id'];
+        try {
+            if ($malformed || !Uuid::isValid($operation)) throw new \InvalidArgumentException('Ungültige Bewertungsangaben.');
+            if (!$this->queue->queuedAvailable()) return $this->queuedError($id, $operation, 'Die Speicherwarteschlange ist noch nicht verfügbar. Bitte Review neu laden.', 503);
+            if (!$this->csrf->isTokenValid(new CsrfToken('review_assessment_'.$id, $submitted['_token']))
+                || !$this->csrf->isTokenValid(new CsrfToken('review_queued_card_'.hash('sha256', $submitted['queued_card']), $submitted['queued_token']))) {
+                return $this->queuedError($id, $operation, 'Die Bewertung wurde nicht gespeichert. Formular bitte neu laden.', 403);
+            }
+            $decoded = base64_decode($submitted['queued_card'], true);
+            $binding = $decoded === false ? null : json_decode($decoded, true);
+            if (!is_array($binding) || !is_array($binding['card'] ?? null) || ($binding['card']['id'] ?? null) !== $id
+                || !is_string($binding['trail'] ?? null) || !is_string($binding['generation'] ?? null) || !is_int($binding['issued'] ?? null)
+                || $binding['trail'] !== $submitted['trail_id']) {
+                throw new \InvalidArgumentException('Ungültige Bewertungsangaben.');
+            }
+            $card = $binding['card'];
+            if (!hash_equals($card['fingerprint'], explode(':', $submitted['context_token'], 2)[0])) {
+                throw new \UnexpectedValueException('Der Fall oder seine letzte Beobachtung hat sich geändert. Bitte die angezeigten Daten erneut prüfen.');
+            }
+            $payload = $submitted;
+            unset($payload['_token'], $payload['queued_token'], $payload['trail_version']);
+            $hash = hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR));
+            $saved = $this->queue->queuedReceipt($operation);
+            if ($saved !== null) {
+                if ($saved['finding_id'] !== $id || $saved['trail_id'] !== $binding['trail'] || !hash_equals($saved['payload_hash'], $hash)) {
+                    throw new \UnexpectedValueException('Diese Speicheranfrage wurde bereits für eine andere Bewertung verwendet.');
+                }
+                // A replay after Back must acknowledge the old commit without
+                // appending that decision again or undoing the newer reset.
+                $trail = $this->trails->open($request->getSession(), $binding['trail']);
+                if (($trail['queue_generation'] ?? null) === $binding['generation']) {
+                    $card['fingerprint'] = $saved['fingerprint'];
+                    $card['evidence'] = $submitted['displayed_evidence_id'] ?: $card['evidence'];
+                    $trail = $this->trails->queuedForward($request->getSession(), $trail, $card, $operation);
+                }
+                return $this->queuedSuccess($id, $operation, $trail['version'], true);
+            }
+            if ($binding['issued'] < time() - 3600 || $binding['issued'] > time() + 60) {
+                throw new \UnexpectedValueException('Dieser Review-Durchlauf ist abgelaufen. Bitte Review neu öffnen.');
+            }
+            $trail = $this->trails->checkQueue($request->getSession(), $binding['trail'], $binding['generation']);
+            $displayed = $submitted['displayed_evidence_id'];
+            if ($displayed !== '' && !$this->queue->ownsScreenshot($id, $displayed)) {
+                throw new \InvalidArgumentException('Der gewählte Beleg gehört nicht zu diesem Fall.');
+            }
+            $fingerprint = $this->queue->assess($id, $submitted['assessment'], trim($submitted['discard_reason']) ?: null,
+                trim($submitted['observation_id']) ?: null, trim($submitted['evidence_id']) ?: null, $submitted['context_token'], $card['explicit'],
+                claimDecisions: $claimDecisions, claimSelection: $claimSelection,
+                receipt: ['id' => $operation, 'trail' => $binding['trail'], 'hash' => $hash]);
+            $card['fingerprint'] = $fingerprint;
+            $card['evidence'] = $displayed ?: $card['evidence'];
+            $trail = $this->trails->queuedForward($request->getSession(), $trail, $card, $operation);
+            return $this->queuedSuccess($id, $operation, $trail['version']);
+        } catch (\InvalidArgumentException $exception) {
+            return $this->queuedError($id, $operation, $exception->getMessage(), 400);
+        } catch (\UnexpectedValueException $exception) {
+            return $this->queuedError($id, $operation, $exception->getMessage(), 409);
+        } catch (\Throwable) {
+            return $this->queuedError($id, $operation, 'Die Bewertung konnte nicht gespeichert werden. Bitte den Fall neu laden und erneut prüfen.', 500, 'unknown');
+        }
+    }
+
+    private function queuedSuccess(string $id, string $operation, int $version, bool $replayed = false): JsonResponse
+    {
+        return new JsonResponse(['ok' => true, 'id' => $id, 'operationId' => $operation, 'trailVersion' => $version,
+            'outcome' => 'saved', 'replayed' => $replayed, 'message' => $this->i18n->locale() === 'de' ? 'Bewertung gespeichert.' : 'Assessment saved.'], 200, ['Cache-Control' => 'no-store']);
+    }
+
+    private function queuedError(string $id, string $operation, string $message, int $status, string $outcome = 'failed'): JsonResponse
+    {
+        return new JsonResponse(['ok' => false, 'id' => $id, 'operationId' => $operation, 'outcome' => $outcome,
+            'retryable' => false, 'message' => $this->i18n->trans($message)], $status, ['Cache-Control' => 'no-store']);
     }
 
     #[Route(path: '/review/{id}/skip', name: 'studio_review_skip', methods: ['POST'])]
@@ -841,8 +968,12 @@ final class ReviewController
     {
         $trail = $request->attributes->get('_review_trail') ?? $this->trails->open($request->getSession(), null);
         $explicit = ($trail['current']['explicit'] ?? false) && ($trail['current']['id'] ?? null) === $view->detail?->finding->getId();
-        // Session navigation state is not case data; reading never resets a case.
-        $trail = $this->trails->displayed($request->getSession(), $trail, $this->card($view, $explicit));
+        // Speculative shells must never become the displayed card or advance
+        // the trail. A real navigation starts a fresh queued generation.
+        if (!$request->attributes->get('_review_preview')) {
+            $trail = $this->trails->displayed($request->getSession(), $trail, $this->card($view, $explicit));
+            $trail = $this->trails->prepareQueue($request->getSession(), $trail);
+        }
         $request->attributes->set('_review_trail', $trail);
         $reviewTrailId = $trail['id'];
         $reviewTrailVersion = $trail['version'];
@@ -857,7 +988,7 @@ final class ReviewController
         $isFirstStart = $view->detail === null && $this->findings->count([]) === 0;
         $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $locale = $this->i18n->locale();
-        $languageReturnPath = $request->isMethod('GET') ? $request->getRequestUri() : $view->currentPath;
+        $languageReturnPath = $request->isMethod('GET') && !$request->attributes->get('_review_preview') ? $request->getRequestUri() : $view->currentPath;
         $t = fn (string $key, array $parameters = []): string => $this->i18n->trans($key, $parameters);
         $formatTime = fn (?\DateTimeInterface $at, bool $withSeconds = false): string => $this->i18n->formatDateTime($at, $withSeconds);
         $formatDate = fn (\DateTimeInterface|string $date): string => $this->i18n->formatDate($date);
@@ -869,6 +1000,12 @@ final class ReviewController
         $cribrumClaims = $view->detail === null ? [] : ($this->cribrumClaims?->readClaims($view->detail->finding) ?? $view->claims);
         $reportEvidence = $view->detail === null ? [] : ($this->reportProjections?->evidence($view->detail->finding) ?? []);
         $contextToken = $view->detail === null ? '' : $this->queue->contextToken($view->detail->finding->getId(), $view->stateFingerprint);
+        $queuedCard = $queuedToken = '';
+        if ($view->detail !== null && $this->queue->queuedAvailable()) {
+            $queuedCard = base64_encode(json_encode(['trail' => $trail['id'], 'generation' => $trail['queue_generation'],
+                'issued' => time(), 'card' => $this->card($view, $explicit)], JSON_THROW_ON_ERROR));
+            $queuedToken = $this->csrf->getToken('review_queued_card_'.hash('sha256', $queuedCard))->getValue();
+        }
         $recoveryPrompt = null;
         $prompt = $request->getSession()->get('review_recovery_prompt');
         $promptId = $request->query->all()['prompt'] ?? null;

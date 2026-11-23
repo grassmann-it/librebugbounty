@@ -225,7 +225,7 @@ final class InteractiveCaptureServiceTest extends DatabaseTestCase
             ->findOneBy(['screenshotJobId' => $saved->job->getId()]);
         self::assertNotNull($stored);
         $classification = $stored->getClassification();
-        self::assertSame('cribrum-1.3.2', $classification['classifierVersion'] ?? null);
+        self::assertSame('cribrum-1.3.8', $classification['classifierVersion'] ?? null);
         $claims = array_column($classification['suggestions'] ?? [], 'claim');
         self::assertContains('xss', $claims);
         self::assertContains('sql_injection', $claims);

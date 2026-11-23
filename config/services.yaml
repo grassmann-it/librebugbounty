@@ -10,13 +10,9 @@ parameters:
     recheck:
       recheck-1: '%env(PLAYWRIGHT_WORKER_URL)%'
       recheck-2: '%env(PLAYWRIGHT_WORKER_URL)%'
-      recheck-3: '%env(PLAYWRIGHT_WORKER_URL)%'
-      recheck-4: '%env(PLAYWRIGHT_WORKER_URL)%'
     screenshot:
       shot-1: 'http://playwright-shot-1:3000'
       shot-2: 'http://playwright-shot-2:3000'
-      shot-3: 'http://playwright-shot-3:3000'
-      shot-4: 'http://playwright-shot-4:3000'
 
 services:
   _defaults:

@@ -36,12 +36,20 @@ final class CribrumFindingQuery
         $c=self::alias($claimAlias); $f=self::alias($findingAlias);
         return "($c.state NOT IN ('rejected','resolved','stale') AND ($c.source<>'classifier' OR (".self::freshness($f,$reportsAvailable)."<>'stale' AND ".self::observationCurrentSql($c,$f,$observationsAvailable).' IS NOT 0)))';
     }
-    public static function badgeRows(string $alias='f',bool $reportsAvailable=true,bool $history=false,bool $historyAvailable=false,bool $claimHistoryAvailable=false,bool $observationsAvailable=true): string
+    public static function badgeRows(string $alias='f',bool $reportsAvailable=true,bool $history=false,bool $historyAvailable=false,bool $claimHistoryAvailable=false,bool $observationsAvailable=true,bool $diagnosticMetadataAvailable=false): string
     {
         $alias=self::alias($alias); $terminal="'rejected','resolved','stale'";
         $fresh=self::freshness($alias,$reportsAvailable);
         $claimCurrent=self::claimCurrentSql('bc',$alias,$reportsAvailable,$observationsAvailable);
         $sql="SELECT ".self::canonicalSql('bc.claim')." AS code, bc.state AS state, CASE WHEN NOT $claimCurrent THEN 'historical' WHEN $fresh='missing' THEN 'unknown' ELSE 'current' END AS freshness, 'claim' AS origin FROM finding_claim bc WHERE bc.finding_id=$alias.id".($history?'':" AND $claimCurrent");
+        if ($diagnosticMetadataAvailable) {
+            $diagnosticCurrent='('.$claimCurrent.' AND '.CribrumDiagnosticHints::currentSourceSql('bc',$alias,$reportsAvailable,$observationsAvailable).')';
+            foreach (array_keys(CribrumDiagnosticHints::RULES) as $code) {
+                $sql.=" UNION ALL SELECT '$code',CASE WHEN bc.state IN ('rejected','resolved','stale') THEN bc.state ELSE 'observed' END,"
+                    ."CASE WHEN $diagnosticCurrent THEN 'current' ELSE 'historical' END,'claim_diagnostic' FROM finding_claim bc"
+                    ." WHERE bc.finding_id=$alias.id AND ".CribrumDiagnosticHints::hasCodeSql('bc',$code).($history?'':" AND $diagnosticCurrent");
+            }
+        }
         if ($reportsAvailable) {
             foreach ([['$.components','json_extract(bj.value,\'$.code\')',"COALESCE(json_extract(bj.value,'$.certainty'),'observed')"],['$.tags','bj.value',null],['$.caseSummary.hints','bj.value',null]] as [$path,$code,$state]) {
                 $state ??= "CASE WHEN $code IN ('sql_input_structure_indication','sqli_suspected','lfi_suspected','rfi_suspected') THEN 'suspected' WHEN $code IN ('xss_execution_confirmed','xss_confirmed','execution_observed') THEN 'confirmed' ELSE 'observed' END";
@@ -61,12 +69,12 @@ final class CribrumFindingQuery
         }
         return $sql;
     }
-    public static function additionalCount(string $alias='f',bool $reportsAvailable=true,bool $observationsAvailable=true): string
+    public static function additionalCount(string $alias='f',bool $reportsAvailable=true,bool $observationsAvailable=true,bool $diagnosticMetadataAvailable=false): string
     {
         $codes=implode(',',array_map(static fn(string $c):string=>"'$c'",Catalog::additionalCodes()));
-        return '(SELECT COUNT(DISTINCT cb.code) FROM ('.self::badgeRows($alias,$reportsAvailable,false,false,false,$observationsAvailable).") cb WHERE cb.code IN ($codes))";
+        return '(SELECT COUNT(DISTINCT cb.code) FROM ('.self::badgeRows($alias,$reportsAvailable,false,false,false,$observationsAvailable,$diagnosticMetadataAvailable).") cb WHERE cb.code IN ($codes))";
     }
-    public static function hasExtras(string $alias='f',bool $reportsAvailable=true,bool $observationsAvailable=true): string { return '('.self::additionalCount($alias,$reportsAvailable,$observationsAvailable).'>0)'; }
+    public static function hasExtras(string $alias='f',bool $reportsAvailable=true,bool $observationsAvailable=true,bool $diagnosticMetadataAvailable=false): string { return '('.self::additionalCount($alias,$reportsAvailable,$observationsAvailable,$diagnosticMetadataAvailable).'>0)'; }
     /** Semantic first import is unknown; only a comparison with a prior revision supplies time. */
     public static function changedAt(string $alias='f',bool $reportsAvailable=true,bool $historyAvailable=true,bool $claimHistoryAvailable=false): string
     {

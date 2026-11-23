@@ -4,7 +4,7 @@ namespace App\Cribrum;
 
 final class CribrumClassifier
 {
-    private const VERSION = 'cribrum-1.3.2';
+    private const VERSION = 'cribrum-1.3.8';
 
     private const DETECTOR_FAMILIES = [
         'reflection-triage-v1' => ['reflection'],
@@ -73,6 +73,11 @@ final class CribrumClassifier
         $evaluationRuns = [];
         $queryValues = [...$this->queryValues($input->url, $engineIssues, 'input_url_query'), ...$this->queryValues($input->finalUrl ?? '', $engineIssues, 'final_url_query')];
         $context = $this->context($input, $raw, $text, $engineIssues, $queryValues);
+        // Source-bound carriers use a wider request-value set than the core
+        // context: a payload is frequently carried in the path rather than the
+        // query string. Path values stay out of the context needles, because a
+        // reflected path alone must not qualify a page-wide error line.
+        $needles = $this->sourceBoundNeedles($input, $queryValues);
         $coreMatches = [];
         foreach ($loaded['packs'] as $pack) {
             $shareCoreMatches = $this->repository->isShippedCore($pack);
@@ -212,7 +217,7 @@ final class CribrumClassifier
         }
 
         $sqlQuery = null;
-        try { $sqlQuery = $this->sqlQueryDisclosure($input, $raw, $text, $queryValues, $engineIssues); }
+        try { $sqlQuery = $this->sqlQueryDisclosure($input, $raw, $text, $needles, $engineIssues); }
         catch (\Throwable $error) { $engineIssues[] = $this->engineIssue('builtin_sql_query_echo', null, $error); }
         if ($sqlQuery !== null) {
             $previous = $merged[Taxonomy::INFORMATION_DISCLOSURE] ?? null;
@@ -230,7 +235,14 @@ final class CribrumClassifier
         }
 
         $sqlError = null;
-        try { $sqlError = $this->candidateMode === 'active' ? null : $this->sqlErrorWithRequestValue($input, $raw, $text, $queryValues); }
+        try {
+            if ($this->candidateMode !== 'active') {
+                $sqlError = $this->sqlErrorWithRequestValue($input, $raw, $text, $queryValues)
+                    ?? (new SqlDiagnosticSuspicion())->suggest($input)
+                    ?? (new SqlQueryInputSuspicion())->suggest($input)
+                    ?? (new SqlPhqlInputSuspicion())->suggest($input);
+            }
+        }
         catch (\Throwable $error) { $engineIssues[] = $this->engineIssue('builtin_sql_error_request_value', null, $error); }
         if ($sqlError !== null) {
             $previous = $merged[Taxonomy::SQL_INJECTION] ?? null;
@@ -240,11 +252,54 @@ final class CribrumClassifier
             $signals[] = [
                 'pack' => 'builtin',
                 'version' => self::VERSION,
-                'rule' => 'sql-error-request-value',
+                'rule' => substr($sqlError->ruleIds[0], strlen('builtin/')),
                 'representation' => $sqlError->spans[0]['representation'] ?? 'raw',
-                'phrase' => 'database syntax error ... request value',
+                'phrase' => in_array(SqlPhqlInputSuspicion::RULE_ID, $sqlError->ruleIds, true)
+                    ? 'PHQL parser error ... request value'
+                    : 'database syntax error ... request value',
                 'shadow' => false,
             ];
+        }
+
+        // These native carriers supply source-level observations and conservative
+        // input suspicion. They do not relax the explicit active SQL detector or
+        // manufacture typed facts for report qualification.
+        if ($this->candidateMode !== 'active') {
+            foreach ([
+                'sql_serialized_diagnostic' => new SqlSerializedDiagnosticSuspicion(),
+                'access_expression' => new SqlAccessExpressionSuspicion(),
+                'sql_disclosed_query_input' => new SqlDisclosedQueryInputSuspicion(),
+            ] as $stage => $helper) {
+                try {
+                    $result = $stage === 'sql_disclosed_query_input'
+                        ? $helper->evaluate($input, $needles)
+                        : $helper->evaluate($input);
+                    $engineIssues = [...$engineIssues, ...$result['issues']];
+                    foreach ($result['suggestions'] as $suggestion) {
+                        $previous = $merged[$suggestion->claim] ?? null;
+                        if ($previous === null
+                            || ($previous->state !== Taxonomy::OBSERVED && $suggestion->state === Taxonomy::OBSERVED)
+                            || ($previous->state === $suggestion->state && $suggestion->score > $previous->score)) {
+                            $merged[$suggestion->claim] = $suggestion;
+                        } elseif ($previous->state === $suggestion->state && $previous->score === $suggestion->score) {
+                            $merged[$suggestion->claim] = $this->merge($previous, $suggestion);
+                        }
+                        $rule = substr($suggestion->ruleIds[0], strlen('builtin/'));
+                        $signals[] = ['pack' => 'builtin', 'version' => self::VERSION, 'rule' => $rule,
+                            'representation' => $suggestion->spans[0]['representation'],
+                            'phrase' => $suggestion->spans[0]['excerpt'], 'shadow' => false];
+                        if ($evaluations !== null) $evaluations[] = ['pack' => 'builtin', 'version' => self::VERSION,
+                            'rule' => $rule, 'outcome' => 'hit', 'shadow' => false, 'span' => $suggestion->spans[0]];
+                    }
+                    if ($evaluations !== null && $result['suggestions'] === []) $evaluations[] = [
+                        'pack' => 'builtin', 'version' => self::VERSION, 'rule' => $stage, 'outcome' => 'excluded',
+                        'exclusion' => $result['issues'] === [] ? 'No qualified native carrier matched this helper family' : 'Helper evaluation was limited or failed',
+                        'shadow' => false, 'span' => null,
+                    ];
+                } catch (\Throwable $error) {
+                    $engineIssues[] = $this->engineIssue('builtin_'.$stage, 'raw', $error);
+                }
+            }
         }
 
         foreach ($this->xss($input, $raw, $text) as $suggestion) {
@@ -538,7 +593,34 @@ final class CribrumClassifier
         ));
     }
 
-    private function sqlQueryDisclosure(ObservationInput $input, ?string $raw, ?string $text, array $queryValues, array &$engineIssues): ?ClaimSuggestion
+    /**
+     * Request values for source-bound carriers: query leaves, the explicit
+     * payload and decoded path values that carry SQL quoting characters. A path
+     * value without them cannot distinguish unescaped interpolation from a
+     * bound parameter, so it stays outside these carriers.
+     *
+     * @return list<string>
+     */
+    private function sourceBoundNeedles(ObservationInput $input, array $queryValues): array
+    {
+        $needles = [...$queryValues];
+        if (is_string($input->payload) && trim($input->payload) !== '') $needles[] = $input->payload;
+        foreach ([$input->url, $input->finalUrl ?? ''] as $url) {
+            foreach (Detector\RequestPathValues::fromUrl($url) as $value) {
+                if (strpbrk($value, '\'"`\\') === false) continue;
+                $needles[] = $value;
+            }
+        }
+
+        $needles = array_filter($needles, static fn (string $needle): bool => mb_check_encoding($needle, 'UTF-8'));
+
+        return array_values(array_unique(array_filter(
+            array_map(static fn (string $needle): string => trim($needle), $needles),
+            static fn (string $needle): bool => mb_strlen($needle) >= 3,
+        )));
+    }
+
+    private function sqlQueryDisclosure(ObservationInput $input, ?string $raw, ?string $text, array $needles, array &$engineIssues): ?ClaimSuggestion
     {
         $queryDetector = new Detector\SqlTriageDetector();
         $queryEvidence = $queryDetector->evaluateQueryDisclosures($input, 'active');
@@ -561,7 +643,6 @@ final class CribrumClassifier
         // Independently accepted request-specific query echoes remain supported,
         // including responses without a database-error wrapper. Their literal
         // binding is separate from the new diagnostic-only disclosure above.
-        $needles = $this->requestNeedles($input, $queryValues);
         if ($needles === []) return null;
 
         foreach ([['raw', $raw], ['text', $text]] as [$representation, $subject]) {

@@ -548,7 +548,7 @@ final class StudioReviewTest extends DatabaseTestCase
         $before = $this->snapshot();
         $queue = self::getContainer()->get(ReviewQueueService::class);
         $view = $queue->get([]);
-        self::assertSame([$expected->getId(), $thirdImage->getId()], array_column($view->preloadImages, 'evidenceId'));
+        self::assertSame([$expected->getId(), $thirdImage->getId(), $fourthImage->getId()], array_column($view->preloadImages, 'evidenceId'));
         self::assertSame($expected->getSha256(), $view->preloadImages[0]['sha256']);
         self::assertSame($expected->getId(), $queue->get(['after' => $first->getId()])->selectedEvidenceId);
         self::assertSame([$fourthImage->getId()], array_column($queue->get(['kind' => 'error'])->preloadImages, 'evidenceId'));

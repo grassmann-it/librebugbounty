@@ -129,10 +129,12 @@ foreach ($detail?->screenshots ?? [] as $index => $shot) {
   <?php require __DIR__.'/styles.php'; ?>
   <link rel="stylesheet" href="/css/studio-review.css?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/css/studio-review.css'), 0, 16) ?>">
   <link rel="stylesheet" href="/css/studio-review-focus.css?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/css/studio-review-focus.css'), 0, 16) ?>">
+  <link rel="stylesheet" href="/css/studio-review-queue.css?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/css/studio-review-queue.css'), 0, 16) ?>">
   <link rel="stylesheet" href="/css/studio-recovery.css?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/css/studio-recovery.css'), 0, 16) ?>">
   <script src="/js/i18n.js" defer></script>
-  <script src="/js/studio-review-viewer.js" defer></script>
-  <script src="/js/studio-review-preload.js" defer></script>
+  <script src="/js/studio-review-viewer.js?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/js/studio-review-viewer.js'), 0, 16) ?>" defer></script>
+  <script src="/js/studio-review-preload.js?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/js/studio-review-preload.js'), 0, 16) ?>" defer></script>
+  <script src="/js/studio-review-queue.js?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/js/studio-review-queue.js'), 0, 16) ?>" defer></script>
   <script src="/js/studio-review.js?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/js/studio-review.js'), 0, 16) ?>" defer></script>
   <script type="module" src="/js/studio-review-novnc.js?v=<?= substr(hash_file('sha256', __DIR__.'/../../public/js/studio-review-novnc.js'), 0, 16) ?>"></script>
 </head>
@@ -150,8 +152,9 @@ foreach ($detail?->screenshots ?? [] as $index => $shot) {
     <main class="review-workspace" id="review-main" tabindex="-1">
       <div class="review-content">
         <div class="review-overview">
-          <details class="review-queue-panel" open data-review-queue>
-            <summary>Review <span>· <?= $formatNumber($view->remaining) ?> <?= $escape($t('noch in dieser Runde')) ?></span></summary>
+          <details class="review-queue-panel"<?= $finding === null ? ' open' : '' ?> data-review-queue>
+            <summary><strong>Review</strong> <span>· <?= $formatNumber($view->remaining) ?> <?= $escape($t('noch in dieser Runde')) ?></span><span class="review-queue-selection"><?= $escape($t($kindLabels[$view->kind]).' · '.$t($imageLabels[$view->images])) ?></span></summary>
+            <div class="review-queue-content">
         <div class="review-heading">
           <div><p class="studio-eyebrow"><?= $escape($t('Manuelle Prüfung')) ?></p><h1>Review</h1><p><?= $escape($t('Bild ansehen. Angaben prüfen. Entscheiden.')) ?></p></div>
           <div class="review-supply" aria-label="<?= $escape($t('Gesamter Review-Vorrat')) ?>">
@@ -177,6 +180,7 @@ foreach ($detail?->screenshots ?? [] as $index => $shot) {
           <div class="review-round-links"><a href="<?= $escape($view->currentPath) ?>"><?= $escape($t('Aktualisieren')) ?> <span aria-hidden="true">↻</span></a><?php if ($view->after !== null): ?><a href="<?= $escape($view->restartPath) ?>"><?= $escape($t('Runde von vorn')) ?></a><?php endif; ?></div>
         </div>
 
+            </div>
           </details>
         </div>
         <?php if ($message !== null && $message !== ''): ?>
@@ -189,6 +193,17 @@ foreach ($detail?->screenshots ?? [] as $index => $shot) {
             <p><?= $escape($t('Du hast denselben Stand mehrfach übersprungen. Ist der Server nicht erreichbar oder kannst du den PoC gerade nicht prüfen? Du kannst den Fall mit Grund zurückstellen. Enter bleibt Überspringen.')) ?></p>
             <a class="review-button" href="/findings/<?= $escape($recoveryPrompt) ?>#review-recovery"><?= $escape($t('Übersprungenen Fall zurückstellen')) ?></a>
           </details>
+        <?php endif; ?>
+
+        <?php if ($finding !== null): ?>
+          <div class="review-alerts" aria-label="<?= $escape($t('Review-Hinweise')) ?>">
+            <?php if ($isNotice): ?><button type="button" class="review-alert-chip" data-review-open-details><?= $escape($t('Neue Hinweise nach deinem Urteil')) ?></button><?php endif; ?>
+            <?php if (!$checksAllowed): ?><span class="review-alert-chip"><?= $escape($t('Prüfungen gesperrt')) ?></span><?php endif; ?>
+            <?php if ($latestRun?->getResult() === 'error'): ?><button type="button" class="review-alert-chip" data-review-open-details data-review-technical-error><?= $escape($t('Technischer Fehler')) ?></button><?php endif; ?>
+            <?php if ($latestJob?->getStatus() === 'failed'): ?><button type="button" class="review-alert-chip" data-review-open-details><?= $escape($t('Letzte Aufnahme fehlgeschlagen')) ?></button><?php endif; ?>
+            <?php if ($hasUnresolvedChallenge): ?><button type="button" class="review-alert-chip" data-review-open-details><?= $escape($t('Browser-Schutz blieb aktiv; die Aufnahme kann eine Schutzseite zeigen.')) ?></button><?php endif; ?>
+            <span class="review-alert-chip" data-review-image-warning hidden><?= $escape($t('Bilddatei nicht verfügbar')) ?></span>
+          </div>
         <?php endif; ?>
 
         <?php if ($finding === null): ?>
@@ -279,10 +294,13 @@ foreach ($detail?->screenshots ?? [] as $index => $shot) {
                 <section class="review-source-block"><div class="review-source-label"><h4><?= $escape($t('Aktive PoC-URL')) ?></h4><span class="review-url-actions"><?php if ($canOpenPoc): ?><a class="review-text-link" href="<?= $escape($pocUrl) ?>" target="_blank" rel="noopener noreferrer" data-review-poc-open><?= $escape($t('Öffnen')) ?> ↗</a><?php endif; ?><button class="review-copy" type="button" data-review-copy="review-url" hidden><?= $escape($t('Kopieren')) ?></button></span></div><code id="review-url" class="review-code"><?= $escape($finding->getPocUrl()) ?></code><?php if ($finding->getPocRevision() > 0): ?><p><?= $escape($t('Ursprünglich gemeldete URL')) ?>: <code><?= $escape($finding->getUrl()) ?></code></p><?php endif; ?></section>
                 <?php if ($canOpenPoc && strtoupper($finding->getMethod()) !== 'GET'): ?><p class="review-muted"><?= $escape($t('Öffnen ruft nur die URL auf; Methode und Request-Parameter werden nicht nachgebildet.')) ?></p><?php endif; ?>
                 <section class="review-source-block"><h4><?= $escape($t('Erwartetes Kennzeichen')) ?></h4><?php if ($finding->getExpectedEvidence() !== null && $finding->getExpectedEvidence() !== ''): ?><code class="review-code"><?= $escape($finding->getExpectedEvidence()) ?></code><?php else: ?><p class="review-absent"><?= $escape($t('Kein Kennzeichen gespeichert.')) ?></p><?php endif; ?></section>
+                <details class="review-detail-group"><summary><?= $escape($t('Payload & Request-Parameter')) ?></summary>
                 <section class="review-source-block"><h4>Payload</h4><?php if ($finding->getPayload() !== null && $finding->getPayload() !== ''): ?><pre class="review-code"><?= $escape($finding->getPayload()) ?></pre><?php else: ?><p class="review-absent"><?= $escape($t('Keine Payload gespeichert.')) ?></p><?php endif; ?></section>
                 <section class="review-source-block"><h4><?= $escape($t('Request-Parameter')) ?></h4><?php if ($finding->getRequestParams() !== null && $finding->getRequestParams() !== []): ?><pre class="review-code"><?= $escape(json_encode($finding->getRequestParams(), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?></pre><?php else: ?><p class="review-absent"><?= $escape($t('Keine zusätzlichen Request-Parameter gespeichert.')) ?></p><?php endif; ?></section>
+                </details>
                 <p class="review-copy-status" role="status" aria-live="polite" data-review-copy-status></p>
 
+                <details class="review-detail-group"<?= $isNotice || $latestRun?->getResult() === 'error' || ($notes !== null && $notes !== '') ? ' open' : '' ?>><summary><?= $escape($t('Verlauf & Notiz')) ?></summary>
                 <section class="review-observation" aria-labelledby="review-observation-title">
                   <h4 id="review-observation-title"><?= $escape($t('Letzte technische Beobachtung')) ?></h4><p class="review-observation-value" data-result="<?= $escape($latestRun?->getResult() ?? 'unchecked') ?>"><?= $escape($t(FindingReadLabels::observation($latestRun?->getResult()))) ?></p>
                   <?php if ($latestRun !== null): ?><p class="review-muted"><?= $escape($formatTime($state->latestAt)) ?> · <?= $escape($latestRun->getMode()) ?></p><?php endif; ?>
@@ -291,6 +309,7 @@ foreach ($detail?->screenshots ?? [] as $index => $shot) {
                 </section>
                 <section class="review-manual-state"><h4><?= $escape($t('Manuelle Bewertung')) ?></h4><p><?= $escape($t(FindingReadLabels::assessment($finding->getManualAssessment(), $finding->getDiscardReason()))) ?></p><?php if ($finding->getManualAssessment() !== null): ?><p class="review-muted"><?= $escape($formatTime($finding->getAssessedAt(), true)) ?></p><?php elseif ($finding->getStatus() !== 'new' || $finding->getReviewState() !== null): ?><p class="review-history"><?= $escape($t('Historischer Bestand · Herkunft und Entscheidungsgrundlage unbekannt. Status: {status} · Review: {review}.', ['status' => $finding->getStatus(), 'review' => $finding->getReviewState() ?? $t('unbekannt')])) ?></p><?php endif; ?></section>
                 <section class="review-note"><h4><?= $escape($t('Notiz')) ?></h4><p<?= $notes === null || $notes === '' ? ' class="review-absent"' : '' ?>><?= $escape($notes === null || $notes === '' ? $t('Keine Notiz gespeichert.') : $notes) ?></p></section>
+                </details>
             <?php
             $recoveryFindingId = $finding->getId(); $recoveryContextToken = $contextToken;
             $recoveryDisposition = $detail->reviewDisposition; $recoveryTrailId = $reviewTrailId;
@@ -301,6 +320,7 @@ foreach ($detail?->screenshots ?? [] as $index => $shot) {
               <input type="hidden" name="trail_id" value="<?= $escape($reviewTrailId) ?>">
               <input type="hidden" name="trail_version" value="<?= $reviewTrailVersion ?>">
               <input type="hidden" name="context_token" value="<?= $escape($contextToken) ?>">
+              <?php if ($queuedCard !== ''): ?><input type="hidden" name="queued_card" value="<?= $escape($queuedCard) ?>"><input type="hidden" name="queued_token" value="<?= $escape($queuedToken) ?>"><?php endif; ?>
               <input type="hidden" name="kind" value="<?= $escape($view->kind) ?>">
               <input type="hidden" name="images" value="<?= $escape($view->images) ?>">
               <input type="hidden" name="after" value="<?= $escape($view->after ?? '') ?>">
@@ -330,7 +350,7 @@ foreach ($detail?->screenshots ?? [] as $index => $shot) {
     <?php if ($finding !== null || $reviewBackAvailable): ?>
       <section class="review-action-dock" aria-label="<?= $escape($t('Entscheidung für den angezeigten Fall')) ?>" data-review-dock>
         <div class="review-dock-inner">
-          <div class="review-dock-case"><strong><?= $escape($finding?->getDomain()->getHostname() ?? $t('Runde beendet')) ?></strong><span><?= $escape($t('Zurück setzt den vorherigen Fall wieder auf unbewertet.')) ?></span>
+          <div class="review-dock-case"><strong title="<?= $escape($finding?->getDomain()->getHostname() ?? $t('Runde beendet')) ?>"><?= $escape($finding?->getDomain()->getHostname() ?? $t('Runde beendet')) ?></strong><span><?= $escape($t('Zurück setzt den vorherigen Fall wieder auf unbewertet.')) ?></span>
             <?php if (in_array('classification_changed', array_column($view->triggeringObservations, 'reason'), true)): ?><button class="review-button" type="submit" form="review-assessment-form" name="assessment" value="acknowledge_change"<?= !$canAssess ? ' disabled' : '' ?>><?= $escape($t('Geprüft · Klassifikationshinweis erledigen')) ?></button><?php endif; ?>
             <?php if (($reportProjection['wafBlockReview']['pending'] ?? false) || in_array('waf_block', array_column($view->triggeringObservations, 'reason'), true)): ?><button class="review-button" type="submit" form="review-assessment-form" name="assessment" value="acknowledge_waf_block"<?= !$canAssess ? ' disabled' : '' ?>><?= $escape($locale === 'de' ? 'Geprüft · WAF-Hinweis erledigen' : 'Reviewed · acknowledge WAF notice') ?></button><?php endif; ?>
             <?php if ($canKeep): ?><button class="review-button review-button-keep" type="submit" form="review-assessment-form" name="assessment" value="keep" data-review-keep<?= !$canAssess ? ' disabled' : '' ?>><?= $escape($t('Geprüft · Bewertung behalten')) ?></button><?php endif; ?>
@@ -338,7 +358,7 @@ foreach ($detail?->screenshots ?? [] as $index => $shot) {
           </div>
           <?php if ($finding !== null && $view->claims !== []): ?>
             <fieldset class="review-claims" data-review-claims>
-              <legend><?= $escape($t('Befunde übernehmen')) ?> <span class="review-claim-counter"><output data-review-claim-count><?= $reviewSelectedCount ?>/<?= count($reviewClaimRows) ?></output> <?= $escape($t('ausgewählt')) ?></span></legend>
+              <legend><?= $escape($t('Befunde übernehmen')) ?> <span class="review-claim-counter"><output data-review-claim-count><?= $reviewSelectedCount ?>/<?= count($reviewClaimRows) ?></output> <?= $escape($t('ausgewählt')) ?></span> <span class="review-claim-more" data-review-claim-more hidden>↓ <?= $escape($t('Weitere Befunde')) ?></span></legend>
               <div class="review-claim-list">
                 <?php foreach ($reviewClaimRows as $claimRow): ?>
                   <?php
@@ -363,8 +383,7 @@ foreach ($detail?->screenshots ?? [] as $index => $shot) {
                   </label>
                 <?php endforeach; ?>
               </div>
-              <span class="review-claim-more" data-review-claim-more hidden>↓ <?= $escape($t('Weitere Befunde')) ?></span>
-              <p class="review-claims-summary"><?= $escape($t('Verdacht bleibt Verdacht. Abwahl verwirft den Befund; Vorschlagsregeln werden vorgemerkt.')) ?> <button type="button" data-review-open-details><?= $escape($t('Belege')) ?></button> · <a href="/settings/cribrum/rule-review"><?= $escape($t('Regeln')) ?></a></p>
+              <p class="review-claims-summary"><span><?= $escape($t('Verdacht bleibt Verdacht. Abwahl verwirft den Befund; Vorschlagsregeln werden vorgemerkt.')) ?></span> <span class="review-claims-links"><button type="button" data-review-open-details><?= $escape($t('Belege')) ?></button> · <a href="/settings/cribrum/rule-review"><?= $escape($t('Regeln')) ?></a></span></p>
             </fieldset>
           <?php endif; ?>
           <div class="review-keypad" aria-label="<?= $escape($t('Review-Tasten')) ?>">
@@ -384,12 +403,22 @@ foreach ($detail?->screenshots ?? [] as $index => $shot) {
         <input type="hidden" name="_token" value="<?= $escape($reviewSkipToken) ?>"><input type="hidden" name="trail_id" value="<?= $escape($reviewTrailId) ?>"><input type="hidden" name="trail_version" value="<?= $reviewTrailVersion ?>"><input type="hidden" name="context_token" value="<?= $escape($contextToken) ?>"><input type="hidden" name="displayed_evidence_id" value="<?= $escape($selectedEvidenceId ?? '') ?>" data-review-displayed-evidence>
       </form><?php endif; ?>
     <?php endif; ?>
+    <details class="review-focus-menu" data-review-menu hidden>
+      <summary aria-label="<?= $escape($t('Fokus-Menü')) ?>" title="<?= $escape($t('Fokus-Menü')) ?>" data-shortcut-action="review.menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><kbd data-shortcut-hint="review.menu" hidden>M</kbd></summary>
+      <div class="review-focus-menu-panel">
+        <div class="review-focus-menu-actions">
+          <?php if ($finding !== null): ?><button type="button" class="review-button" data-review-open-details data-shortcut-action="review.details"><span><?= $escape($t('Angaben & Optionen')) ?></span><kbd data-shortcut-hint="review.details" hidden>I</kbd></button><?php endif; ?>
+        </div>
+      </div>
+    </details>
     <details class="review-navigation" open data-review-navigation>
       <summary><?= $escape($t('Navigation')) ?></summary>
       <?php $activeWorkspace = 'review'; require __DIR__.'/navigation.php'; ?>
     </details>
-    <button type="button" class="review-chrome-toggle review-button" data-review-chrome-toggle aria-pressed="false" hidden><?= $escape($t('Bedienelemente ausblenden')) ?></button>
+    <button type="button" class="review-chrome-toggle review-button" data-review-chrome-toggle data-shortcut-action="review.controls" aria-pressed="false" hidden><span data-review-chrome-label><?= $escape($t('Bedienelemente ausblenden')) ?></span><kbd data-shortcut-hint="review.controls" hidden>H</kbd></button>
     <?php if ($finding !== null): ?>
+    <div class="review-image-tools" data-review-image-tools hidden>
+    <div class="review-image-meta" data-review-image-meta></div>
     <div class="review-viewer-tools" role="group" aria-label="<?= $escape($t('Bildansicht')) ?>" data-review-viewer-tools hidden>
       <button type="button" class="review-button" data-review-zoom="out" aria-label="<?= $escape($t('Verkleinern')) ?>">−</button>
       <output data-review-zoom-value aria-live="off">100%</output>
@@ -397,13 +426,6 @@ foreach ($detail?->screenshots ?? [] as $index => $shot) {
       <button type="button" class="review-button" data-review-zoom="actual" aria-label="<?= $escape($t('Originalgröße 1:1')) ?>">1:1</button>
       <button type="button" class="review-button" data-review-zoom="fit"><?= $escape($t('Einpassen')) ?></button>
     </div>
-    <div class="review-alerts" aria-label="<?= $escape($t('Review-Hinweise')) ?>">
-      <?php if ($isNotice): ?><button type="button" class="review-alert-chip" data-review-open-details><?= $escape($t('Neue Hinweise nach deinem Urteil')) ?></button><?php endif; ?>
-      <?php if (!$checksAllowed): ?><span class="review-alert-chip"><?= $escape($t('Prüfungen gesperrt')) ?></span><?php endif; ?>
-      <?php if ($latestRun?->getResult() === 'error'): ?><button type="button" class="review-alert-chip" data-review-open-details data-review-technical-error><?= $escape($t('Technischer Fehler')) ?></button><?php endif; ?>
-      <?php if ($latestJob?->getStatus() === 'failed'): ?><button type="button" class="review-alert-chip" data-review-open-details><?= $escape($t('Letzte Aufnahme fehlgeschlagen')) ?></button><?php endif; ?>
-      <?php if ($hasUnresolvedChallenge): ?><button type="button" class="review-alert-chip" data-review-open-details><?= $escape($t('Browser-Schutz blieb aktiv; die Aufnahme kann eine Schutzseite zeigen.')) ?></button><?php endif; ?>
-      <span class="review-alert-chip" data-review-image-warning hidden><?= $escape($t('Bilddatei nicht verfügbar')) ?></span>
     </div>
     <?php endif; ?>
     <div class="review-network-status" role="status" tabindex="-1" data-review-network hidden><span data-review-network-message></span> <a href="<?= $escape('/review?'.http_build_query(['trail' => $reviewTrailId, 'kind' => $view->kind, 'images' => $view->images], '', '&', PHP_QUERY_RFC3986)) ?>" data-review-recover hidden><?= $escape($t('Aktualisieren')) ?> ↻</a></div>

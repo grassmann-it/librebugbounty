@@ -28,7 +28,7 @@ from pathlib import Path
 class Acceptance:
     FIXTURE_PORT = 18096  # 8096 is the private interactive-gateway callback.
     WORKER_SERVICES = ("playwright", "playwright-shot-1", "playwright-shot-2",
-                       "playwright-shot-3", "playwright-shot-4", "playwright-interactive")
+                       "playwright-interactive")
 
     def __init__(self, args):
         self.checkout = Path(args.checkout).resolve()
@@ -130,16 +130,16 @@ class Acceptance:
         package_version = json.loads((self.checkout / "playwright-worker/package.json").read_text())["version"]
         self.check(app_version == package_version, "Running application and worker package expose the same release version")
         self.report.setdefault("applicationVersions", []).append(app_version)
-        daemons = [f"screenshot-worker-{number}" for number in range(1, 5)]
-        daemons += [f"recheck-worker-{number}" for number in range(1, 5)]
+        daemons = [f"screenshot-worker-{number}" for number in range(1, 3)]
+        daemons += [f"recheck-worker-{number}" for number in range(1, 3)]
         if "name: update-worker" in (self.checkout / ".ddev/config.yaml").read_text():
             daemons.append("update-worker")
         status = self.ddev("exec", "supervisorctl", "status", *["webextradaemons:" + name for name in daemons])
         self.check(len(status.splitlines()) == len(daemons)
                    and all("RUNNING" in line for line in status.splitlines()),
-                   "Supervisor runs all four screenshot lanes, four recheck workers and configured release updater")
+                   "Supervisor runs both screenshot lanes, both recheck workers and configured release updater")
         process_list = self.ddev("exec", "ps", "-ww", "-eo", "args=")
-        for number in range(1, 5):
+        for number in range(1, 3):
             command = f"php bin/console app:screenshot:worker --sleep=2 --worker-id=shot-{number} --no-interaction"
             self.check(process_list.splitlines().count(command) == 1, f"Exactly one real screenshot process owns lane shot-{number}")
         if "update-worker" in daemons:
@@ -270,7 +270,7 @@ class Acceptance:
                         artifact = self.checkout / "storage/artifacts" / observation["artifact_path"]
                     self.check(artifact.is_file() and self.sha(artifact) == observation["artifact_sha256"],
                                f"{round_name}: observation artifact matches its private SHA256")
-                    self.check(json.loads(observation["classification"])["classifierVersion"] == "cribrum-1.3.2",
+                    self.check(json.loads(observation["classification"])["classifierVersion"] == "cribrum-1.3.8",
                                f"{round_name}: observation retains a completed local classification")
                 fixture_path = urllib.parse.urlsplit(initial_findings[finding_id]["url"]).path
                 self.check(fixture_path in ("/plain", "/dialog"),

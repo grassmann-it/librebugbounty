@@ -3,29 +3,49 @@
 The release history of LibreBugBounty. Historical dates below follow the
 repository's tagged commits.
 
-## 2.2.0 — Cribrum (unreleased)
+## 2.2.0 — Cribrum (2026-11-23)
 
 Cribrum focuses on the local response classifier: explainable evidence, multiple
 findings per case and a shared interpretation from Review through report export.
-The release remains in preparation; candidate detector packs require explicit
-selection and default to shadow evaluation.
+The redesigned Review makes room for the evidence and keeps decisions moving
+with preloaded cards and ordered background saves. Cribrum can still miss or
+misclassify signals; human review remains essential. Bug reports, sanitized
+examples, regex improvements and regression fixtures are welcome through the
+[contribution guide](docs/cribrum/contributing.md). Candidate detector packs
+require explicit selection and default to shadow evaluation.
 
 ### Added
 
+- Up to five upcoming Review cards and screenshots preload without advancing the
+  server-side review history. Decisions save one at a time in the background,
+  preserving each case's selected findings. Failed writes leave cases open with
+  recovery feedback; atomic receipts prevent duplicate commits. Back, Skip and
+  Defer synchronize pending writes before changing the review trail.
+- Compact focus menu with configurable M/I/H shortcuts for menu, details and
+  controls, alongside F for focus mode. Image metadata joins zoom/fit at the
+  bottom right; review information opens beside the decision dock when space
+  allows. Half-width, phone and landscape layouts keep panels and tools apart.
 - Bounded, private HTTP/DOM observations from existing browser runs, hash-verified
   artifacts and a deterministic local classifier with versioned declarative
   rulepacks, evidence spans and rule explanations. SQLi/LFI/RFI are never
   automatically confirmed. Classification preserves manual assessment and sends
   no additional target requests during normal browser processing.
-- Explicitly selectable `behavior-triage` 1.5.1 candidate pack with registered
+- Explicitly selectable `behavior-triage` 1.5.2 candidate pack with registered
   SQL, file-include, reflection and context/disclosure/WAF detectors. Evidence
   distinguishes SQL errors from structural SQL suspicion, include diagnostics
   from LFI/RFI suspicion, and reflection from XSS execution. Candidate selection
   and activation are separate; installing the code activates no candidate pack
   or inventory-wide reclassification.
-- Consolidated classifier engine 1.3.2 with source-bound query disclosure,
+- Consolidated classifier engine 1.3.7 with source-bound query disclosure,
   additional stack/runtime and backend-source observations, neutral diagnostic
   catalogue context and additional WAF/challenge recognition.
+- Classifier engine 1.3.8 reads request values decoded from the URL path, adds a
+  bounded multi-line carrier for SQL statements a debug page echoes across
+  several lines, and reports one suspicion when a disclosed statement retains a
+  quoting-carrying request value verbatim and unescaped inside its own quoting.
+  Path values stay out of the core context needles and qualify only source-bound
+  carriers; the hint remains suspicion and creates no structural fact or SQLi
+  report component.
 - Per-detector evaluation coverage with stage outcomes and limits. Partial,
   unavailable and failed evaluation remain visible; no-hit results alone do not
   establish complete coverage or a pure-XSS case.
@@ -41,6 +61,8 @@ selection and default to shadow evaluation.
   workbasket, detail, Review and export preview. Filters and ordering select
   additional findings, new review context, report kind and current/stale/missing
   report projections consistently in the UI and corresponding CLIs.
+  Source-bound SQL-error and database-runtime causes remain visible separately
+  from generic error claims and do not establish SQL injection.
 - Versioned report projections with immutable, source- and PoC-bound evidence,
   explicit component selection, mixed-case summaries and WAF review holds.
   `app:report:refresh` previews or refreshes explicitly selected local cases
@@ -51,6 +73,10 @@ selection and default to shadow evaluation.
   and Status. Local `app:cribrum:reclassify` supports finding selection and dry
   runs, a creation-time `--since` window, preserves manual decisions and historical
   results, and reuses artifacts.
+- Hash- and context-bound AI source-reading receipts with atomic expiring worker
+  reservations. Case details show open, pending, current or stale source review,
+  reviewer, time and outcome. Reading receipts do not change claims, manual
+  assessments, report eligibility or detector activation.
 - CLI-only `app:cribrum:classify` probes one explicitly supplied URL or evaluates
   a local HTTP response offline, with JSON output and optional rule explanations.
   Offline input also supports explicit candidate/shadow comparisons. It saves
@@ -71,6 +97,13 @@ selection and default to shadow evaluation.
 
 ### Changed
 
+- Larger screenshot area in classic Review with collapsed queue/details by
+  default, a narrower domain column, more room for selected findings and the
+  decision keys on the right. Finding pills keep consistent vertical alignment.
+- Two screenshot workers and two recheck workers by default, with separate
+  screenshot browser lanes and matching health expectations.
+- The queued assessment endpoint skips full-page rendering; preview hydration
+  releases the session lock so speculative reads do not block saving.
 - PHP 8.4 compatibility and PHP 8.3/8.4 CI coverage; PHP 8.3 remains the minimum.
 - Reports distinguish observations, suspicion and manual confirmation. Private
   HTTP artifacts require explicit report selection; default exports omit them.
@@ -83,6 +116,51 @@ selection and default to shadow evaluation.
 
 ### Fixed
 
+- Update compatible Symfony dependencies to patched releases, resolving the
+  security advisories reported by the release-time Composer audit. PHP 8.3
+  remains supported.
+- Recognize canonical native MySQL/MariaDB diagnostics serialized into isolated
+  alert source frames, and localized native Access expression diagnostics with
+  an adjacent ASP source location. Qualified unique request relationships add a
+  suspected SQL-injection hint in default/shadow mode. Source spans retain raw
+  serialization; these helpers add no typed SQL fact or SQLi report eligibility.
+- Recognize supported native PHP fatal diagnostics even when an abort leaves the
+  surrounding HTML open, and MySQL/mysqli result/resource type warnings with
+  source locations. Database-result runtime errors receive an explicit observed
+  error explanation; a boolean result alone does not establish SQL injection.
+- Add a separate core SQL-injection suspicion hint for complete Phalcon PHQL
+  parser diagnostics with a byte-length-checked query and one distinctive request
+  value at an unquoted `ORDER BY` operand. Raw markup, model namespaces and
+  query placeholders retain their source context. ORM parsing does not establish
+  a native database error or execution; no typed structural SQL facts or SQLi
+  report eligibility are added. Explicit active mode and candidate 1.5.2 stay
+  unchanged.
+- Add a narrow core SQL-injection suspicion hint for canonical native MySQL or
+  MariaDB diagnostics whose bounded `near '…' at line N` excerpt retains a long
+  exact suffix of one unambiguous request value. SQLSTATE is optional for the
+  canonical message; conflicting SQLSTATE/recognized error-code wrappers remain
+  excluded. Bounded 80-byte ellipsis fragments can carry a SQL-keyword prefix
+  after the retained suffix. Qualified near-fragment entities can be compared
+  after one local decoding while evidence retains original raw spans.
+  The hint preserves partial-input and missing-query uncertainty; it never
+  confirms SQLi or creates structural candidate facts or report eligibility.
+  Candidate 1.5.2, explicit active-mode detection and report policy remain unchanged.
+- Add a separate core suspicion fallback for qualified PDO SQLSTATE `HY000` /
+  general-error `20018` diagnostics with a complete disclosed query and an exact
+  long request value in an `IN` list from supported ordered append-array
+  inputs. The hint does not identify a database vendor, confirm SQLi or create
+  structural candidate facts or report eligibility.
+- Keep Intake's **Already exists** receipt and existing-case link visible in
+  global history after refresh/reload, without increasing personal progress.
+- Prevent an exact repeat paste of the current full Intake URL from appending a
+  second copy when paste-to-submit is disabled. It stays a manual input action;
+  URL bytes and exact-URL duplicate handling remain unchanged.
+- Recognize a bounded `DB ERR` diagnostic followed by a concrete SQL statement,
+  including multiline `SELECT` queries in HTTP 200 responses whose diagnostic
+  container is left unclosed.
+  The generic database diagnostic remains an observed error with unknown vendor;
+  the wrapper alone does not establish SQL-injection suspicion or confirmation.
+  Request echoes and documentation/code contexts remain excluded.
 - Qualify concrete SQL and runtime diagnostics in successful HTTP responses while
   excluding documentation, translation catalogs and generic error/product text.
   Observed database errors remain distinct from SQL-injection suspicion.

@@ -46,6 +46,27 @@ final class ReviewQueueService
     /** @param array<string, mixed> $query */
     public function get(array $query, ?string $currentId = null, bool $explicitReview = false): ReviewQueueView
     {
+        return $this->project($query, $currentId, $explicitReview, $this->supply());
+    }
+
+    /** Upcoming projections share one queue scan; they never alter navigation. */
+    public function preview(array $query, int $limit = 5): array
+    {
+        $this->filters($query);
+        $supply = $this->supply();
+        $views = [];
+        for ($i = 0; $i < min(10, max(1, $limit)); ++$i) {
+            $view = $this->project($query, null, false, $supply);
+            if ($view->detail === null) break;
+            $views[] = $view;
+            $query['after'] = $view->detail->finding->getId();
+            unset($query['evidence'], $query['card']);
+        }
+        return $views;
+    }
+
+    private function project(array $query, ?string $currentId, bool $explicitReview, array $supply): ReviewQueueView
+    {
         [$kind, $images, $after] = $this->filters($query);
         $trail = is_string($query['trail'] ?? null) ? $query['trail'] : null;
         $card = $explicitReview ? $currentId : null;
@@ -57,31 +78,7 @@ final class ReviewQueueService
         if ($lastReviewedId !== null && $connection->fetchOne('SELECT id FROM finding WHERE id = ?', [$lastReviewedId]) === false) {
             $lastReviewedId = null;
         }
-        $candidates = $connection->fetchAllAssociative($this->candidatesSql().' ORDER BY f.created_at ASC, f.id ASC');
-        $noticesAvailable = $this->notices->available();
-        $notices = $this->notices->forFindings();
-        $noticeIds = array_keys(array_filter($notices, static fn ($notice): bool => $notice->observations !== []));
-        if ($noticeIds !== []) {
-            $byId = array_column($candidates, null, 'id');
-            foreach ($connection->fetchAllAssociative('SELECT id, created_at FROM finding WHERE id IN ('.implode(',', array_fill(0, count($noticeIds), '?')).')', $noticeIds) as $candidate) {
-                $byId[$candidate['id']] = $candidate + ['result' => 'changed'];
-            }
-            $candidates = array_values($byId);
-            usort($candidates, static fn (array $a, array $b): int => [$a['created_at'], $a['id']] <=> [$b['created_at'], $b['id']]);
-        }
-        $ready = [];
-        // All evidence paths are read together. Only the displayed case receives
-        // its full entity/detail projection; job status cannot prove file presence.
-        $candidateIds = array_column($candidates, 'id');
-        $paths = $candidateIds === [] ? [] : $connection->fetchAllAssociative(
-            'SELECT id, finding_id, file_path, sha256 FROM evidence WHERE kind = ? AND file_path IS NOT NULL AND file_path <> ? AND finding_id IN ('.implode(',', array_fill(0, count($candidateIds), '?')).') ORDER BY created_at DESC, id DESC',
-            ['screenshot', '', ...$candidateIds],
-        );
-        foreach ($paths as $path) {
-            if (!isset($ready[$path['finding_id']]) && $this->storage->exists($path['file_path'])) {
-                $ready[$path['finding_id']] = $path;
-            }
-        }
+        [$candidates, $ready, $noticesAvailable] = $supply;
 
         $anchor = $after === null ? false : $connection->fetchAssociative('SELECT created_at, id FROM finding WHERE id = ?', [$after]);
         if ($after !== null && $anchor === false && !$explicitReview) {
@@ -142,7 +139,7 @@ final class ReviewQueueService
             $cursor = [$currentDetail->finding->getCreatedAt()->format('Y-m-d H:i:s'), $id];
             $upcoming = array_slice(array_values(array_filter($filtered,
                 static fn (array $candidate): bool => [$candidate['created_at'], $candidate['id']] > $cursor,
-            )), 0, 2);
+            )), 0, 5);
             foreach ($upcoming as $candidate) {
                 $shot = $ready[$candidate['id']] ?? null;
                 if ($shot === null) { continue; }
@@ -182,6 +179,38 @@ final class ReviewQueueService
             claims: $claims,
             claimObservationId: $claimObservationId,
         );
+    }
+
+    private function supply(): array
+    {
+        $connection = $this->entityManager->getConnection();
+        $candidates = $connection->fetchAllAssociative($this->candidatesSql().' ORDER BY f.created_at ASC, f.id ASC');
+        $noticesAvailable = $this->notices->available();
+        $notices = $this->notices->forFindings();
+        $noticeIds = array_keys(array_filter($notices, static fn ($notice): bool => $notice->observations !== []));
+        if ($noticeIds !== []) {
+            $byId = array_column($candidates, null, 'id');
+            foreach ($connection->fetchAllAssociative('SELECT id, created_at FROM finding WHERE id IN ('.implode(',', array_fill(0, count($noticeIds), '?')).')', $noticeIds) as $candidate) {
+                $byId[$candidate['id']] = $candidate + ['result' => 'changed'];
+            }
+            $candidates = array_values($byId);
+            usort($candidates, static fn (array $a, array $b): int => [$a['created_at'], $a['id']] <=> [$b['created_at'], $b['id']]);
+        }
+        $ready = [];
+        // All evidence paths are read together. Only the displayed case receives
+        // its full entity/detail projection; job status cannot prove file presence.
+        $candidateIds = array_column($candidates, 'id');
+        $paths = $candidateIds === [] ? [] : $connection->fetchAllAssociative(
+            'SELECT id, finding_id, file_path, sha256 FROM evidence WHERE kind = ? AND file_path IS NOT NULL AND file_path <> ? AND finding_id IN ('.implode(',', array_fill(0, count($candidateIds), '?')).') ORDER BY created_at DESC, id DESC',
+            ['screenshot', '', ...$candidateIds],
+        );
+        foreach ($paths as $path) {
+            if (!isset($ready[$path['finding_id']]) && $this->storage->exists($path['file_path'])) {
+                $ready[$path['finding_id']] = $path;
+            }
+        }
+
+        return [$candidates, $ready, $noticesAvailable];
     }
 
     /** @return list<array<string,mixed>> */
@@ -330,7 +359,7 @@ final class ReviewQueueService
     }
 
     /** @throws \UnexpectedValueException when the displayed state changed */
-    public function assess(string $id, string $assessment, ?string $reason, ?string $observationId, ?string $evidenceId, string $contextToken, bool $explicitReview = false, array $claimDecisions = [], ?array $claimSelection = null): string
+    public function assess(string $id, string $assessment, ?string $reason, ?string $observationId, ?string $evidenceId, string $contextToken, bool $explicitReview = false, array $claimDecisions = [], ?array $claimSelection = null, ?array $receipt = null): string
     {
         if (!in_array($assessment, ['confirmed', 'fixed', 'discarded', 'keep', 'acknowledge_waf_block', 'acknowledge_change'], true) || !in_array($reason, [null, 'duplicate'], true)
             || ($assessment !== 'discarded' && $reason !== null)
@@ -345,6 +374,13 @@ final class ReviewQueueService
             // must not silently replace the newly committed manual assessment.
             if ($connection->executeStatement('UPDATE finding SET id = id WHERE id = ?', [$id]) !== 1) {
                 throw new \UnexpectedValueException('Der Fall ist nicht mehr vorhanden.');
+            }
+            if ($receipt !== null && ($saved = $this->queuedReceipt($receipt['id'])) !== null) {
+                if ($saved['finding_id'] !== $id || $saved['trail_id'] !== $receipt['trail'] || !hash_equals($saved['payload_hash'], $receipt['hash'])) {
+                    throw new \UnexpectedValueException('Diese Speicheranfrage wurde bereits für eine andere Bewertung verwendet.');
+                }
+                $connection->commit();
+                return $saved['fingerprint'];
             }
             [$fingerprint, $token] = array_pad(explode(':', $contextToken, 2), 2, '');
             if (ReviewDispositionService::isDeferred($connection, $id)
@@ -429,6 +465,16 @@ final class ReviewQueueService
             // A later controller read could accidentally authorize undoing an
             // unseen concurrent decision committed immediately after this one.
             $resultFingerprint = $this->fingerprint($id);
+            if ($receipt !== null) {
+                // The receipt and every claim/report/assessment write share this
+                // transaction. There is no commit-before-receipt crash window.
+                $connection->insert('review_queued_assessment_receipt', [
+                    'id' => $receipt['id'], 'finding_id' => $id, 'trail_id' => $receipt['trail'],
+                    'payload_hash' => $receipt['hash'], 'fingerprint' => $resultFingerprint,
+                    'created_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+                ]);
+                $connection->executeStatement('DELETE FROM review_queued_assessment_receipt WHERE created_at < ?', [(new \DateTimeImmutable('-7 days'))->format('Y-m-d H:i:s')]);
+            }
             $connection->commit();
             return $resultFingerprint;
         } catch (\Throwable $exception) {
@@ -437,6 +483,21 @@ final class ReviewQueueService
             }
             throw $exception;
         }
+    }
+
+    public function queuedAvailable(): bool
+    {
+        return $this->entityManager->getConnection()->fetchOne("SELECT name FROM sqlite_master WHERE name = 'review_queued_assessment_receipt'") !== false;
+    }
+
+    public function queuedReceipt(string $operation): ?array
+    {
+        return $this->entityManager->getConnection()->fetchAssociative('SELECT * FROM review_queued_assessment_receipt WHERE id = ?', [$operation]) ?: null;
+    }
+
+    public function ownsScreenshot(string $findingId, string $evidenceId): bool
+    {
+        return (bool) $this->entityManager->getConnection()->fetchOne('SELECT 1 FROM evidence WHERE finding_id = ? AND id = ? AND kind = ?', [$findingId, $evidenceId, 'screenshot']);
     }
 
     private function acknowledgeWafNotices(Finding $finding, array $observations, bool $required): void

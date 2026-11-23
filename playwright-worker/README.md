@@ -2,7 +2,7 @@
 
 This internal HTTP service runs in the DDEV Playwright sidecars.
 `PLAYWRIGHT_WORKER_MODE` selects one explicit mode: `retest` for normally headless
-technical rechecks, `shot` for one of the four screenshot lanes, or `interactive`
+technical rechecks, `shot` for one of the two screenshot lanes, or `interactive`
 for the shared interactive noVNC desktop and gateway. The mode exposes only its
 configured routes:
 
@@ -264,9 +264,9 @@ called directly for normal use; see the [user guide](../USAGE.md).
 
 ## Display isolation and parallel lanes
 
-The base `playwright` service handles headless technical rechecks. Four
+The base `playwright` service handles headless technical rechecks. Two
 additional `playwright-shot-*` containers each run their own Node service and
-Xvfb desktop, so four Symfony screenshot workers can capture headed evidence in
+Xvfb desktop, so two Symfony screenshot workers can capture headed evidence in
 parallel without photographing another lane's browser. Within one container,
 all headed operations still use the FIFO promise lease around the full browser
 operation. Headless retests do not need that display lease.
@@ -307,7 +307,7 @@ Synthetic protection pages do not establish real Cloudflare compatibility.
 
 The noVNC runtime is implemented as the embedded interactive fallback. The built
 DDEV stack has exercised the public WSS route, same-finding takeover and native
-alert capture. One interactive desktop is shared globally; the four screenshot
+alert capture. One interactive desktop is shared globally; the two screenshot
 lanes remain separate automated desktops. **Review interactively** (German UI
 **Interaktiv prüfen**) is always available with no detection prerequisite and
 uses a fresh context. With no readable image the noVNC panel is primary and

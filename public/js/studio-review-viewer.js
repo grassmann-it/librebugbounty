@@ -99,7 +99,10 @@
       listen('wheel', (event) => {
         if (event.ctrlKey || event.metaKey || !usable()) return;
         event.preventDefault();
-        zoom(scale * Math.exp(-Math.max(-120, Math.min(120, event.deltaY)) * 0.004), center(event));
+        // Wheel mice may report lines or pages while trackpads report pixels.
+        const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewport.clientHeight : 1;
+        const delta = Math.max(-120, Math.min(120, event.deltaY * unit));
+        zoom(scale * Math.exp(-delta * 0.004), center(event));
       }, { passive: false });
       listen('pointerdown', (event) => {
         if (event.button !== 0 || !usable() || moving()) return;

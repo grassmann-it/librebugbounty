@@ -32,6 +32,7 @@ final readonly class FindingDetailView
         public array $cancelledAssessmentIds = [],
         public ?array $reviewDisposition = null,
         public array $pocHistory = [],
+        public array $sourceReview = [],
     ) {
     }
 }

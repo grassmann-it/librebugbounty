@@ -303,6 +303,72 @@ async function main() {
     assert.equal(globalImport.history.findings.some((finding) => finding.id === imported.finding.id), true);
     mark('Duplicate adds no progress; an unflagged API import is global history and is absent from the personal session');
 
+    const globalDuplicateView = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/intake/activity' && new URL(response.url()).searchParams.get('history') === 'all');
+    await page.locator('[data-intake-session-only]').uncheck();
+    assert.equal((await globalDuplicateView).status(), 200);
+    await historyCount(page, 50);
+    const duplicatePostCount = postRequests.length;
+    const duplicateIds = [batch.at(-1).id, first.finding.id];
+    const assertDuplicateReceipt = async (id) => {
+      const row = page.locator(`${historyRows}[data-finding-id="${id}"]`);
+      assert.equal(await row.count(), 1, 'Global history shows one local receipt per duplicate finding');
+      assert.match(await row.innerText(), /Schon vorhanden/);
+      assert.equal(await row.locator('a').getAttribute('href'), '/findings/' + id);
+    };
+    await enter(page, 'https://session-acceptance.example/batch-60', 200);
+    await assertDuplicateReceipt(duplicateIds[0]);
+    await enter(page, firstUrl, 200);
+    await assertDuplicateReceipt(duplicateIds[1]);
+    await enter(page, firstUrl, 200);
+    for (const id of duplicateIds) await assertDuplicateReceipt(id);
+    await historyCount(page, 50);
+    const duplicateRefresh = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/intake/activity');
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    assert.equal((await duplicateRefresh).status(), 200);
+    for (const id of duplicateIds) await assertDuplicateReceipt(id);
+    await reload(page);
+    for (const id of duplicateIds) await assertDuplicateReceipt(id);
+    const duplicateSnapshot = await snapshot(page, '?history=all');
+    assert.equal(duplicateSnapshot.activeSession.count, 61);
+    assert.equal(duplicateSnapshot.stats.count, 61);
+    assert.equal(duplicateSnapshot.history.findings.length, 50);
+    assert.equal(duplicateSnapshot.history.findings.some((finding) => finding.id === first.finding.id), false, 'The server latest50 remains unchanged by a duplicate receipt');
+    assert.equal(postRequests.length, duplicatePostCount + 3, 'Refresh and reload do not repeat duplicate submissions');
+    mark('Global duplicate receipts within and outside latest50 retain Schon vorhanden and their existing-case link after refresh/reload, without progress or repeated saves');
+
+    await page.route('**/api/findings/status?*', async (route) => {
+      const response = await route.fetch();
+      const data = await response.json();
+      data.findings = data.findings.filter((finding) => finding.id !== first.finding.id);
+      if (!data.missingIds.includes(first.finding.id)) data.missingIds.push(first.finding.id);
+      await route.fulfill({ response, json: data });
+    });
+    const missingDuplicate = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/findings/status');
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    assert.equal((await missingDuplicate).status(), 200);
+    await page.waitForFunction((id) => !document.querySelector(`#intake-history-list [data-finding-id="${id}"]`), first.finding.id);
+    await page.unroute('**/api/findings/status?*');
+    await page.route('**/api/intake/activity?*', async (route) => {
+      const response = await route.fetch();
+      const data = await response.json();
+      data.scopeId = 'acceptance-replaced-browser-scope';
+      await route.fulfill({ response, json: data });
+    });
+    const resetDuplicateScope = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/intake/activity');
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    assert.equal((await resetDuplicateScope).status(), 200);
+    await page.waitForFunction(() => !document.querySelector('#intake-history-list').textContent.includes('Schon vorhanden'));
+    await reload(page);
+    assert.equal(await page.locator(`${historyRows}[data-finding-id="${first.finding.id}"]`).count(), 0);
+    assert.equal(await page.locator('#intake-history-list').innerText().then((text) => text.includes('Schon vorhanden')), false);
+    assert.equal(postRequests.length, duplicatePostCount + 3);
+    await page.unroute('**/api/intake/activity?*');
+    const personalDuplicateView = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/intake/activity' && new URL(response.url()).searchParams.get('history') === 'session');
+    await page.locator('[data-intake-session-only]').check();
+    assert.equal((await personalDuplicateView).status(), 200);
+    await waitCount(page, 61);
+    mark('Missing duplicate findings are hidden; a replaced browser scope retires local global receipts without resending them');
+
     await page.evaluate(() => { document.querySelector('#intake-form details').open = true; });
     await page.locator(urlField).fill('https://session-acceptance.example/draft-a');
     await page.locator('#intake-form [name="payload"]').fill('TAB A');
@@ -606,7 +672,7 @@ async function main() {
 
     const database = await (await context.request.get(base + '/__studio_acceptance_counts')).json();
     assert.equal(database.counts.finding, 66);
-    assert.equal(postRequests.length, 69, 'Only the explicit 66 new creates, two duplicates and one rejected input may be posted');
+    assert.equal(postRequests.length, 72, 'Only the explicit 66 new creates, five duplicates and one rejected input may be posted');
     assert.equal(database.counts.retest_run, 0);
     assert.equal(database.counts.evidence, 0);
     assert.equal(database.counts.screenshot_job, database.counts.finding);

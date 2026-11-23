@@ -229,6 +229,7 @@ async function main() {
           assert.equal(await page.locator('[data-review-interactive-entry]').isVisible(), true, 'Interactive entry remains visible in focus mode');
           assert.equal(await page.locator('[data-novnc-action="acquire"]').isVisible(), true);
           await page.screenshot({ path: path.join(output, `missing-focus-${width}.png`), fullPage: true });
+          await page.locator('[data-review-menu] > summary').click();
           await page.locator('[data-review-focus-toggle]').click();
           await page.screenshot({ path: path.join(output, `missing-classic-${width}.png`), fullPage: true });
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'No horizontal overflow');

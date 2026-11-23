@@ -77,6 +77,16 @@ final class CribrumFindingSummary
             $selected=(bool)($claim['reportSelected'] ?? $claim['report_selected'] ?? false);
             $observationId=$claim['observation']['id'] ?? $claim['observationId'] ?? $claim['observation_id'] ?? null;
             $add($code,$state,'claim:'.($claim['source'] ?? 'unknown'),$observationId!==null?[['kind'=>'http_observation','id'=>$observationId]]:[],$claim['observation']['capturedAt'] ?? $claim['capturedAt'] ?? null,$claim['updatedAt'] ?? $claim['updated_at'] ?? null,$selected,$bucket);
+            // The cause of an observed error is a presentation label, not a
+            // second vulnerability or qualified report component. Manual claim
+            // intent can survive a stale source; its cause cannot become fresh.
+            if ($code === 'error_disclosure') foreach ($claim['diagnosticHints'] ?? [] as $hint) {
+                if (!is_string($hint) || !isset(CribrumDiagnosticHints::RULES[$hint])) continue;
+                $hintBucket=$bucket==='shadow'?'shadow':($bucket==='badges' && ($claim['diagnosticCurrent'] ?? false) ? 'badges' : 'history');
+                $hintState=in_array($state,['rejected','resolved','stale'],true)?$state:'observed';
+                $add($hint,$hintState,'claim_diagnostic', $observationId!==null?[['kind'=>'http_observation','id'=>$observationId]]:[],
+                    $claim['observation']['capturedAt'] ?? $claim['capturedAt'] ?? null,$claim['updatedAt'] ?? $claim['updated_at'] ?? null,false,$hintBucket);
+            }
             $canonical=Catalog::canonicalCode($code);
             if (($claim['source'] ?? null)==='manual' && $bucket==='history' && isset($buckets[$target][$canonical])) {
                 $buckets[$target][$canonical]['conflict']=true; $buckets['history'][$canonical]['conflict']=true;

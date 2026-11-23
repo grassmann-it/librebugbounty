@@ -51,14 +51,16 @@ assert.ok(base&&output);const origin=new URL(base).origin;assert.ok(['web','loca
   for(const kind of ['mixed','dense']){
    await capture('case-'+kind,'/findings/'+ids[kind].id,{width:1920,height:1080});
    const links=p.locator('.cribrum-badge-item > .cribrum-proof-link');let count=await links.count();assert.ok(count>0);
-   for(let i=0;i<count;i++){await links.nth(i).focus();await p.keyboard.press('Enter');assert.ok(await p.locator(new URL(p.url()).hash).evaluate(e=>e.open&&!e.hidden));}
+   for(let i=0;i<count;i++){const hash=new URL(await links.nth(i).getAttribute('href'),p.url()).hash;await links.nth(i).focus();await p.keyboard.press('Enter');await p.waitForFunction(hash=>{const panel=document.getElementById(hash.slice(1));return location.hash===hash&&panel?.open&&!panel.hidden},hash);}
    result.checks.push({locale,case:kind,evidenceLinks:count});
   }
   await capture('review-classified','/review?images=ready',{width:1920,height:1080});
   assert.equal(await p.locator('[data-studio-review]').getAttribute('data-current-id'),ids.mixed.id);
+  await p.locator('[data-review-open-details]').first().click();
   const reviewProof=p.locator('[data-cribrum-code="sql_injection"] > .cribrum-proof-link');await reviewProof.focus();await p.keyboard.press('Enter');
   assert.ok(await p.locator(new URL(p.url()).hash).evaluate(e=>e.open&&!e.hidden));
   await p.locator('[data-review-focus-toggle]').click();assert.equal(await p.locator('body').getAttribute('data-review-focus-mode'),'true');
+  await p.locator('[data-review-menu] > summary').click();
   await p.locator('[data-review-focus-toggle]').click();assert.equal(await p.locator('body').getAttribute('data-review-focus-mode'),'false');
   result.checks.push(locale+' classified Review evidence and focus-mode roundtrip');
   await c.close();

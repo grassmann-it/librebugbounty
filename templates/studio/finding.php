@@ -210,6 +210,7 @@ $storedTime = static function (?string $value) use ($formatTime, $t): string {
             <code id="studio-finding-url"><?= $escape($finding->getPocUrl()) ?></code>
             <?php if ($finding->getPocRevision() > 0): ?><p><?= $escape($t('Ursprünglich gemeldete URL')) ?>: <code data-original-poc-url><?= $escape($finding->getUrl()) ?></code></p><?php endif; ?>
             <p class="studio-copy-status" role="status" aria-live="polite" data-copy-status></p>
+            <?php require __DIR__.'/source-review.php'; ?>
             <?php if ($view->pocHistory !== []): ?>
               <details class="studio-detail-fold" data-poc-history><summary><?= $escape($t('PoC-URL-Verlauf')) ?></summary>
                 <p class="studio-detail-hint"><?= $escape($t('Die aktive URL wird für künftige Prüfungen verwendet. Frühere Belege behalten ihre tatsächliche Aufnahme-URL.')) ?></p>

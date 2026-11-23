@@ -22,6 +22,7 @@ final class CribrumBadgeCatalog
         'error_disclosure'=>['Fehlermeldung offengelegt','Error message exposed','observation',41,true],
         'stack_trace'=>['Stacktrace offengelegt','Stack trace exposed','observation',42,true],
         'sql_error_observed'=>['SQL-Fehler','SQL error','observation',43,true],
+        'database_runtime_error'=>['Datenbank-Laufzeitfehler','Database runtime error','observation',43,true],
         'input_in_sql_error'=>['Eingabe im SQL-Fehler','Input in SQL error','observation',44,true],
         'xss_payload_in_sql_error'=>['XSS-Payload im SQL-Fehler','XSS payload in SQL error','observation',45,true],
         'file_include_diagnostic'=>['Datei-Include-Diagnose','File include diagnostic','observation',46,true],

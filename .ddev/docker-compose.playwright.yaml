@@ -1,6 +1,6 @@
 # Worker HTTP ports stay internal (expose only, no host-published ports).
 # PLAYWRIGHT_WORKER_TOKEN below is a development value shared with config.yaml;
-# shot-2 through shot-4 inherit it from the shot-1 YAML anchor.
+# shot-2 inherits it from the shot-1 YAML anchor.
 services:
   # Technical rechecks normally remain headless. This lane also owns Xvfb
   # for explicit one-shot recovery; the screenshot lanes below use separate
@@ -54,14 +54,6 @@ services:
   playwright-shot-2:
     <<: *playwright_shot_service
     container_name: ddev-${DDEV_SITENAME}-playwright-shot-2
-
-  playwright-shot-3:
-    <<: *playwright_shot_service
-    container_name: ddev-${DDEV_SITENAME}-playwright-shot-3
-
-  playwright-shot-4:
-    <<: *playwright_shot_service
-    container_name: ddev-${DDEV_SITENAME}-playwright-shot-4
 
   # The only interactive desktop. Both VNC transports bind container loopback.
   playwright-interactive:

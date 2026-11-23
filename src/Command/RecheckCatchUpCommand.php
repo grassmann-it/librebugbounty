@@ -17,7 +17,7 @@ use Symfony\Component\Process\Process;
  * check is older than --older-than (default 14 days) due at once, then burns
  * the backlog down with --workers local recheck workers in parallel.
  *
- * The local workers run next to the four supervised DDEV workers and use the
+ * The local workers run next to the two supervised DDEV workers and use the
  * same atomic claiming, so a finding is never rechecked twice. Run the
  * command inside the web container (`ddev exec php bin/console
  * app:recheck:catch-up --workers=16`), where the Playwright service is

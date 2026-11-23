@@ -35,6 +35,7 @@ final class FindingDetailService
         private readonly EntityManagerInterface $entityManager,
         private readonly ReviewNoticeService $reviewNotices,
         private readonly FindingPocService $pocs,
+        private readonly ?SourceReviewService $sourceReviews = null,
     ) {
     }
 
@@ -88,6 +89,7 @@ final class FindingDetailService
                 ? ($connection->fetchAssociative('SELECT * FROM finding_review_disposition WHERE finding_id = ?', [$id]) ?: null)
                 : null,
             pocHistory: $this->pocs->history($finding),
+            sourceReview: $this->sourceReviews?->readCurrentForFinding($finding) ?? ['status' => 'unavailable'],
         );
     }
 

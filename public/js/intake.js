@@ -149,6 +149,7 @@
               legacy: entry.legacy === true || !Object.prototype.hasOwnProperty.call(entry, 'sessionId'),
               pendingHistoryScope: text(entry.pendingHistoryScope),
               globalHistoryScope: text(entry.globalHistoryScope),
+              duplicateReceiptScope: text(entry.duplicateReceiptScope),
               submittedAt: text(entry.submittedAt), findingId, outcome: entry.outcome === 'duplicate' ? 'duplicate' : 'stored',
               saveState: saveState === 'confirmed' && !findingId ? 'unconfirmed' : saveState,
               missing: entry.missing === true, status: normalizeStatus(entry.status, true),
@@ -311,10 +312,24 @@
       const offlineGlobal = !activitySnapshot && sessionOnly?.checked === false;
       const globalHistory = [...activityEntries];
       const globalIds = new Set(globalHistory.map((entry) => entry.findingId));
+      const duplicateIds = new Set();
       for (const entry of entries) {
         const pending = entry.outcome === 'stored' && entry.pendingHistoryScope && (!activitySnapshot || entry.pendingHistoryScope === knownScope);
-        const cached = offlineGlobal && entry.globalHistoryScope;
-        if (entry.legacy || entry.saveState !== 'confirmed' || entry.missing || (!pending && !cached) || globalIds.has(entry.findingId)) continue;
+        const duplicate = entry.outcome === 'duplicate' && entry.duplicateReceiptScope
+          && (!activitySnapshot || entry.duplicateReceiptScope === knownScope);
+        const cached = offlineGlobal && entry.globalHistoryScope && (entry.outcome !== 'duplicate' || duplicate);
+        if (entry.legacy || entry.saveState !== 'confirmed' || entry.missing || (!pending && !cached && !duplicate)) continue;
+        if (duplicate) {
+          // The receipt is a recent input attempt, even when the existing case
+          // is outside the server's latest 50. Keep only its freshest attempt.
+          if (duplicateIds.has(entry.findingId)) continue;
+          duplicateIds.add(entry.findingId);
+          const index = globalHistory.findIndex((item) => item.findingId === entry.findingId);
+          if (index !== -1) {
+            globalHistory[index] = entry;
+            continue;
+          }
+        } else if (globalIds.has(entry.findingId)) continue;
         globalHistory.push(entry);
         globalIds.add(entry.findingId);
       }
@@ -456,6 +471,10 @@
       let historyReconciled = false;
       for (const entry of entries) {
         const finding = activityEntries.find((item) => item.findingId === entry.findingId);
+        if (entry.duplicateReceiptScope && entry.duplicateReceiptScope !== knownScope) {
+          entry.duplicateReceiptScope = '';
+          historyReconciled = true;
+        }
         // Only a successful, accepted snapshot retires this save receipt. A
         // global snapshot is authoritative even when the case is now absent
         // (deleted or outside the latest 50); an outage must retain the receipt.
@@ -754,6 +773,7 @@
         entry.outcome = data.outcome;
         entry.sessionId = text(data.intakeSessionId) || entry.sessionId;
         entry.pendingHistoryScope = data.outcome === 'stored' ? text(data.intakeScopeId) : '';
+        entry.duplicateReceiptScope = data.outcome === 'duplicate' ? text(data.intakeScopeId) : '';
         if (text(data.intakeScopeId) && data.intakeScopeId !== knownScope) {
           knownScope = data.intakeScopeId;
           knownGeneration = 0;
@@ -792,6 +812,15 @@
         }
         refreshActivity();
       }
+    });
+
+    // With manual intake, a second paste of the same complete URL must not
+    // append another copy while the first request or draft is still present.
+    // Different URLs and partial query edits retain their native paste behavior.
+    urlInput.addEventListener('paste', (event) => {
+      if (root.dataset.intakePasteSubmit === '1' || event.defaultPrevented) return;
+      const value = event.clipboardData?.getData('text/plain').trim() || '';
+      if (value === urlInput.value.trim() && /^https?:\/\/[^\s/?#]+(?:[/?#]|$)/i.test(value)) event.preventDefault();
     });
 
     if (root.dataset.intakePasteSubmit === '1') {

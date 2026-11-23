@@ -12,6 +12,9 @@ final class ShortcutSettings
         'review.back' => 'ArrowDown',
         'review.poc' => 'ArrowUp',
         'review.focus' => 'F',
+        'review.menu' => 'M',
+        'review.details' => 'I',
+        'review.controls' => 'H',
         'nav.intake' => '',
         'nav.review' => '',
         'nav.inventory' => '',
@@ -27,6 +30,9 @@ final class ShortcutSettings
         'review.back' => 'Zurück & Reset',
         'review.poc' => 'PoC öffnen',
         'review.focus' => 'Fokusmodus',
+        'review.menu' => 'Fokus-Menü',
+        'review.details' => 'Angaben & Optionen ein-/ausblenden',
+        'review.controls' => 'Bedienelemente ein-/ausblenden',
         'nav.intake' => 'Eingang',
         'nav.review' => 'Bewerten',
         'nav.inventory' => 'Bestand',
@@ -34,6 +40,8 @@ final class ShortcutSettings
         'nav.export' => 'Export',
         'nav.settings' => 'Einstellungen',
     ];
+
+    private const ADDED_DEFAULTS = ['review.menu', 'review.details', 'review.controls'];
 
     public function __construct(private readonly SettingsService $settings)
     {
@@ -56,12 +64,21 @@ final class ShortcutSettings
         if (!is_array($values) || array_diff_key($values, self::DEFAULTS) !== []) {
             throw new \InvalidArgumentException('Ungültige Tastenkürzel.');
         }
+        $provided = [];
+        foreach ($values as $action => $value) {
+            if (!is_string($value)) throw new \InvalidArgumentException('Ungültige Tastenkürzel.');
+            $provided[$action] = self::normalize($value);
+        }
         $bindings = self::DEFAULTS;
         $used = [];
         foreach ($bindings as $action => $default) {
-            $value = array_key_exists($action, $values) ? $values[$action] : $default;
-            if (!is_string($value)) throw new \InvalidArgumentException('Ungültige Tastenkürzel.');
-            $value = self::normalize($value);
+            $value = $provided[$action] ?? $default;
+            // Older saved maps may already use M/I/H. Keep those custom keys
+            // and leave the new action unassigned; explicit collisions fail.
+            if (!array_key_exists($action, $provided) && in_array($action, self::ADDED_DEFAULTS, true)
+                && in_array($default, $provided, true)) {
+                $value = '';
+            }
             if ($value !== '' && str_starts_with($action, 'nav.') && !preg_match('/(?:Ctrl|Alt|Meta)\+/', $value)) {
                 throw new \InvalidArgumentException('Seitenwechsel benötigen eine Tastenkombination mit Ctrl, Alt oder Meta.');
             }

@@ -10,6 +10,108 @@ use PHPUnit\Framework\TestCase;
 
 final class SqlTriageDetectorTest extends TestCase
 {
+    public function testGenericDatabaseErrorKeepsMultilineQueryInAnUnclosedCarrier(): void
+    {
+        $value = '-->\'"></title></noscript></script><img src=0 onerror=alert(\'fixtureMARK\')>';
+        $body = '<html><body><nav>Ä😀 ordinary navigation</nav><div class="content__wrapper">DB ERR '
+            ."SELECT COUNT(entries.id) AS count\nFROM entries\nWHERE entries.visible=1 AND entries.code='".$value."'\n";
+        $input = ObservationInput::fromArray(['url' => 'https://fixture.test/?code='.rawurlencode($value), 'rawHtml' => $body, 'httpStatus' => 200]);
+        $result = (new SqlTriageDetector())->evaluate($input);
+        self::assertSame('limited', $result->status);
+        self::assertSame(['sql_error_observed'], array_column($result->signals, 'code'));
+        $signal = $result->signals[0];
+        self::assertSame('unknown', $signal['attributes']['vendor']);
+        self::assertSame('database_error', $signal['attributes']['diagnosticClass']);
+        self::assertSame('diagnostic_only', $signal['attributes']['assessment']);
+        self::assertFalse($signal['attributes']['blockComplete']);
+        self::assertStringContainsString("\nFROM entries\n", $signal['spans'][0]['excerpt']);
+        self::assertStringStartsWith('DB ERR SELECT COUNT', $signal['spans'][0]['excerpt']);
+        EvidenceSignal::validateAgainstInput($signal, $input);
+    }
+
+    public function testGenericDatabaseErrorNeverInfersSyntaxOrEngineFromTheQuery(): void
+    {
+        foreach ([
+            "SELECT COUNT(mysql.id) AS count\nFROM mysql\nWHERE code='syntaxVALUE'",
+            "UPDATE mysql SET code='syntaxVALUE' WHERE id=1",
+            "INSERT INTO mysql(code) VALUES('syntaxVALUE')",
+            "DELETE FROM mysql WHERE code='syntaxVALUE'",
+        ] as $query) {
+            $input = ObservationInput::fromArray(['url' => 'https://fixture.test/?code=syntaxVALUE', 'rawHtml' => '<div>DB ERR '.$query.'</div>', 'httpStatus' => 200]);
+            $result = (new SqlTriageDetector())->evaluate($input);
+            self::assertSame('completed', $result->status);
+            self::assertSame(['sql_error_observed', 'input_in_sql_error'], array_column($result->signals, 'code'), $query);
+            foreach ($result->signals as $signal) {
+                self::assertSame('unknown', $signal['attributes']['vendor']);
+                self::assertSame('database_error', $signal['attributes']['diagnosticClass']);
+                self::assertSame('diagnostic_only', $signal['attributes']['assessment']);
+                EvidenceSignal::validateAgainstInput($signal, $input);
+            }
+        }
+    }
+
+    public function testGenericQueryCannotSupplyItsOwnNestedSyntaxDiagnostic(): void
+    {
+        foreach (['Incorrect syntax near marker.', 'You have an error in your SQL syntax near marker.'] as $message) {
+            $body = "<div>DB ERR SELECT * FROM items\nWHERE name='".$message." Query: SELECT * FROM items WHERE id=marker'</div>";
+            $input = ObservationInput::fromArray(['url' => 'https://fixture.test/?id=marker', 'rawHtml' => $body]);
+            $detector = new SqlTriageDetector();
+            self::assertSame(['sql_error_observed', 'input_in_sql_error'], array_column($detector->evaluate($input)->signals, 'code'));
+            $later = '<p>Syntax error in query expression \'id=marker\'.</p>';
+            $input = ObservationInput::fromArray(['url' => $input->url, 'rawHtml' => $body.$later]);
+            self::assertSame(['sql_error_observed', 'input_in_sql_error', 'sql_error_observed', 'input_in_sql_error', 'sql_input_structure_indication'], array_column($detector->evaluate($input)->signals, 'code'));
+        }
+    }
+
+    public function testGenericDatabaseErrorBudgetIsExplicitWithoutBorrowingLaterFrom(): void
+    {
+        $body = '<div>DB ERR SELECT '.str_repeat('x', 4096).' FROM records</div>';
+        $input = ObservationInput::fromArray(['url' => 'https://fixture.test/', 'rawHtml' => $body]);
+        $result = (new SqlTriageDetector())->evaluate($input);
+        self::assertSame('limited', $result->status);
+        self::assertSame([], $result->signals);
+        $issues = array_merge(...array_column($result->familyOutcomes[0]['stages'], 'issues'));
+        self::assertContains('context_budget', array_column($issues, 'code'));
+    }
+
+    public function testWholeRequestDiagnosticEchoIsNotAGenericServerError(): void
+    {
+        $diagnostic = "DB ERR SELECT COUNT(entries.id) AS count\nFROM entries\nWHERE entries.visible=1";
+        $input = ObservationInput::fromArray(['url' => 'https://fixture.test/?q='.rawurlencode($diagnostic), 'rawHtml' => '<div>'.$diagnostic.'</div>']);
+        self::assertSame([], (new SqlTriageDetector())->evaluate($input)->signals);
+        $queryOnly = substr($diagnostic, strlen('DB ERR '));
+        $input = ObservationInput::fromArray(['url' => 'https://fixture.test/?q='.rawurlencode($queryOnly), 'rawHtml' => '<div>'.$diagnostic.'</div>']);
+        self::assertSame(['sql_error_observed', 'input_in_sql_error'], array_column((new SqlTriageDetector())->evaluate($input)->signals, 'code'));
+    }
+
+    #[DataProvider('genericDatabaseCountercases')]
+    public function testGenericDatabaseErrorRequiresAnAdjacentStatementInEligibleText(string $body): void
+    {
+        $input = ObservationInput::fromArray(['url' => 'https://fixture.test/', 'rawHtml' => $body, 'httpStatus' => 200]);
+        self::assertSame([], (new SqlTriageDetector())->evaluate($input)->signals);
+    }
+
+    public static function genericDatabaseCountercases(): iterable
+    {
+        yield 'label only' => ['<div>DB ERR</div>'];
+        yield 'keyword only' => ['<div>DB ERR SELECT</div>'];
+        yield 'nonrelational select' => ['<div>DB ERR SELECT 1</div>'];
+        yield 'FROM inside literal' => ["<div>DB ERR SELECT 'help FROM records'</div>"];
+        yield 'FROM inside comment' => ['<div>DB ERR SELECT 1 /* FROM records */</div>'];
+        yield 'prose prefix' => ['<p>Search for DB ERR SELECT id FROM records</p>'];
+        yield 'label and query in separate containers' => ['<div>DB ERR</div><div>SELECT id FROM records</div>'];
+        yield 'SELECT and FROM in separate containers' => ['<div>DB ERR SELECT id</div><div>FROM records</div>'];
+        yield 'distant FROM outside budget' => ['<div>DB ERR SELECT '.str_repeat('x', 4096).' FROM records</div>'];
+        $diagnostic = 'DB ERR SELECT id FROM records WHERE visible=1';
+        yield 'script catalog' => ['<script>const message='.json_encode($diagnostic).';</script>'];
+        yield 'JSON catalog' => [json_encode(['labels' => ['sample' => $diagnostic]])];
+        yield 'documentation' => ['<section class="documentation"><div>'.$diagnostic.'</div></section>'];
+        yield 'code example' => ['<pre><code>'.$diagnostic.'</code></pre>'];
+        yield 'template example' => ['<template><div>'.$diagnostic.'</div></template>'];
+        yield 'attribute text' => ['<div title="'.$diagnostic.'">ordinary</div>'];
+        yield 'comment text' => ['<!-- '.$diagnostic.' -->'];
+    }
+
     public function testJsonTailStartsOnUtf8BoundaryAndKeepsBudgetCoverage(): void
     {
         foreach (['A', 'é', '한', '🙂'] as $character) {

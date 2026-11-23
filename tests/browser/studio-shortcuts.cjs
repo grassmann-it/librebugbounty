@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { chromium } = require('../../playwright-worker/node_modules/playwright');
 const base = process.env.STUDIO_BROWSER_BASE;
-assert.ok(base && ['127.0.0.1', 'localhost'].includes(new URL(base).hostname));
+assert.ok(base && ['127.0.0.1', 'localhost', 'web'].includes(new URL(base).hostname));
 
 (async () => {
   const browser = await chromium.launch({ headless: true });
@@ -18,6 +18,9 @@ assert.ok(base && ['127.0.0.1', 'localhost'].includes(new URL(base).hostname));
   });
   await context.route('**/*', route => {
     if (new URL(route.request().url()).origin !== new URL(base).origin) { external.push(route.request().url()); return route.abort(); }
+    // This suite verifies native submission and binding refresh; queued saves
+    // have their own acceptance suite.
+    if (new URL(route.request().url()).pathname === '/review/preview') return route.abort();
     if (/\/interactive\/status$/.test(new URL(route.request().url()).pathname)) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ state: 'available', revision: 0, reconnect: false }) });
     return route.continue();
   });

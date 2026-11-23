@@ -12,6 +12,7 @@ final class RuntimeDiagnosticFamilies
     private const MAX_OBJECT_BYTES = 65536;
     private const MAX_CANDIDATES = 32;
     private const MAX_SIGNALS = 16;
+    private const MYSQL_RESULT_API = '(?:mysql_(?:num_rows|num_fields|fetch_(?:array|assoc|row|object|lengths|field)|data_seek|field_seek|free_result|result)|mysqli_(?:num_rows|num_fields|fetch_(?:array|assoc|row|object|lengths|field|fields|field_direct|all)|data_seek|field_seek|free_result))';
 
     public function evaluate(ObservationInput $input, string $mode = 'shadow'): DetectorEvaluation
     {
@@ -202,6 +203,70 @@ final class RuntimeDiagnosticFamilies
                 $emit($m[0], ['family' => 'php', 'diagnosticKind' => $kind, 'contextKind' => 'runtime_diagnostic']);
             }
         });
+        $run->stage('error_response', 'php_native_fatal', $representation, function () use ($raw, $run, $representation, $emit, $eligible, $input): void {
+            // A PHP abort need not close the surrounding document. Read its native
+            // header/source location directly, without requiring a closed <div>.
+            // The exception text still has to name a supported runtime diagnosis.
+            $path = '(?:[A-Za-z]:[\\\\/]|/)(?:[\\w.-]{1,80}[\\\\/]){0,24}[\\w.-]{1,120}\\.php';
+            $pattern = '~(?:<b>\\s*(?i:Fatal[ \\t]+error)\\s*</b>|(?<![\\w])(?i:Fatal[ \\t]+error))[ \\t]*:[ \\t]*(?<diagnostic>Uncaught[ \\t]+[\\w\\\\]{0,180}(?:Exception|Error):[ \\t]*[^<>\\r\\n]{1,1200}?)[ \\t]+in[ \\t]+(?:<b>[ \\t]*)?(?<path>'.$path.')(?:[ \\t]*</b>)?(?::(?<line>[1-9]\\d{0,7})|[ \\t]+on[ \\t]+line[ \\t]+(?:<b>[ \\t]*)?(?<renderedLine>[1-9]\\d{0,7})(?:[ \\t]*</b>)?)(?=\\s|<|$)~u';
+            $offset = $count = 0;
+            while (CheckedRegex::match($pattern, $raw, $m, PREG_OFFSET_CAPTURE | PREG_UNMATCHED_AS_NULL, $offset) === 1) {
+                $offset = $m[0][1] + strlen($m[0][0]);
+                $run->candidate($representation, mb_strlen(substr($raw, 0, $m[0][1]), 'UTF-8'), mb_strlen($m[0][0], 'UTF-8'));
+                $run->count('error_response', 'candidatesConsidered');
+                if (++$count > self::MAX_CANDIDATES) { $run->limited('error_response', 'php_native_fatal', $representation, 'context_budget'); break; }
+                $kind = self::phpKind($m['diagnostic'][0]);
+                if ($kind === 'argument_type' && self::databaseResultTypeError($m['diagnostic'][0])) $kind = 'database_result_type';
+                if ($kind === null || !$eligible($m[0][1]) || self::inDiagnosticExample($raw, $m[0][1])) {
+                    $run->count('error_response', 'candidatesExcluded');
+                    continue;
+                }
+                $match = $m[0];
+                if ($m['line'][0] !== null) {
+                    // A colon location starts PHP's uncaught trace form. Do not
+                    // assemble it from unrelated frames or a later error block:
+                    // require #0 and the same final thrown file/line locally.
+                    $newline = '(?:\\r?\\n|<br\\s*/?>)';
+                    $frame = '[ \\t]*#[0-9]{1,3}[ \\t]+[^<>\\r\\n]{1,600}'.$newline;
+                    $tail = '~\\A[ \\t]*'.$newline.'[ \\t]*Stack trace:[ \\t]*'.$newline.'[ \\t]*#0[ \\t]+(?:'.$path.'\\([1-9]\\d{0,7}\\):[^<>\\r\\n]{1,500}|\\[internal function\\]:[^<>\\r\\n]{1,500}|\\{main\\})'.$newline.'(?:'.$frame.'){0,15}[ \\t]*thrown[ \\t]+in[ \\t]+(?:<b>[ \\t]*)?'.preg_quote($m['path'][0], '~').'(?:[ \\t]*</b>)?[ \\t]+on[ \\t]+line[ \\t]+(?:<b>[ \\t]*)?'.preg_quote($m['line'][0], '~').'(?:[ \\t]*</b>)?(?=\\s|<|$)~u';
+                    $window = mb_strcut($raw, $offset, 12288, 'UTF-8');
+                    if (CheckedRegex::match($tail, $window, $trace) !== 1) {
+                        if (CheckedRegex::match('~\\A[ \\t]*'.$newline.'[ \\t]*Stack trace:[ \\t]*'.$newline.'[ \\t]*#0[ \\t]+~', $window) === 1
+                            && (strlen($raw) - $offset > strlen($window) || CheckedRegex::matchAll('~(?:^|\\r?\\n|<br\\s*/?>)[ \\t]*#[0-9]{1,3}[ \\t]+~', $window) > 16)) {
+                            $run->limited('error_response', 'php_native_fatal', $representation, 'context_budget', ['traceByteLimit' => 12288, 'traceFrameLimit' => 16]);
+                        }
+                        $run->count('error_response', 'candidatesExcluded');
+                        continue;
+                    }
+                    $match[0] .= $trace[0];
+                    $offset += strlen($trace[0]);
+                }
+                if (self::suppliedNativePhpDiagnostic($match[0], $input)) {
+                    $run->count('error_response', 'candidatesExcluded');
+                    continue;
+                }
+                $emit($match, ['family' => 'php', 'diagnosticKind' => $kind, 'contextKind' => 'native_fatal']);
+            }
+        });
+        $run->stage('error_response', 'php_database_result_warning', $representation, function () use ($raw, $run, $representation, $emit, $eligible, $input): void {
+            // A failed result consumer is a PHP API type warning. It establishes
+            // neither a native SQL diagnostic nor a request-to-query relationship.
+            $path = '(?:[A-Za-z]:[\\\\/]|/)(?:[\\w.-]{1,80}[\\\\/]){0,24}[\\w.-]{1,120}\\.php[34578]?';
+            $pattern = '~(?:<b>\\s*Warning\\s*</b>|(?<![\\w])Warning)[ \\t]*:[ \\t]*(?<function>'.self::MYSQL_RESULT_API.')\\(\\)[ \\t]+expects[ \\t]+parameter[ \\t]+1[ \\t]+to[ \\t]+be[ \\t]+(?<expected>mysqli_result|resource),[ \\t]+bool(?:ean)?[ \\t]+given[ \\t]+in[ \\t]+(?:<b>[ \\t]*)?'.$path.'(?:[ \\t]*</b>)?[ \\t]+on[ \\t]+line[ \\t]+(?:<b>[ \\t]*)?[1-9]\\d{0,7}(?:[ \\t]*</b>)?(?=\\s|<|$)~u';
+            $offset = $count = 0;
+            while (CheckedRegex::match($pattern, $raw, $m, PREG_OFFSET_CAPTURE, $offset) === 1) {
+                $offset = $m[0][1] + strlen($m[0][0]);
+                $run->candidate($representation, mb_strlen(substr($raw, 0, $m[0][1]), 'UTF-8'), mb_strlen($m[0][0], 'UTF-8'));
+                $run->count('error_response', 'candidatesConsidered');
+                if (++$count > self::MAX_CANDIDATES) { $run->limited('error_response', 'php_database_result_warning', $representation, 'context_budget'); break; }
+                if (!self::databaseResultExpectedType($m['function'][0], $m['expected'][0]) || !$eligible($m[0][1])
+                    || self::inDiagnosticExample($raw, $m[0][1]) || self::suppliedNativePhpDiagnostic($m[0][0], $input)) {
+                    $run->count('error_response', 'candidatesExcluded');
+                    continue;
+                }
+                $emit($m[0], ['family' => 'php', 'diagnosticKind' => 'database_result_type', 'contextKind' => 'native_warning']);
+            }
+        });
         $run->stage('error_response', 'backend_diagnostics', $representation, function () use ($raw, $run, $representation, $emit, $eligible): void {
             $offset = 0;
             $count = 0;
@@ -271,6 +336,34 @@ final class RuntimeDiagnosticFamilies
             }
         });
         return $run->finish();
+    }
+
+    private static function databaseResultTypeError(string $diagnostic): bool
+    {
+        $pattern = '~\\AUncaught[ \\t]+TypeError:[ \\t]+(?<function>'.self::MYSQL_RESULT_API.')\\(\\):[ \\t]+Argument[ \\t]+#1[ \\t]+\\(\\$[\\w]{1,80}\\)[ \\t]+must[ \\t]+be[ \\t]+of[ \\t]+type[ \\t]+(?<expected>mysqli_result|resource),[ \\t]+bool(?:ean)?[ \\t]+given\\z~u';
+        return CheckedRegex::match($pattern, $diagnostic, $m) === 1 && self::databaseResultExpectedType($m['function'], $m['expected']);
+    }
+
+    private static function databaseResultExpectedType(string $function, string $expected): bool
+    {
+        return $expected === (str_starts_with($function, 'mysqli_') ? 'mysqli_result' : 'resource');
+    }
+
+    /** Formatting a request-supplied complete fatal diagnostic adds no provenance. */
+    private static function suppliedNativePhpDiagnostic(string $diagnostic, ObservationInput $input): bool
+    {
+        $normalize = static fn (string $value): string => trim(CheckedRegex::replace('~\\s+~u', ' ', strip_tags(html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8'))));
+        $diagnostic = $normalize($diagnostic);
+        $values = $input->payload !== null ? [$input->payload] : [];
+        foreach ([$input->url, $input->finalUrl] as $url) {
+            if ($url === null || !is_string($query = parse_url($url, PHP_URL_QUERY))) continue;
+            foreach (explode('&', $query) as $pair) {
+                $parts = explode('=', $pair, 2);
+                if (isset($parts[1])) $values[] = urldecode($parts[1]);
+            }
+        }
+        foreach ($values as $value) if (str_contains($normalize($value), $diagnostic)) return true;
+        return false;
     }
 
     private static function inDiagnosticExample(string $raw, int $offset): bool

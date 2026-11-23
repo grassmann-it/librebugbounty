@@ -2,14 +2,34 @@
 
 Release notes are stored here so the published GitHub text can be reviewed
 alongside the code. For this release, use tag `v2.2.0`, title
-`Cribrum - v2.2.0`, and the body in `v2.2.0.md`. Publication requires
-explicit approval and passing release checks. Current authorization permits only
-local commits and acceptance: do not push, tag, create a draft or publish.
-The local technical checks, named private corpus and representative backup
-measurement are recorded in `v2.2.0.md`. Human everyday-use acceptance remains
-open before calling 2.2.0 final. The bounded measurements do not establish general
-performance, precision or recall. Verify remote CI on the publishing commit;
-local results alone are not a remote CI result.
+`Cribrum - v2.2.0`, and the body in `v2.2.0.md`. On 2026-11-23 the
+maintainer requested the release after extended hands-on testing and explicitly
+accepted remaining classifier inaccuracies. This supersedes the earlier
+local-only preparation restriction. Publication still requires passing release
+checks and CI for the publishing commit.
+
+## Classifier release decision
+
+The release ships **engine 1.3.8** and the explicitly selectable
+**behavior-triage 1.5.2 candidate pack**. The maintainer's 2026-11-23 decision is
+to ship with clearly disclosed limitations and invite bug reports, sanitized
+examples, regex improvements and regression fixtures. It is not a claim of
+complete detector coverage, measured global precision/recall, or a new full
+private-corpus acceptance run.
+
+The broader classifier review requested on 2026-10-27 remains follow-up work:
+independently label retained and new source/context fixtures, investigate shared
+parsing/carrier/input-association causes from the
+[retrospective](../../docs/cribrum/retrospective-2026-10-27.md), and verify changed
+outcomes through certainty, explanations, filters, exports and report policy.
+Source-reading receipts alone do not establish classifier correctness. New
+classifier or rulepack changes must recheck affected cases.
+
+Historical scoped verification is retained separately from the public release
+announcement in [the validation record](../../docs/releases/v2.2.0-validation.md).
+Current release checks must identify their tested source and distinguish local
+results from remote CI. Existing measurements establish only their recorded
+scope; known misses and false positives remain visible release limitations.
 
 From 2026-10-12 onward, GitHub release titles always use
 `<Release-Name> - v<Version>`, for example **Cribrum - v2.2.0**.
@@ -50,13 +70,42 @@ at a working installation's database or artifact directory.
 
 Keep the classifier as the release's main focus in the changelog, notes, About
 and Settings. Verify core/private-pack defaults separately from the explicitly
-selected `behavior-triage` 1.5.1 candidate: candidate selection defaults to shadow,
-active mode needs a complete detector/output selection, and installing source
+selected `behavior-triage` 1.5.2 candidate with engine 1.3.8: candidate selection
+defaults to shadow, active mode needs a complete detector/output selection, and installing source
 must not activate a candidate or reclassify the inventory. Check SQL/include
 suspicion, reflection versus execution, partial/failed evaluation coverage,
 shared badge/filter selection, stale evidence and WAF review holds against the
 exact release commit. Test scoped offline report refresh and the report-handoff
 contract with synthetic fixtures before representing these paths as accepted.
+For the `DB ERR` correction, verify HTTP 200 and unclosed diagnostic-container
+positives alongside missing-query, request-echo and documentation/code negatives.
+The generic wrapper must remain an observed unknown-vendor database error rather
+than create SQLi suspicion or confirmation.
+For the engine 1.3.5 core hint, verify canonical native MySQL/MariaDB context
+with and without SQLSTATE, conflicting state/code exclusions, long exact input
+suffixes, bounded omitted prefixes and punctuation/ellipsis-keyword tails, unique
+scalar or array-leaf attribution and request-echo/documentation negatives.
+Its suggestion must remain suspected with partial-input/missing-query uncertainty;
+strict candidate structural facts, active-mode outputs and report qualification
+must remain unchanged.
+Check the separate PDO `HY000` / `20018` query-input fallback with complete-query,
+ordered append-array and exact long-value attribution positives and negatives;
+it must not infer a database vendor or generate structural SQLi facts.
+Check the PHQL core hint with complete byte-length-checked queries, closed
+`parsePHQL()` traces, exact unique `ORDER BY` input binding, namespace/placeholder
+variants and raw/entity spans. Reject wrong lengths, incomplete or supplied
+queries, ambiguous inputs and literal/comment/documentation lookalikes. Preserve
+the distinction between an ORM parser diagnostic and a native SQL error; no typed
+SQL facts, active-mode SQLi or eligible SQLi report component may be introduced.
+Verify Intake duplicate receipts and their existing-case link through global
+history refresh/reload without personal progress or repeated saves. With
+paste-to-submit disabled, exact repeat full-URL pastes must keep one copy without
+submitting; different URL and partial edits must keep their native behavior.
+Verify the source-reading migration, atomic expiring reservations, hash/context
+freshness and immutable/idempotent receipts. Case UI states must distinguish
+reservation, completed reading, stale reading and unavailable source. Recording a
+reading must leave claims, manual assessment, report qualification and activation
+unchanged; reviewer labels and summaries must describe actual source inspection.
 Review selection must be tested in normal and focus mode through mouse, keyboard,
 swipe and native forms. Case-specific rejections must bind to exact stored facts;
 new observations must not inherit an old rejection. Rule hints remain pending
@@ -67,9 +116,8 @@ unchanged image source and exact-URL intake deduplication. For deferred review,
 verify one due attempt against the active PoC, matching native-dialog image
 evidence before resumption, and failure/interruption remaining deferred without
 changing the assessment. HTTP 200 or an observed dialog alone is insufficient.
-Remove the preparation notice in `v2.2.0.md` only after those checks and the fresh
-installation/upgrade acceptance are complete; record the actual evidence rather
-than implying that publication alone proves compatibility.
+Record current checks and fresh-install/upgrade results separately from historical
+acceptance. Publication alone does not prove compatibility or classifier accuracy.
 
 ## Prepare without publishing
 

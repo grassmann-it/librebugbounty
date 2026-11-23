@@ -4,7 +4,7 @@
   "packs": {
     "core": "2026.10.19"
   },
-  "classifierVersion": "cribrum-1.3.2",
+  "classifierVersion": "cribrum-1.3.8",
   "cases": [
     {
       "id": "framework/whoops--there-was-an-error positive",

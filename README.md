@@ -27,7 +27,7 @@ OpenBugBounty.
 LibreBugBounty currently concentrates on reflected XSS triage. It does not send
 disclosure emails or submit reports for you.
 
-## Cribrum 2.2.0: classifier focus (candidate)
+## Cribrum 2.2.0: more evidence, faster review
 
 The focus of **2.2.0 “Cribrum”** is the local classifier. It evaluates HTTP/DOM
 observations already captured by browser work, records the rulepack versions and
@@ -39,9 +39,22 @@ Several claims can belong to one case. Shared badges, inventory filters, saved
 views, statistics and exports carry their meaning through Review and reporting;
 SQLi, LFI and RFI suggestions remain suspicions. Private HTTP artifacts stay out
 of reports unless explicitly selected. See the [Cribrum user guide](USAGE.md#cribrum-claims-and-local-observations)
-and the [prepared changelog](CHANGELOG.md) for the candidate's scope.
+and the [changelog](CHANGELOG.md) for the release scope.
 
-## Classifier contributions
+The redesigned Review keeps screenshots large, brings the controls together, and
+preloads up to five cases so you can keep reviewing while assessments save in
+order. Cribrum is still improving: it can miss signals or suggest the wrong
+classification. Inspect the evidence and make the final decision yourself.
+
+## Help make Cribrum better
+
+Found a missed diagnostic, a false positive, or a regex that handles a real-world
+variant better? [Open an issue](https://github.com/grassmann-it/librebugbounty/issues)
+or send a pull request. Bug reports, recognition rules, regex improvements and
+small regression fixtures are welcome. Share sanitized or synthetic examples,
+the expected result and what Cribrum actually reported. Start with the
+[contribution guide](docs/cribrum/contributing.md); you do not need a complete
+detector implementation to report a useful example.
 
 Cribrum supports versioned, offline rule packs and registered detectors for SQL,
 file-include, disclosure, reflection and WAF evidence. Start with the
@@ -56,7 +69,7 @@ You need [Docker](https://docs.docker.com/engine/install/),
 and Git.
 
 ```bash
-git clone https://github.com/tfgrass/librebugbounty.git
+git clone https://github.com/grassmann-it/librebugbounty.git
 cd librebugbounty
 ddev start
 ddev launch
@@ -68,7 +81,7 @@ preserve existing data. The database and evidence live below `storage/`, which
 is ignored by Git.
 
 DDEV keeps the Playwright services on its internal Docker network. The web
-container, base recheck worker, four screenshot lanes and interactive sidecar receive the same
+container, base recheck worker, two screenshot lanes and interactive sidecar receive the same
 `PLAYWRIGHT_WORKER_TOKEN`; health is unauthenticated, while mutation requests
 authenticate with that shared key. The token authorizes a service request—it is
 not a user identity, worker identity, session identity or routing decision. The
@@ -92,13 +105,20 @@ begins, and earlier evidence stays available.
 
 ### Review screenshots
 
-**Review** keeps the classic layout by default. Press **F** or choose **Focus
+**Review** starts with a compact queue header and a full-width screenshot.
+Expand the queue to change filters, or **Details & options** for the sidebar;
+both choices are remembered within the tab. Press **F** or choose **Focus
 mode** for a window-filling screenshot with compact overlay controls, collapsible
-details, zoom, 1:1 and pan. Hide the controls to inspect covered evidence.
+details, zoom, 1:1 and pan. Website information sits above the decision keys;
+image information sits with zoom controls at the bottom right. A compact menu
+provides navigation and display controls: **M** opens it, **I** toggles details,
+and **H** hides or shows controls to inspect covered evidence.
 Choose **Vulnerable** or **Not vulnerable**, skip, open the stored PoC URL, or go
-back and reset a decision. Confirmed saves use overlapping card transitions;
-the next two stored screenshots preload quietly to avoid a second download on
-arrival. An optional decision pause helps prevent accidental classifications.
+back and reset a decision. Up to five upcoming cards and screenshots preload
+quietly. With a next card ready, assessments save in order in the background
+while you continue reviewing. A pending count shows progress; failed saves stay
+in the review queue with a recovery notice. An optional decision pause helps
+prevent accidental classifications.
 The 2.0.3 screenshot viewer remains primary when a readable image exists. The
 embedded noVNC fallback provides a bounded 20-minute manual verification context.
 **Review interactively** (German UI **Interaktiv prüfen**) is always visible,
@@ -357,7 +377,7 @@ python3 -B -m unittest discover -s tests -p 'backup_local_test.py' -v
 
 ### Embedded noVNC runtime
 
-The interactive-review runtime uses one shared interactive desktop and four
+The interactive-review runtime uses one shared interactive desktop and two
 separate automated screenshot lanes. **Review interactively** (German UI
 **Interaktiv prüfen**) is always visible and has no detection prerequisite.
 Opening or refreshing a case never starts a worker. With no readable stored

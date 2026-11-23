@@ -1,0 +1,7 @@
+.review-save-queue { position: fixed; z-index: 30; top: 58px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; max-width: min(680px, calc(100vw - 24px)); padding: 9px 12px; border: 1px solid #53748b; border-radius: 9px; background: #172432f5; box-shadow: 0 4px 20px #0005; color: #d6e6f7; font-size: 12px; line-height: 1.45; }
+.review-save-queue[hidden], .review-save-queue [hidden] { display: none; }
+.review-save-queue[data-failed="true"] { border-color: #9c7b43; background: #30291ef5; color: #f2dfbd; }
+.review-save-queue a { flex: 0 0 auto; color: inherit; text-decoration: underline; }
+.review-save-queue button { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 5px; background: #ffffff0b; color: inherit; font-size: 20px; cursor: pointer; }
+[data-review-focus-mode="true"] .review-save-queue { top: 12px; }
+@media (max-width: 700px) { .review-save-queue { width: calc(100vw - 24px); box-sizing: border-box; flex-wrap: wrap; gap: 6px 10px; } .review-save-queue > span { flex: 1 1 calc(100% - 42px); } .review-save-queue button { position: absolute; right: 7px; top: 7px; } .review-save-queue[data-failed="true"] > span { padding-right: 28px; } [data-review-focus-mode="true"] .review-save-queue { top: 52px; } }

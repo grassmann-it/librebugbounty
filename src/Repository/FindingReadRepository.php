@@ -153,7 +153,7 @@ final class FindingReadRepository
         $parameters = [];
         $available = $this->reportAvailable();
         if ($filter->cribrumCodes !== []) {
-            $rows = CribrumFindingQuery::badgeRows('f', $available, $filter->cribrumHistory, (bool) $this->connection->fetchOne("SELECT 1 FROM sqlite_master WHERE name = 'finding_report_revision'"), (bool) $this->connection->fetchOne("SELECT 1 FROM sqlite_master WHERE name = 'finding_claim_revision'"));
+            $rows = CribrumFindingQuery::badgeRows('f', $available, $filter->cribrumHistory, (bool) $this->connection->fetchOne("SELECT 1 FROM sqlite_master WHERE name = 'finding_report_revision'"), (bool) $this->connection->fetchOne("SELECT 1 FROM sqlite_master WHERE name = 'finding_claim_revision'"), true, \App\Service\CribrumDiagnosticHints::available($this->connection));
             $slots = [];
             foreach ($filter->cribrumCodes as $index => $code) {
                 $slots[] = ':cribrum_'.$index;
@@ -163,7 +163,7 @@ final class FindingReadRepository
         }
         foreach (['extraFindings' => 'hasExtras'] as $property => $method) {
             if ($filter->$property !== '') {
-                $expression = CribrumFindingQuery::$method('f', $available);
+                $expression = CribrumFindingQuery::$method('f', $available, true, \App\Service\CribrumDiagnosticHints::available($this->connection));
                 $conditions[] = ($filter->$property === 'no' ? 'NOT ' : '').'('.$expression.')';
             }
         }
@@ -351,8 +351,8 @@ final class FindingReadRepository
     {
         $available = $this->reportAvailable();
         $prefix = match ($filter->sort) {
-            'additional_first' => '('.CribrumFindingQuery::hasExtras('f', $available).') DESC, ',
-            'additional_count' => '('.CribrumFindingQuery::additionalCount('f', $available).') DESC, ',
+            'additional_first' => '('.CribrumFindingQuery::hasExtras('f', $available, true, \App\Service\CribrumDiagnosticHints::available($this->connection)).') DESC, ',
+            'additional_count' => '('.CribrumFindingQuery::additionalCount('f', $available, true, \App\Service\CribrumDiagnosticHints::available($this->connection)).') DESC, ',
             'cribrum_changed' => 'julianday('.CribrumFindingQuery::changedAt('f', $available, (bool) $this->connection->fetchOne("SELECT 1 FROM sqlite_master WHERE name = 'finding_report_revision'"), (bool) $this->connection->fetchOne("SELECT 1 FROM sqlite_master WHERE name = 'finding_claim_revision'")).') DESC, ',
             default => $filter->view === 'workbasket' ? 'reminder_due_on ASC, ' : '',
         };

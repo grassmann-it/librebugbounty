@@ -55,6 +55,7 @@ $kernel = new class('dev', false) extends App\Kernel {
     protected function configureContainer(Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator $container): void
     {
         parent::configureContainer($container);
+        $container->parameters()->set('app.health_workers', App\Tests\Support\StudioHealthFixture::workers());
         $container->services()->set(App\Tests\Support\StudioContactFixture::class);
         $container->services()->set(App\Service\ContactDiscoveryService::class)->autowire()
             ->arg('$providers', [Symfony\Component\DependencyInjection\Loader\Configurator\service(App\Tests\Support\StudioContactFixture::class)]);

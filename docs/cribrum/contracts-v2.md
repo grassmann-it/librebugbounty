@@ -65,6 +65,55 @@ fails closed. `sourceRef.captureRef` identifies the original screenshot/retest
 run so same-capture execution and WAF context are compared by identity, never by
 matching timestamp text. These hashes and references stay internal.
 
+## Source-reading receipts
+
+The separate `source-review-v1` ledger records actual AI inspection of retained
+local source. Its identity is finding plus artifact SHA256, request/capture-context
+SHA256 and review-policy version. The context binds the active PoC, request hash,
+HTTP status/type/final URL and truncation flags. A receipt stores the observation
+actually read, accurate reviewer/model label, time, outcome, summary and classifier
+version evaluated. A new classification of unchanged source/context does not
+pretend that the source bytes were newly read.
+
+`app:source-review:claim` atomically reserves authenticated current sources with
+expiring leases for parallel workers. A reservation is pending work, not a review.
+The caller must actually inspect the claimed bytes before
+`app:source-review:record` completes the receipt. Record revalidates the lease and
+current source identity; an expired lease or changed source/context cannot record
+a current reading. Completed receipts are immutable; an identical retry is
+idempotent and a conflicting retry is rejected.
+
+Use the actual worker/model label and classifier version evaluated. A reservation
+defaults to 15 minutes; `--lease-seconds` accepts 30–3600 and `--limit` accepts 1–20.
+After inspecting the authenticated local artifact, record the matching lease:
+
+```sh
+php bin/console app:source-review:claim --reviewer='WORKER / ACTUAL_MODEL' --finding=FINDING_UUID --limit=1
+php bin/console app:source-review:record LEASE_TOKEN --outcome=context_required --summary-file=/local/source-review.txt --classifier-version=cribrum-1.3.6
+```
+
+The uppercase values and summary-file path are placeholders, not review results.
+
+| Outcome | Source-reading result |
+|---|---|
+| `no_new_hint` | No additional hint found in the inspected source |
+| `potential_gap` | Possible missed detection to investigate |
+| `corrected_gap` | An identified detection gap was corrected |
+| `context_required` | Source reading needs further context |
+
+Case details distinguish `open`, `pending`, `current`, `stale` and `unavailable`.
+The current badge requires matching authenticated bytes/context/policy. An older
+receipt does not cover changed source/context, and a missing migration, artifact
+or current request pin does not create a reviewed badge. UI text states that an
+AI reading does not confirm a vulnerability.
+
+These receipts and leases use separate `source_review` / `source_review_lease`
+tables (`Version20261026010000`). They are coordination and reading metadata,
+not behavior facts or report components. Claiming or recording a reading does
+not classify, capture, contact a target, activate a pack, change manual assessment,
+write a security claim or grant report eligibility. A corrected detection still
+needs its separate implementation/reclassification and evidence workflow.
+
 ## Snapshot fields
 
 [Report handoff schema](schemas/report-handoff-policy-v2.schema.json) is the
@@ -136,6 +185,11 @@ existing raw files. Scope and frozen snapshot belong in the case/review hash.
   Scores, AI agreement and incomplete mappings do not substitute for proof.
 - **E4:** Describe SQL injection as suspicion; urgency requires concrete SQL basis
   and remains optional. Payload co-occurrence is insufficient.
+  Engine 1.3.5's core native MySQL/MariaDB suffix and PDO query-input hints remain
+  unqualified suspicion, not `sql_input_structure_indication` or qualified report
+  components. Partial-input/missing-query uncertainty stays explicit for the suffix
+  route; a complete disclosed query in the PDO route alone does not establish
+  input-driven SQL structure. Neither hint relaxes report evidence requirements.
 - **E5:** Standalone disclosure needs concrete internal query/path/stack/config
   details with evidence; generic errors, product names and documentation do not qualify.
 - **E6:** New XSS requires attributed worker execution. Automatic policy is
@@ -173,7 +227,17 @@ Required families are `disclosure`, `local_include`, `reflection`,
 required semantic families: reflection → reflection; SQL → sql; file →
 local_include/remote_include; context → disclosure/waf (plus the optional
 `error_response` evaluation family). The complete shipped candidate pack is
-`behavior-triage` **1.5.1**. Reflection coverage requires actual execution of
+`behavior-triage` **1.5.2**, paired with engine **1.3.6**. The candidate manifest is
+unchanged by the [1.3.5 native/PDO core extension](rule-cards/native-sql-suspicion-1.3.5.md)
+or [1.3.6 PHQL core hint](rule-cards/phql-input-suspicion-1.3.6.md). The PHQL
+ORM parser diagnostic emits no native SQL-error or structural SQLi fact and
+cannot supply SQLi report eligibility.
+The preceding engine 1.3.3 / candidate 1.5.2 narrow `DB ERR` plus
+concrete SQL statement diagnostic remains an observed
+unknown-vendor SQL error; its generic wrapper cannot establish a structural SQLi
+indication.
+See the [correction card](rule-cards/http-response-triage-1.5.2.md).
+Reflection coverage requires actual execution of
 `reflection-triage-v1`; built-in marker handling is not a substitute. An old
 three-detector pack is partial and rejected for explicit active mode.
 Completeness requires their actual evaluation and

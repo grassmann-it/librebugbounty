@@ -21,6 +21,8 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
     ctx.setDefaultTimeout(10000);
     ctx.on('page', p => p.on('pageerror', e => errors.push(e.message)));
     await ctx.route('**/*', route => {
+      // Keep this suite on the normal save path; queued saves have their own suite.
+      if (new URL(route.request().url()).pathname === '/review/preview') return route.abort();
       if (new URL(route.request().url()).origin === origin) return route.continue();
       outside.push(route.request().url()); return route.abort();
     });
@@ -39,7 +41,13 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
     assert.equal(await p.locator('body').getAttribute('data-review-focus-mode'), 'true');
   };
   const image = p => p.locator('[data-review-shot]:not([hidden]) [data-review-image]');
-  const openDetails = async p => { if (!await p.locator('[data-review-inspector]').evaluate(e => e.open)) await p.locator('[data-review-inspector] > summary').click(); };
+  const openMenu = async p => { if (!await p.locator('[data-review-menu]').evaluate(e => e.open)) await p.locator('[data-review-menu] > summary').click(); };
+  const openDetails = async p => {
+    if (await p.locator('[data-review-inspector]').evaluate(e => e.open)) return;
+    if (await p.locator('body').getAttribute('data-review-focus-mode') === 'true') { await focus(p); await p.keyboard.press('i'); }
+    else await p.locator('[data-review-inspector] > summary').click();
+  };
+  const toggleChrome = async p => { await focus(p); await p.keyboard.press('h'); };
   const closeDetails = async p => { if (await p.locator('[data-review-inspector]').evaluate(e => e.open)) await p.keyboard.press('Escape'); };
   const change = async (p, trigger) => {
     const before = await id(p); await trigger();
@@ -59,6 +67,19 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
       assert.equal(await page.locator('[data-review-chrome-toggle]').isVisible(), false);
       assert.equal(await page.locator('.studio-review-shell > .studio-header').isVisible(), true);
       assert.equal(await page.locator('.review-card > .review-case-heading').count(), 1);
+      assert.equal(await page.locator('[data-review-queue]').evaluate(el => el.open), false, 'Queue starts compact');
+      assert.equal(await page.locator('[data-review-inspector]').evaluate(el => el.open), false, 'Classic screenshot starts with full width');
+      const fullWidth = (await page.locator('.review-evidence').boundingBox()).width;
+      await openDetails(page);
+      assert.ok((await page.locator('.review-evidence').boundingBox()).width < fullWidth - 250, 'Opening details reserves a readable sidebar');
+      await page.reload();
+      assert.equal(await page.locator('[data-review-inspector]').evaluate(el => el.open), true, 'Classic details preference survives reload');
+      await page.locator('[data-review-inspector] > summary').click();
+      await page.locator('[data-review-queue] > summary').click();
+      await page.locator('.review-filter-panel > summary').click();
+      assert.equal(await page.locator('#review-kind').isVisible(), true, 'Collapsed queue retains usable filters');
+      await page.keyboard.press('Escape');
+      assert.equal(await page.locator('[data-review-queue]').evaluate(el => el.open), false);
       const nativeImageStyle = await image(page).getAttribute('style');
       await page.screenshot({path:path.join(output,`${locale}-classic-1440.png`)});
       await page.setViewportSize({width:375,height:812});
@@ -67,7 +88,30 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
       await page.setViewportSize({width:1440,height:900});
       await page.keyboard.press('f');
       assert.equal(await page.locator('[data-review-focus-toggle]').getAttribute('aria-pressed'), 'true');
-      for (const selector of ['[data-review-navigation]', '[data-review-queue]', '[data-review-inspector]']) {
+      assert.equal(await page.locator('[data-review-dock] .review-overview .review-case-heading').count(), 1, 'Focus case information shares the decision dock');
+      assert.equal(await page.locator('[data-review-menu]').evaluate(el => el.open), false, 'Focus starts with a single compact menu');
+      assert.equal(await page.locator('[data-review-menu] > summary').isVisible(), true);
+      for (const selector of ['[data-review-focus-toggle]', '[data-review-chrome-toggle]', '[data-review-inspector]']) {
+        assert.equal(await page.locator(selector).isVisible(), false, 'Secondary controls stay collapsed until requested');
+      }
+      assert.equal(await page.locator('[data-review-image-meta] figcaption:visible').count(), 1, 'Only the selected image caption appears beside zoom');
+      assert.equal(await page.locator('[data-review-shot] > figcaption').count(), 0, 'Focus captions leave the image canvas');
+      await page.keyboard.press('m');
+      assert.equal(await page.locator('[data-review-menu]').evaluate(el => el.open), true);
+      assert.equal(await page.locator('[data-review-chrome-toggle] kbd').textContent(), 'H');
+      assert.equal(await page.locator('[data-review-menu] [data-review-open-details] kbd').textContent(), 'I');
+      await page.keyboard.press('m');
+      assert.equal(await page.locator('[data-review-menu]').evaluate(el => el.open), false);
+      assert.equal(await page.locator('[data-review-focus]').evaluate(el => el === document.activeElement), true);
+      await openMenu(page); await page.keyboard.press('Escape');
+      assert.equal(await page.locator('[data-review-menu]').evaluate(el => el.open), false, 'Escape closes the menu');
+      await openMenu(page); await page.mouse.click(740, 420);
+      assert.equal(await page.locator('[data-review-menu]').evaluate(el => el.open), false, 'Outside click closes the menu');
+      await page.locator('[data-review-menu] > summary').focus();
+      await page.keyboard.press('Enter'); await page.keyboard.press('Enter');
+      assert.equal(await page.locator('[data-review-menu]').evaluate(el => el.open), false, 'Native Enter toggles the menu without skipping');
+      assert.equal(await id(page), f.main.id);
+      for (const selector of ['[data-review-queue]']) {
         const summary=page.locator(selector+' > summary');
         await summary.click(); await summary.click();
         assert.equal(await page.locator('[data-review-focus]').evaluate(el=>el===document.activeElement), true, 'Closing by mouse restores review keys immediately');
@@ -84,6 +128,12 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
         assert.equal(await page.locator('[data-review-focus]').evaluate(el=>el===document.activeElement), true, 'Escape restores review focus');
       }
       await openDetails(page);
+      await page.locator('[data-review-inspector] > summary').click();
+      assert.equal(await page.locator('[data-review-inspector]').isVisible(), false, 'Closing details removes the entire sidebar');
+      assert.equal(await page.locator('[data-review-focus]').evaluate(el => el === document.activeElement), true);
+      await openDetails(page); await page.keyboard.press('i');
+      assert.equal(await page.locator('[data-review-inspector]').evaluate(el => el.open), false, 'I toggles details from its focused summary');
+      await openDetails(page);
       await page.locator('.review-basis > summary').click();
       const field=page.locator('[data-review-form] select').first();
       await field.focus(); await page.keyboard.press('f');
@@ -96,9 +146,12 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
       await page.waitForTimeout(50);
       assert.equal(await field.evaluate(el=>el===document.activeElement),true,'Queued panel toggle does not steal focus from a field');
       await page.evaluate(()=>{const field=document.createElement('textarea');field.id='test-typing';document.querySelector('.review-source').append(field);field.focus();});
-      await page.keyboard.type('f');
-      assert.equal(await page.locator('#test-typing').inputValue(),'f');
+      await page.keyboard.type('fmih');
+      assert.equal(await page.locator('#test-typing').inputValue(),'fmih', 'Display shortcuts do not intercept typing');
       assert.equal(await page.locator('body').getAttribute('data-review-focus-mode'), 'true');
+      assert.equal(await page.locator('[data-review-inspector]').evaluate(el => el.open), true);
+      assert.equal(await page.locator('[data-review-menu]').evaluate(el => el.open), false);
+      assert.notEqual(await page.locator('body').getAttribute('data-review-chrome-hidden'), 'true');
       await page.locator('#test-typing').evaluate(el=>el.remove());
       await closeDetails(page);
       for(let i=0;i<4;i++) {
@@ -107,6 +160,7 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
         assert.equal(await image(page).getAttribute('style') || '', nativeImageStyle || '', 'Native image sizing restored');
         assert.equal(await page.locator('.review-image-link').first().getAttribute('role'), null);
         assert.equal(await page.locator('.review-evidence > .review-shot-picker').count(),1);
+        assert.equal(await page.locator('[data-review-shot] > figcaption').count(), await page.locator('[data-review-shot]').count(), 'Classic captions return to their own images');
         assert.equal(await field.inputValue(),f.main.olderEvidenceId,'Mode switch preserves the chosen assessment basis');
         await page.keyboard.press('f');
       }
@@ -123,7 +177,7 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
       assert.ok(Math.abs((await image(page).boundingBox()).width/beforeWheel-Math.exp(.4))<.02,'Exactly one zoom handler after repeated toggles');
       await page.locator('[data-review-zoom="fit"]').click();
       mark(`${locale}: classic default, F toggle, native fields, repeated mode switches, menu focus and reload persistence`);
-      for (const [width,height] of [[1440,900],[1878,950],[1024,600],[844,390],[375,812]]) {
+      for (const [width,height] of [[1440,900],[1878,950],[1024,600],[960,900],[844,390],[720,900],[375,812]]) {
         await page.setViewportSize({width,height});
         await page.waitForFunction(() => {
           const img=document.querySelector('[data-review-shot]:not([hidden]) img');
@@ -136,9 +190,19 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
         assert.ok(geometry.box.left>=-1 && geometry.box.top>=-1 && geometry.box.right<=width+1 && geometry.box.bottom<=height+1);
         assert.ok(geometry.scroll<=width,'No horizontal document overflow');
         assert.equal(await page.locator('[data-review-inspector]').evaluate(e=>e.open),false);
-        const buttons=await page.locator('[data-review-fixed], [data-review-confirm], [data-review-skip], [data-review-chrome-toggle], [data-review-focus-toggle], [data-review-zoom="fit"]').evaluateAll(nodes=>nodes.map(n=>{const r=n.getBoundingClientRect();return {visible:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('button')===n};}));
+        const buttons=await page.locator('[data-review-fixed], [data-review-confirm], [data-review-skip], [data-review-menu] > summary, [data-review-zoom="fit"]').evaluateAll(nodes=>nodes.map(n=>{const r=n.getBoundingClientRect();return {visible:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('button, summary')===n};}));
         assert.ok(buttons.every(b=>b.visible),`Controls accessible at ${width}x${height}: ${JSON.stringify(buttons)}`);
-        if(width===1440||width===375) await page.screenshot({path:path.join(output,`${locale}-${width}.png`)});
+        const tools = await page.locator('[data-review-image-tools]').boundingBox();
+        const caption = await page.locator('[data-review-image-meta] figcaption:visible').boundingBox();
+        const dock = await page.locator('[data-review-dock]').boundingBox();
+        assert.ok(caption.y >= height / 2 && Math.abs(tools.x + tools.width - (width - (width <= 760 ? 8 : 12))) <= 1, 'Image metadata stays with tools at bottom right');
+        assert.ok(tools.x >= dock.x + dock.width || tools.y + tools.height <= dock.y || dock.y + dock.height <= tools.y, 'Image tools and decision dock never overlap');
+        await page.locator('[data-review-queue] > summary').click();
+        const queue = await page.locator('.review-queue-content').boundingBox();
+        assert.ok(queue.x >= 0 && queue.y >= 0 && queue.x + queue.width <= width + 1 && queue.y + queue.height <= height + 1, 'Queue expansion remains inside the viewport');
+        await page.keyboard.press('Escape');
+        if([1440,960,720,375].includes(width)) await page.screenshot({path:path.join(output,`${locale}-${width}.png`)});
+        await openMenu(page);
         await page.locator('[data-review-navigation] > summary').click();
         for (const link of await page.locator('[data-review-navigation] a').all()) {
           if (await link.isVisible()) await link.click({trial:true});
@@ -147,12 +211,16 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
         await page.keyboard.press('Escape');
       }
       await page.setViewportSize({width:1440,height:900});
-      await page.locator('[data-review-chrome-toggle]').click();
+      await toggleChrome(page);
       assert.equal(await page.locator('[data-review-dock]').isVisible(),false);
       assert.equal(await page.locator('[data-review-inspector]').isVisible(),false);
       assert.equal(await page.locator('.review-alert-chip').first().isVisible(),true,'Critical warning survives hidden chrome');
+      assert.equal(await page.locator('[data-review-menu] > summary').isVisible(),true, 'Compact menu remains reachable with controls hidden');
+      assert.equal(await page.locator('[data-review-chrome-toggle]').isVisible(),false);
+      await openMenu(page);
       assert.equal(await page.locator('[data-review-chrome-toggle]').isVisible(),true);
       assert.equal(await page.locator('[data-review-focus-toggle]').isVisible(),true);
+      await page.keyboard.press('Escape');
       await page.keyboard.press('f');
       assert.equal(await page.locator('[data-review-dock]').isVisible(),true,'Exiting hidden focus restores the classic controls');
       await page.keyboard.press('f');
@@ -198,9 +266,9 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
       pp.on('request', r => requested.push({ url: r.url(), method: r.method() }));
       await pp.goto(origin + '/review');
       if (mode === 'focus') await enterFocus(pp);
-      await pp.waitForFunction(() => window.__speculated.length === 2 && window.__speculated.every(img => img.complete && img.naturalWidth > 0));
       const hints = await pp.locator('[data-review-preloads]').evaluate(el => JSON.parse(el.dataset.reviewPreloads));
-      assert.equal(hints.length, 2);
+      assert.equal(hints.length, 5);
+      await pp.waitForFunction(count => window.__speculated.length === count && window.__speculated.every(img => img.complete && img.naturalWidth > 0), hints.length);
       assert.equal(await pp.evaluate(hints => {
         const build = (hint) => {
           const doc = document.implementation.createHTMLDocument();
@@ -237,11 +305,11 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
       assert.equal(await pp.locator('[data-review-back]').isEnabled(), true);
       assert.deepEqual((await snap()).snapshot, baseline.snapshot, 'Preloading and Skip leave all stored case data unchanged');
       await pp.waitForTimeout(600);
-      assert.ok(await pp.evaluate(() => window.__speculated.filter(img => !img.isConnected && !img.hasAttribute('alt') && img.hasAttribute('src')).length <= 2), 'Retain at most two speculative images');
+      assert.ok(await pp.evaluate(() => window.__speculated.filter(img => !img.isConnected && !img.hasAttribute('alt') && img.hasAttribute('src')).length <= 5), 'Retain at most five speculative images');
       await pp.goto(origin + '/review?images=missing');
       assert.deepEqual(await pp.locator('[data-review-preloads]').evaluate(el => JSON.parse(el.dataset.reviewPreloads)), []);
       await pp.close();
-      mark(mode + ': next two screenshots decoded before action, reused without refetch, bounded and trail-neutral');
+      mark(mode + ': next five screenshots decoded before action, reused without refetch, bounded and trail-neutral');
     }
 
     // One in-flight preload is transferred, not cancelled/restarted on a quick vote.
@@ -383,8 +451,9 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
     let release, posts=0;
     const gate=new Promise(resolve=>{release=resolve;});
     await page.route('**/review/*/assessment',async route=>{posts++;await gate;await route.continue();});
+    await openMenu(page);
     await page.locator('[data-review-navigation] > summary').click();
-    await page.locator('[data-review-navigation] > summary').click();
+    await page.keyboard.press('Escape');
     await page.keyboard.press('ArrowRight'); // Regression: no mouse vote/refocus needed.
     await page.waitForFunction(()=>document.body.dataset.reviewSubmitting==='true');
     await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowLeft');
@@ -445,7 +514,7 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
     await page.unroute('**/review/*/assessment');
     mark('Decoded-image overlapping transition after confirmed save; no blank gap, blur work, stale layers or duplicate writes');
 
-    await page.locator('[data-review-chrome-toggle]').click();
+    await toggleChrome(page);
     assert.equal(await page.locator('[data-review-dock]').isVisible(),false);
     assert.equal(await page.locator('[data-review-technical-error]').isVisible(),true);
     await change(page,()=>page.keyboard.press('ArrowLeft'));
@@ -474,7 +543,7 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
     await page.locator('[data-review-error]').waitFor(); await idle(page);
     assert.equal(await id(page),f.main.id);
     assert.deepEqual((await snap()).snapshot,beforeError.snapshot);
-    await page.locator('[data-review-chrome-toggle]').click();
+    await toggleChrome(page);
     assert.equal(await page.locator('[data-review-error]').isVisible(),true);
     await page.reload();
     mark('Server validation failure stays on the case; errors remain visible with hidden controls');

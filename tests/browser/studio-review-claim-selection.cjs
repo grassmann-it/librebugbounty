@@ -33,6 +33,8 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
     ctx.setDefaultTimeout(15000);
     ctx.on('page', page => page.on('pageerror', error => errors.push(error.message)));
     await ctx.route('**/*', route => {
+      // Queued assessments have dedicated coverage; verify normal form replay here.
+      if (new URL(route.request().url()).pathname === '/review/preview') return route.abort();
       if (new URL(route.request().url()).origin === origin) return route.continue();
       outside.push(route.request().url()); return route.abort();
     });
@@ -67,6 +69,15 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
     assert.ok(bounds.helper.bottom <= bounds.panel.bottom - 1, `Helper stays inside selection panel: ${JSON.stringify(bounds)}`);
     assert.ok(bounds.confirm.top >= bounds.dock.top - 2 && bounds.confirm.bottom <= bounds.dock.bottom + 2, `Verdict stays inside action dock: ${JSON.stringify(bounds)}`);
   };
+  const assertQueueClearOfTools = async page => {
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const bounds = await page.evaluate(() => {
+      const rect = selector => document.querySelector(selector).getBoundingClientRect().toJSON();
+      return { queue: rect('.review-queue-content'), tools: rect('[data-review-image-tools]') };
+    });
+    const { queue, tools } = bounds;
+    assert.ok(queue.right <= tools.left || tools.right <= queue.left || queue.bottom <= tools.top || tools.bottom <= queue.top, `Queue and image tools never overlap: ${JSON.stringify(bounds)}`);
+  };
   let failure;
   try {
     const baseline = await snapshot();
@@ -98,6 +109,12 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
     await assertVisibleBounds(page, '[data-review-claims]');
     await assertDockContained(page);
     await page.screenshot({ path: path.join(output, 'claims-classic-de-1440x900.png') });
+    for (const width of [960, 720]) {
+      await page.setViewportSize({ width, height: 900 });
+      await assertVisibleBounds(page, '[data-review-claims]');
+      await assertDockContained(page);
+      await page.screenshot({ path: path.join(output, `claims-classic-de-${width}x900.png`) });
+    }
     await page.setViewportSize({ width: 1920, height: 1080 });
 
     await page.locator('[data-review-focus-toggle]').click();
@@ -111,10 +128,30 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
     await assertVisibleBounds(page, '[data-review-claims]');
     await assertDockContained(page);
     await page.screenshot({ path: path.join(output, 'claims-focus-de-1440x900.png') });
+    await page.locator('[data-review-queue] > summary').click();
+    await assertVisibleBounds(page, '.review-queue-content');
+    await assertQueueClearOfTools(page);
+    await page.keyboard.press('Escape');
+    for (const width of [960, 720]) {
+      await page.setViewportSize({ width, height: 900 });
+      await assertVisibleBounds(page, '[data-review-claims]');
+      await assertDockContained(page);
+      await page.screenshot({ path: path.join(output, `claims-focus-de-${width}x900.png`) });
+    }
+    await page.setViewportSize({ width: 844, height: 390 });
+    await page.locator('[data-review-queue] > summary').click();
+    await page.locator('.review-filter-panel > summary').click();
+    await assertVisibleBounds(page, '.review-queue-content');
+    await assertQueueClearOfTools(page);
+    await page.locator('#review-kind').scrollIntoViewIfNeeded();
+    await assertVisibleBounds(page, '#review-kind');
+    await page.keyboard.press('Escape');
     await page.setViewportSize({ width: 390, height: 844 });
     await assertVisibleBounds(page, '[data-review-claims]');
     await assertDockContained(page);
     await page.screenshot({ path: path.join(output, 'claims-focus-390x844.png') });
+    await page.locator('#review-main').focus();
+    await page.keyboard.press('m');
     await page.locator('[data-review-focus-toggle]').click();
     await assertVisibleBounds(page, '[data-review-claims]');
     await assertDockContained(page);
@@ -182,6 +219,10 @@ assert.ok(['web', 'localhost', '127.0.0.1'].includes(new URL(base).hostname));
     const swipePage = await swipeCtx.newPage();
     await openCase(swipePage, baseline, 'claimSelectionSwipe', 'claimSelectionKeyboard');
     await choice(swipePage, 'error_disclosure').uncheck();
+    const swipeInspector = swipePage.locator('[data-review-inspector]');
+    if (!await swipeInspector.evaluate(element => element.open)) {
+      await swipeInspector.locator(':scope > summary').click();
+    }
     const strip = swipePage.locator('[data-review-gesture]');
     await strip.scrollIntoViewIfNeeded();
     const box = await strip.boundingBox();

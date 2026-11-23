@@ -9,7 +9,7 @@ use App\Cribrum\ObservationInput;
 final class SqlTriageDetector
 {
     public const ID = 'sql-triage-v1';
-    private const SIGNATURE = '~(?:(?:System\.Data\.)?SqlException\s*:[^\n]{1,160}|You have an error in your SQL syntax[^\n]{0,300}|ERROR:\s*(?:syntax error at or near|invalid input syntax for type|value too long for type|operator does not exist|relation [^\n]{1,120} does not exist)[^\n]{0,300}|(?:SQLSTATE\[[A-Z0-9]+\][^\n]{0,160})|(?:Falsche Syntax in der Nähe von|Incorrect syntax near|Unclosed quotation mark after the character string|Conversion failed when converting the varchar value|Fehler beim Konvertieren des varchar-Werts|String or binary data would be truncated|Cannot resolve the collation conflict|Illegal mix of collations|Can.t find FULLTEXT index matching the column list|Data too long for column|Incorrect (?:double|integer|string|datetime) value|Invalid object name|Unknown column|Table [^\n]{1,120} doesn.t exist|Data type mismatch in criteria expression)[^\n]{0,300}|Characters found after end of SQL statement\.|Syntaxfehler in Abfrageausdruck[^\n]{0,500}|Syntax error (?:\(missing operator\) )?in query expression[^\n]{0,500})~iu';
+    private const SIGNATURE = '~(?:(?:System\.Data\.)?SqlException\s*:[^\n]{1,160}|You have an error in your SQL syntax[^\n]{0,300}|ERROR:\s*(?:syntax error at or near|invalid input syntax for type|value too long for type|operator does not exist|relation [^\n]{1,120} does not exist)[^\n]{0,300}|(?:SQLSTATE\[[A-Z0-9]+\][^\n]{0,160})|(?:Falsche Syntax in der Nähe von|Incorrect syntax near|Unclosed quotation mark after the character string|Conversion failed when converting the varchar value|Fehler beim Konvertieren des varchar-Werts|String or binary data would be truncated|Cannot resolve the collation conflict|Illegal mix of collations|Can.t find FULLTEXT index matching the column list|Data too long for column|Incorrect (?:double|integer|string|datetime) value|Invalid object name|Unknown column|Table [^\n]{1,120} doesn.t exist|Data type mismatch in criteria expression)[^\n]{0,300}|Characters found after end of SQL statement\.|Syntaxfehler in Abfrageausdruck[^\n]{0,500}|Syntax error (?:\(missing operator\) )?in query expression[^\n]{0,500}|\bDB[ \t]+ERR[ \t]+(?=(?:SELECT|UPDATE|INSERT|DELETE)\b))~iu';
 
     /** Compatibility entry point; the full evaluation owns the single search. */
     public function detect(ObservationInput $input, string $mode = 'shadow'): array
@@ -56,12 +56,18 @@ final class SqlTriageDetector
         if (count($matches) > 32) $run->limited('sql', 'signature_search', 'raw', 'match_budget', ['limit' => 32, 'observed' => count($matches), 'remaining' => count($matches) - 32]);
         $params = $run->stage('sql', 'parameters', 'raw', fn () => $this->parameters($input->url, $run));
         $seen = [];
+        $genericCarriers = [];
         foreach (array_slice($matches, 0, 32) as [$signature, $byte]) {
             $run->count('sql', 'candidatesConsidered');
             $at = mb_strlen(substr($text, 0, $byte), 'UTF-8');
-            $diagnostic = $run->stage('sql', 'diagnostic', 'raw', function () use ($run, $input, $mode, $raw, $text, $map, $jsonBlocks, $jsonRoot, $at, $signature, &$seen, $params): ?array {
+            $diagnostic = $run->stage('sql', 'diagnostic', 'raw', function () use ($run, $input, $mode, $raw, $text, $map, $jsonBlocks, $jsonRoot, $at, $signature, &$seen, &$genericCarriers, $params): ?array {
                 $source = $this->rawPosition($map, $at);
                 $run->candidate('raw', $source[0], $source[1]);
+                foreach ($genericCarriers as [$start, $end]) {
+                    // Error-looking text inside a disclosed query belongs to its
+                    // generic carrier; it is no independent syntax diagnostic.
+                    if ($at > $start && $at < $end) { $run->count('sql', 'candidatesExcluded'); return null; }
+                }
                 if (CheckedRegex::match('~^Can.t find FULLTEXT~iu', $signature)
                     && !$this->isActiveQueryText($raw, strlen(mb_substr($raw, 0, $source[0], 'UTF-8')))) return null;
                 $jsonBlock = null;
@@ -70,13 +76,22 @@ final class SqlTriageDetector
                 if ($jsonBlock === null && $jsonRoot !== null && $sourceByte >= $jsonRoot) { $run->count('sql', 'candidatesExcluded'); return null; }
                 if ($jsonBlock === null && !HtmlDiagnosticContext::eligible($raw, $sourceByte, false,
                     static fn () => $run->limited('sql', 'diagnostic', 'raw', 'parser_depth_budget', ['limit' => 128, 'remaining' => null]))) { $run->count('sql', 'candidatesExcluded'); return null; }
-                [$start, $end, $complete] = $jsonBlock === null ? $this->block($raw, $text, $map, $at, $run) : [...$jsonBlock, true];
+                $genericDbError = CheckedRegex::match('~^DB[ \t]+ERR[ \t]+~iu', $signature) === 1;
+                $bounds = $genericDbError
+                    ? $this->genericDbErrorBlock($raw, $text, $map, $at, $run)
+                    : ($jsonBlock === null ? $this->block($raw, $text, $map, $at, $run) : [...$jsonBlock, true]);
+                if ($bounds === null) { $run->count('sql', 'candidatesExcluded'); return null; }
+                [$start, $end, $complete] = $bounds;
                 if (isset($seen[$start.':'.$end])) {
                     $run->count('sql', 'duplicatesKnown');
                     return null;
                 }
                 $seen[$start.':'.$end] = true;
                 $block = mb_substr($text, $start, $end - $start, 'UTF-8');
+                if ($genericDbError && $this->suppliedGenericDiagnostic($block, $input, $params ?? [])) {
+                    $run->count('sql', 'candidatesExcluded');
+                    return null;
+                }
                 // Explicit trace sections are separate representations, even if
                 // the renderer placed both in the same preformatted container.
                 if (CheckedRegex::match('~(?:^|\n)\s*(?:Stack\s+trace|Call\s+stack|Traceback)\s*:?~iu', $block, $trace, PREG_OFFSET_CAPTURE)) {
@@ -95,15 +110,18 @@ final class SqlTriageDetector
                     return null;
                 }
                 if (!$complete) $run->limited('sql', 'diagnostic', 'raw', 'context_incomplete', ['observed' => $end - $start, 'remaining' => null]);
-                $vendor = $this->vendor($block);
+                $vendor = $genericDbError ? 'unknown' : $this->vendor($block);
                 $nonstructure = (bool) CheckedRegex::match('~FULLTEXT index|collation|convert|conversion|Konvertieren|invalid input syntax for type|too long|truncat|data too long|incorrect (?:string|double|datetime)|does not exist|doesn.t exist|Invalid object name|Unknown column|Data type mismatch|parameter|ParamValues|\balias\s*=\s*\?~iu', $block);
-                $syntax = (bool) CheckedRegex::match('~syntax|missing operator|unclosed quotation~iu', $block);
-                $attrs = ['vendor' => $vendor, 'diagnosticClass' => $nonstructure ? 'nonstructure' : ($syntax ? 'syntax' : 'database_error'), 'blockComplete' => $complete, 'assessment' => $syntax ? 'context_required' : 'diagnostic_only', 'inputAssessment' => 'context_required_no_supported_input_mapping', 'limitations' => ['offline_diagnostic_only', 'no_exploitation_or_xss_inference']];
+                // A generic failed-query wrapper gives no syntax/engine evidence,
+                // even when those words occur in a query identifier or value.
+                $syntax = !$genericDbError && (bool) CheckedRegex::match('~syntax|missing operator|unclosed quotation~iu', $block);
+                $attrs = ['vendor' => $vendor, 'diagnosticClass' => $genericDbError ? 'database_error' : ($nonstructure ? 'nonstructure' : ($syntax ? 'syntax' : 'database_error')), 'blockComplete' => $complete, 'assessment' => $syntax ? 'context_required' : 'diagnostic_only', 'inputAssessment' => 'context_required_no_supported_input_mapping', 'limitations' => ['offline_diagnostic_only', 'no_exploitation_or_xss_inference']];
                 $spans = [$this->mappedSpan($raw, $map, $start, $end - $start, 'diagnostic_block'), $this->mappedSpan($raw, $map, $at, min($end - $at, mb_strlen($signature, 'UTF-8')), 'error')];
                 foreach ($params ?? [] as $candidate) {
                     if ($candidate['ambiguous'] && $candidate['value'] !== '' && str_contains($block, $candidate['value'])) $attrs['inputAssessment'] = 'context_required_duplicate_parameter';
                 }
                 $run->add(EvidenceSignal::make('sql_error_observed', $input, $spans, $attrs, [], self::ID, $mode));
+                if ($genericDbError) $genericCarriers[] = [$start, $end];
                 return [$start, $block, $complete, $jsonBlock, $syntax, $nonstructure, $attrs, $spans, $source];
             });
             if ($diagnostic === null) continue;
@@ -171,6 +189,10 @@ final class SqlTriageDetector
             $run->unavailable('disclosure', 'representation', $representation, $raw === null ? 'representation_missing' : 'representation_invalid');
             return $run->finish();
         }
+        SqlQueryDiagnosticFamilies::evaluate($input, $run, $mode,
+            fn (string $query): bool => $this->actualStatement($query),
+            fn (string $prefix): string => $this->sqlContext($prefix),
+            fn (string $source, int $byte): bool => $this->isActiveQueryText($source, $byte));
         $comparison = $run->stage('disclosure', 'comparison', $representation, fn () => $representation === 'raw' ? $this->comparison($raw, $run, 'disclosure', false) : [$raw, [[0, mb_strlen($raw, 'UTF-8'), 0, mb_strlen($raw, 'UTF-8')]], []]);
         if ($comparison === null) return $run->finish();
         [$text, $map] = $comparison;
@@ -491,6 +513,20 @@ final class SqlTriageDetector
                 if (!$this->isActiveQueryText($subject, $byte) || !$this->actualStatement($query) || !$this->markupInsideSqlLiterals($query) || $this->requestContainsQuery($query, $requestValues)) continue;
                 if (!CheckedRegex::match('~\b(?:WHERE|JOIN|GROUP\s+BY|ORDER\s+BY|HAVING|LIMIT)\b~iu', $query)) continue;
                 $candidates[] = ['query' => $query, 'byte' => $byte, 'source' => 'response_text'];
+            }
+        }
+        // A debug page can echo one complete statement across several rendered
+        // lines. Read a bounded block instead of a single line, and keep every
+        // guard the line candidate applies, including markup only inside SQL
+        // literals. A blank line, a closing block tag or the response end bounds
+        // the statement; no following dump is read into it.
+        if (CheckedRegex::matchAll('~(?:^|[\r\n])[ \t]*(SELECT\b[\s\S]{1,4096}?)(?=[\r\n][ \t]*[\r\n]|<(?:/p\b|/div\b|/pre\b|/li\b|/td\b|/tr\b|/h[1-6]\b|/body\b|br\b)|$)~iu', $subject, $blocks, PREG_OFFSET_CAPTURE) > 0) {
+            if (count($blocks[1]) > 32) $run?->limited('disclosure', 'response_statement_search', 'raw', 'match_budget', ['limit' => 32, 'observed' => count($blocks[1]), 'remaining' => count($blocks[1]) - 32]);
+            foreach (array_slice($blocks[1], 0, 32) as [$query, $byte]) {
+                $query = rtrim($query);
+                if (!$this->isActiveQueryText($subject, $byte) || !$this->actualStatement($query) || !$this->markupInsideSqlLiterals($query) || $this->requestContainsQuery($query, $requestValues)) continue;
+                if (!CheckedRegex::match('~\b(?:WHERE|JOIN|GROUP\s+BY|ORDER\s+BY|HAVING|LIMIT|SET|VALUES)\b~iu', $query)) continue;
+                $candidates[] = ['query' => $query, 'byte' => $byte, 'source' => 'response_block'];
             }
         }
         if (CheckedRegex::matchAll('~<p>\s*(SELECT\s+[\s\S]{1,2000}?\s+FROM\s+[\s\S]{1,2000}?)</p>~iu', $subject, $paragraphs, PREG_OFFSET_CAPTURE) > 0) {
@@ -885,6 +921,55 @@ final class SqlTriageDetector
             return $length === $rawLength ? [$rawStart + $point - $start, 1] : [$rawStart, $rawLength];
         }
         throw new \LogicException('Comparison span is outside the mapped raw artifact.');
+    }
+
+    /** A terse DB ERR label qualifies only with its adjacent, SQL-shaped text. */
+    private function genericDbErrorBlock(string $raw, string $text, array $map, int $at, DetectorRun $run): ?array
+    {
+        // The label starts a rendered line; prose, code assignments and quoted
+        // examples cannot borrow a later query. Shared HTML guards run first.
+        $before = mb_substr($text, 0, $at, 'UTF-8');
+        $newline = strrpos($before, "\n");
+        if (trim($newline === false ? $before : substr($before, $newline + 1)) !== '') return null;
+        $rawAt = $this->rawPosition($map, $at)[0];
+        $tail = mb_substr($raw, $rawAt, 4097, 'UTF-8');
+        $clipped = mb_strlen($tail, 'UTF-8') > 4096;
+        if ($clipped) $tail = mb_substr($tail, 0, 4096, 'UTF-8');
+        // A single raw text region may contain newlines. Never combine a label
+        // in one HTML container with SQL or FROM in another container.
+        $markup = strpos($tail, '<');
+        if ($clipped && $markup === false) $run->limited('sql', 'diagnostic', 'raw', 'context_budget', ['limit' => 4096, 'remaining' => null]);
+        $fragment = $markup === false ? $tail : substr($tail, 0, $markup);
+        if (!CheckedRegex::match('~^DB[ \t]+ERR[ \t]+((?:SELECT|UPDATE|INSERT|DELETE)\b[\s\S]+)$~iu', $fragment, $match)
+            || !$this->actualStatement($match[1])) return null;
+        if (CheckedRegex::match('~^SELECT\b~iu', $match[1])) {
+            CheckedRegex::matchAll('~\bFROM\s+[\w.`"\[\]]{1,180}~iu', $match[1], $froms, PREG_OFFSET_CAPTURE);
+            $relational = false;
+            foreach ($froms[0] as [, $byte]) {
+                if ($this->sqlContext(substr($match[1], 0, $byte)) === 'neutral') { $relational = true; break; }
+            }
+            if (!$relational) return null;
+        }
+        $rawEnd = $rawAt + mb_strlen($fragment, 'UTF-8');
+        $end = $at;
+        $length = mb_strlen($text, 'UTF-8');
+        while ($end < $length && $this->rawPosition($map, $end)[0] < $rawEnd) ++$end;
+        $rawByte = strlen(mb_substr($raw, 0, $rawAt, 'UTF-8'));
+        $after = substr($raw, $rawByte + strlen($fragment));
+        $complete = CheckedRegex::match('~^</(?:div|p|pre|strong|td|h1)\s*>~iu', $after) === 1
+            || ($after === '' && !str_contains(substr($raw, 0, $rawByte), '<'));
+        return [$at, $end, $complete];
+    }
+
+    /** A full diagnostic supplied by the request adds no server error evidence. */
+    private function suppliedGenericDiagnostic(string $block, ObservationInput $input, array $params): bool
+    {
+        $normalize = static fn (string $value): string => trim(CheckedRegex::replace('~\s+~u', ' ', strip_tags(html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8'))));
+        $diagnostic = $normalize($block);
+        $values = array_column($params, 'value');
+        if ($input->payload !== null) $values[] = $input->payload;
+        foreach ($values as $value) if (str_contains($normalize($value), $diagnostic)) return true;
+        return false;
     }
 
     private function block(string $raw, string $text, array $map, int $at, DetectorRun $run): array
