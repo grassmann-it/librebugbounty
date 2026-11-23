@@ -88,15 +88,15 @@ button.review-alert-chip { cursor: pointer; }
 
 [data-review-focus-mode="true"] .review-action-dock { position: absolute; z-index: 6; inset: auto auto 12px 12px; width: 368px; padding: 9px; }
 [data-review-focus-mode="true"] .review-dock-inner { display: flex; flex-direction: column; align-items: stretch; gap: 5px; width: 100%; }
-[data-review-focus-mode="true"] .review-dock-case { display: block; flex: none; }
+[data-review-focus-mode="true"] .review-dock-case { display: none; }
 [data-review-focus-mode="true"] .review-dock-case > strong,
 [data-review-focus-mode="true"] .review-dock-case > span { display: none; }
+[data-review-focus-mode="true"] .review-dock-decisions { flex: none; }
 [data-review-focus-mode="true"] .review-keypad { flex: none; width: 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, 40px); gap: 5px; }
 [data-review-focus-mode="true"] .review-keypad .review-button { font-size: 11px !important; padding: 5px; gap: 5px; border-radius: 7px; }
 [data-review-focus-mode="true"] .review-submit-status { display: none; }
 [data-review-focus-mode="true"] .review-delay-status { margin: 0; }
 [data-review-focus-mode="true"] .review-delay-progress { margin-top: 3px; width: 100%; }
-[data-review-focus-mode="true"] .review-dock-case .review-button-keep { margin: 0; width: 100%; min-height: 32px; }
 
 /* Compact top-right menu: no second footer competing with the image tools. */
 [data-review-focus-mode="true"] .review-navigation { position: static; width: 100%; max-width: none; margin-top: 4px; border: 0; border-top: 1px solid var(--review-edge); border-radius: 0; background: none; box-shadow: none; backdrop-filter: none; }
