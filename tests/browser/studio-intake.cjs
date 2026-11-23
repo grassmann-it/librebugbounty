@@ -156,7 +156,8 @@ async function main() {
           return { focused: document.activeElement === node, top: item.top, bottom: item.bottom, listTop: viewport.top, listBottom: viewport.bottom, clipped: list.scrollHeight > list.clientHeight };
         });
         assert.ok(access.focused, `${width}: history action ${index + 1} is skipped by Tab`);
-        if (access.clipped) assert.ok(access.top >= access.listTop && access.bottom <= Math.min(access.listBottom, height), `${width}: focused history action ${index + 1} is clipped`);
+        // Native focus scrolling rounds fractional CSS coordinates, as the End-key check above does.
+        if (access.clipped) assert.ok(access.top >= access.listTop - 1 && access.bottom <= Math.min(access.listBottom, height) + 1, `${width}: focused history action ${index + 1} is clipped; ${JSON.stringify(access)}`);
       }
       await page.evaluate(() => { document.querySelector('#intake-history-list').scrollTop = 0; window.scrollTo(0, 0); });
     }
