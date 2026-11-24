@@ -223,7 +223,11 @@ final class EmailPreparationServiceTest extends DatabaseTestCase
     {
         $finding = $this->finding(); $this->client->ready = false;
         self::assertFalse($this->preparation->initialState($finding, 'de')['configured']);
-        self::assertSame('gpt-6.2-sol', $this->preparation->preview($finding, 'de')['model']);
+        $preview = $this->preparation->preview($finding, 'de');
+        self::assertSame('gpt-6.2-sol', $preview['model']);
+        self::assertSame(1, substr_count($preview['manualDraft']['body'], self::POC));
+        self::assertFalse($preview['manualDraft']['reviewed']);
+        self::assertSame($preview['fingerprint'], $preview['manualDraft']['fingerprint']);
         self::assertSame(0, $this->client->calls);
     }
 

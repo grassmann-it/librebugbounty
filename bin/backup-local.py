@@ -11,6 +11,7 @@ from pathlib import Path, PurePosixPath
 import shutil
 import signal
 import sqlite3
+import stat
 import subprocess
 import tempfile
 import time
@@ -178,8 +179,70 @@ def online_backup(database, destination):
     destination.chmod(0o600)
 
 
+def reject_receipt_symlinks(path):
+    for part in (path, *path.parents):
+        try:
+            mode = part.lstat().st_mode
+        except FileNotFoundError:
+            continue
+        if stat.S_ISLNK(mode):
+            raise RuntimeError("Gmail receipt paths must not contain symlinks.")
+
+
+def default_receipt_database(path):
+    reject_receipt_symlinks(path)
+    try:
+        path.lstat()
+    except FileNotFoundError:
+        for suffix in ("-wal", "-shm"):
+            try:
+                path.with_name(path.name + suffix).lstat()
+            except FileNotFoundError:
+                continue
+            raise RuntimeError("Gmail receipt SQLite sidecars exist without the database; nothing was omitted.")
+        return None
+    return path
+
+
+def private_receipt_database(path):
+    reject_receipt_symlinks(path)
+    if not path.is_file():
+        raise RuntimeError("Gmail receipt database must exist and be a regular file.")
+    if path.stat().st_mode & 0o077 or path.parent.stat().st_mode & 0o077:
+        raise RuntimeError("Gmail receipts require a private file (0600) and directory (0700).")
+    for suffix in ("-wal", "-shm"):
+        sidecar = path.with_name(path.name + suffix)
+        if sidecar.is_symlink() or (sidecar.exists() and not sidecar.is_file()):
+            raise RuntimeError("Gmail receipt SQLite sidecars must be regular files without symlinks.")
+        if sidecar.exists() and sidecar.stat().st_mode & 0o077:
+            raise RuntimeError("Gmail receipt SQLite sidecars must be private files (0600).")
+
+
+def receipt_manifest(path):
+    private_receipt_database(path)
+    # The host ledger has its own schema. Check SQLite itself without assuming
+    # application tables or rowid tables, and never include mail text in output.
+    with contextlib.closing(open_readonly(path, immutable=True)) as connection:
+        if connection.execute("PRAGMA integrity_check").fetchall() != [("ok",)]:
+            raise RuntimeError("Gmail receipt SQLite integrity check failed.")
+    return {"size": path.stat().st_size, "sha256": digest(path)}
+
+
 def validate(snapshot):
+    if snapshot.is_symlink() or not snapshot.is_dir():
+        raise RuntimeError("Snapshot must be a directory without a symlink.")
+    for name in ("manifest.json", "database.sqlite"):
+        if (snapshot / name).is_symlink() or not (snapshot / name).is_file():
+            raise RuntimeError("Snapshot manifest and database must be regular files without symlinks.")
     manifest = json.loads((snapshot / "manifest.json").read_text())
+    receipts = snapshot / "gmail-drafts.sqlite3"
+    if ("gmail_receipts" in manifest) != (receipts.exists() or receipts.is_symlink()):
+        raise RuntimeError("Gmail receipt database and manifest must be present together.")
+    if any((snapshot / (receipts.name + suffix)).exists()
+           or (snapshot / (receipts.name + suffix)).is_symlink() for suffix in ("-wal", "-shm")):
+        raise RuntimeError("Unexpected Gmail receipt SQLite sidecars; retained for manual inspection.")
+    if "gmail_receipts" in manifest and receipt_manifest(receipts) != manifest["gmail_receipts"]:
+        raise RuntimeError("Gmail receipt database differs from the manifest.")
     if (snapshot / "artifacts").is_symlink() or not (snapshot / "artifacts").is_dir():
         raise RuntimeError("Artifact directory is missing from the snapshot.")
     if digest(snapshot / "database.sqlite") != manifest["database_sha256"]:
@@ -197,9 +260,14 @@ def validate(snapshot):
 
 def restore(snapshot, destination):
     manifest = validate(snapshot)
+    if "gmail_receipts" in manifest:
+        reject_receipt_symlinks(destination)
     destination.mkdir(mode=0o700)  # Explicitly fails if any target already exists.
     shutil.copyfile(snapshot / "database.sqlite", destination / "database.sqlite")
     (destination / "database.sqlite").chmod(0o600)
+    if "gmail_receipts" in manifest:
+        shutil.copyfile(snapshot / "gmail-drafts.sqlite3", destination / "gmail-drafts.sqlite3")
+        (destination / "gmail-drafts.sqlite3").chmod(0o600)
     copy_artifacts(snapshot / "artifacts", destination / "artifacts")
     if "rulepacks" in manifest:
         copy_artifacts(snapshot / "rulepacks", destination / "rulepacks")
@@ -208,11 +276,14 @@ def restore(snapshot, destination):
     return validate(destination)
 
 
-def create_snapshot(database, artifacts, destination, project, offline=False, rulepacks=None):
+def create_snapshot(database, artifacts, destination, project, offline=False, rulepacks=None, gmail_receipts=None):
     if database.is_symlink() or artifacts.is_symlink() or not database.is_file() or not artifacts.is_dir():
         raise RuntimeError("Database and artifacts must exist and must not be symlinks.")
     if destination.resolve().is_relative_to(artifacts.resolve()):
         raise RuntimeError("Backup destination must be outside the artifact directory.")
+    if gmail_receipts is not None:
+        private_receipt_database(gmail_receipts)
+        reject_receipt_symlinks(destination)
     if rulepacks is not None:
         if rulepacks.is_symlink() or not rulepacks.is_dir():
             raise RuntimeError("Rulepack directory must exist and must not be a symlink.")
@@ -229,6 +300,10 @@ def create_snapshot(database, artifacts, destination, project, offline=False, ru
         packs_before = tree_manifest(rulepacks) if rulepacks is not None else None
         source_summary = database_summary(database)
         online_backup(database, staging / "database.sqlite")
+        if gmail_receipts is not None:
+            # Independent online snapshots: the host bridge is not paused by
+            # DDEV, so this is not an atomic transaction across both databases.
+            online_backup(gmail_receipts, staging / "gmail-drafts.sqlite3")
         copy_artifacts(artifacts, staging / "artifacts")
         if rulepacks is not None:
             copy_artifacts(rulepacks, staging / "rulepacks")
@@ -248,6 +323,8 @@ def create_snapshot(database, artifacts, destination, project, offline=False, ru
     }
     if packs_before is not None:
         manifest["rulepacks"] = packs_before
+    if gmail_receipts is not None:
+        manifest["gmail_receipts"] = receipt_manifest(staging / "gmail-drafts.sqlite3")
     (staging / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     (staging / "manifest.json").chmod(0o600)
     # Exercise restoration into a second, independent directory before publishing.
@@ -271,6 +348,7 @@ def snapshot_inventory(destination):
             snapshots.append({"path": path, "created_at": manifest["created_at"],
                               "artifact_files": len(manifest["artifacts"]),
                               "rulepack_files": len(manifest.get("rulepacks", {})),
+                              "gmail_receipt_files": int("gmail_receipts" in manifest),
                               "bytes": sum(entry.stat().st_size for entry in path.iterdir() if entry.is_file())
                               + sum(entry["size"] for entry in manifest["artifacts"].values())
                               + sum(entry["size"] for entry in manifest.get("rulepacks", {}).values())})
@@ -297,11 +375,12 @@ def retention_manifest(path):
     required = {"database.sqlite", "artifacts", "manifest.json"}
     # Older verify runs may have created SQLite sidecars. Never discard a WAL
     # containing data; immutable validation intentionally reads the main DB only.
-    if not required <= names or names - required - {"database.sqlite-wal", "database.sqlite-shm", "rulepacks"}:
+    if not required <= names or names - required - {
+            "database.sqlite-wal", "database.sqlite-shm", "rulepacks", "gmail-drafts.sqlite3"}:
         raise RuntimeError("unexpected or missing snapshot entries; retained for manual inspection")
     if any(entry.is_symlink() for entry in path.iterdir()):
         raise RuntimeError("snapshot symlinks are not supported")
-    for name in names - required - {"rulepacks"}:
+    for name in names - required - {"rulepacks", "gmail-drafts.sqlite3"}:
         if not (path / name).is_file() or (name.endswith("-wal") and (path / name).stat().st_size != 0):
             raise RuntimeError("unexpected SQLite sidecar contents; retained for manual inspection")
     manifest = validate(path)
@@ -346,6 +425,8 @@ def main():
     create.add_argument("--database", type=Path, default=project_root / "storage/database/app.sqlite")
     create.add_argument("--artifacts", type=Path, default=project_root / "storage/artifacts")
     create.add_argument("--rulepacks", type=Path, help="Also snapshot private Cribrum packs, e.g. var/cribrum/packs")
+    create.add_argument("--gmail-receipts", type=Path,
+                        help="Host Gmail ledger (default: storage/gmail-drafts/gmail-drafts.sqlite3 if present)")
     create.add_argument("--destination", type=Path, default=Path.home() / ".local/share/librebugbounty/backups")
     create.add_argument("--offline", action="store_true", help="Assert all host writers are stopped; DDEV must be stopped")
     check = commands.add_parser("verify", help="Validate a previously created snapshot")
@@ -373,8 +454,11 @@ def main():
             print(json.dumps(prune_snapshots(args.destination, args.keep, args.dry_run), indent=2))
             return 0
         if args.action == "create":
+            if args.gmail_receipts is None:
+                args.gmail_receipts = default_receipt_database(
+                    project_root / "storage/gmail-drafts/gmail-drafts.sqlite3")
             snapshot, manifest = create_snapshot(args.database, args.artifacts, args.destination, args.project,
-                                                 args.offline, args.rulepacks)
+                                                 args.offline, args.rulepacks, args.gmail_receipts)
             print(f"Backup and restore validation succeeded: {snapshot}")
         elif args.action == "verify":
             manifest = validate(args.snapshot)
@@ -384,7 +468,9 @@ def main():
             print(f"Restored and verified separate copy: {args.destination}")
         print(json.dumps({"tables": {name: entry["rows"] for name, entry in manifest["database"]["tables"].items()},
                           "artifact_files": len(manifest["artifacts"]),
-                          "rulepack_files": len(manifest.get("rulepacks", {})), "references": manifest["references"]}))
+                          "rulepack_files": len(manifest.get("rulepacks", {})),
+                          "gmail_receipt_files": int("gmail_receipts" in manifest),
+                          "references": manifest["references"]}))
         return 0
     except (RuntimeError, OSError, ValueError, KeyError, TypeError, sqlite3.Error, subprocess.SubprocessError, KeyboardInterrupt) as error:
         print(f"Backup operation failed: {error}", file=__import__("sys").stderr)

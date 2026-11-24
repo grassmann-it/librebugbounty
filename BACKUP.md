@@ -3,6 +3,8 @@
 LibreBugBounty stores its SQLite database and screenshot artifacts separately.
 Back up both together to retain cases, notes, contacts, assessments, and evidence
 history. JSON and ZIP reporting exports do not contain the complete history.
+If the optional Gmail connector is enabled, preserve its private host receipt
+database as well: it records submitted text and remote draft IDs.
 
 The bundled backup tool requires Python 3.11 or newer. Creating a snapshot also
 requires Docker access; list, prune, verify and restore work without Docker.
@@ -18,6 +20,10 @@ The default sources are `storage/database/app.sqlite` and `storage/artifacts`.
 The optional `--rulepacks` argument also includes your private Cribrum pack
 directory. Pass an existing directory, including an empty one; if you do not use
 private packs, omit the argument. Private packs are not discovered automatically.
+The host Gmail receipt database at `storage/gmail-drafts/gmail-drafts.sqlite3`
+is included automatically when present. Use `--gmail-receipts` for a custom
+path. An explicitly supplied missing file, invalid permissions or an unreadable
+receipt database causes an error; it is not silently omitted.
 The command briefly pauses this project's running DDEV containers, creates a
 SQLite snapshot including committed WAL data, and copies the artifact tree.
 Keep any additional host processes that write to those files stopped during
@@ -32,6 +38,7 @@ Each snapshot is written outside the checkout:
   artifacts/
   manifest.json
   rulepacks/          # only when --rulepacks was supplied
+  gmail-drafts.sqlite3 # when the host Gmail receipt database was included
 ```
 
 The manifest records database contents, artifact checksums, and available,
@@ -43,6 +50,8 @@ existing snapshots, and the live database is never restored over.
 When included, private rulepacks have their own file sizes and SHA-256 checksums
 in the manifest and are copied and checked under the same writer pause. Keep
 host pack editors stopped during backup, just like other host writers.
+Stop the Gmail bridge and other host mail writers too. The application and host
+SQLite databases are copied sequentially, without a shared atomic transaction.
 
 Backups have private directory and file permissions. To write somewhere else,
 choose a new directory or an existing private directory with mode `0700`:
@@ -67,7 +76,7 @@ python3 bin/backup-local.py prune --keep 5
 All three commands accept `--destination /absolute/path/to/private-backups`.
 Listing reports verified snapshots newest first, with creation time, artifact
 and rulepack counts and total file bytes (database, manifest, artifacts, optional
-rulepacks and legacy SQLite sidecars when present). Ordering uses the manifest's
+rulepacks, Gmail receipts and legacy SQLite sidecars when present). Ordering uses the manifest's
 parsed `created_at` timestamp, newest first, including fractional seconds and
 timezone offsets. Equal timestamps use descending path order as a stable tie
 breaker. Invalid or timezone-less timestamps are skipped and retained.
@@ -102,6 +111,7 @@ python3 bin/backup-local.py create \
   --database /absolute/path/to/app.sqlite \
   --artifacts /absolute/path/to/artifacts \
   --rulepacks /absolute/path/to/private-cribrum-packs \
+  --gmail-receipts /absolute/path/to/gmail-drafts.sqlite3 \
   --destination /absolute/path/to/private-backups
 ```
 
@@ -129,6 +139,8 @@ Verification checks SQLite integrity, saved table contents, and artifact
 checksums, plus rulepack checksums when present. Older snapshots without the
 optional rulepack manifest remain valid and restore without a `rulepacks/`
 directory. It does not pause or restart DDEV and does not change live data.
+When included, Gmail receipts receive SHA-256, size and SQLite integrity checks.
+Older snapshots without Gmail receipts remain supported.
 Missing references reported in the manifest were already missing when the
 snapshot was created; verification cannot recreate those files.
 
@@ -160,7 +172,7 @@ python3 bin/backup-local.py restore /absolute/path/to/snapshot storage/recovery-
 
 The destination must not exist. The command validates the snapshot, creates
 `database.sqlite`, `artifacts/`, and `manifest.json` inside that new directory,
-plus `rulepacks/` when included, and validates the copy again. It refuses to
+plus `rulepacks/` and `gmail-drafts.sqlite3` when included, and validates the copy again. It refuses to
 overwrite an existing directory, including the application's current storage.
 
 This is also a recovery rehearsal: your running installation keeps using its
@@ -172,6 +184,15 @@ Private packs are restored under the recovery directory, never over the active
 `var/cribrum/packs`. With writers stopped, explicitly copy the recovered packs
 into the intended installation's pack directory if needed. Preserve the verified
 snapshot as the recovery source and keep private pack contents out of Git.
+
+Gmail receipts restore as `gmail-drafts.sqlite3` beside `database.sqlite`, with
+mode `0600` inside the private `0700` recovery directory. With the bridge and
+other writers stopped, explicitly place the recovered host database in its
+configured receipt directory (normally `storage/gmail-drafts`). The restore
+command never overwrites the live bridge database. Preserve both application
+and host receipts; an old snapshot cannot undo newer Gmail drafts. Reconcile
+operations since that snapshot before resuming draft creation. Keep receipts
+and submitted messages out of Git and ordinary cache cleanup.
 
 ### Use the restored copy with DDEV
 

@@ -38,10 +38,24 @@ class BackupTest(unittest.TestCase):
             INSERT INTO screenshot_job VALUES ('captured', 'storage/artifacts/example.png');
         """)
 
-    def snapshot(self, rulepacks=None):
+    def snapshot(self, rulepacks=None, gmail_receipts=None):
         with patch.object(backup, "paused_project", return_value=contextlib.nullcontext()):
             return backup.create_snapshot(self.database, self.artifacts, self.root / "backups", "fixture",
-                                          rulepacks=rulepacks)
+                                          rulepacks=rulepacks, gmail_receipts=gmail_receipts)
+
+    def create_receipts(self, path=None):
+        path = path or self.root / "private-gmail/gmail-drafts.sqlite3"
+        path.parent.mkdir(parents=True, mode=0o700)
+        connection = sqlite3.connect(path)
+        self.addCleanup(connection.close)
+        connection.executescript("""
+            PRAGMA journal_mode=WAL;
+            CREATE TABLE receipt (attempt_id TEXT PRIMARY KEY, state TEXT, body TEXT) WITHOUT ROWID;
+            INSERT INTO receipt VALUES ('fake-attempt', 'unknown', 'Private fixture mail body');
+        """)
+        for suffix in ("", "-wal", "-shm"):
+            Path(str(path) + suffix).chmod(0o600)
+        return path
 
     def test_online_backup_preserves_wal_records_artifacts_and_missing_references(self):
         self.assertTrue(Path(str(self.database) + "-wal").exists())
@@ -53,7 +67,9 @@ class BackupTest(unittest.TestCase):
             self.assertEqual(("Keep the manual note",), connection.execute("SELECT notes FROM finding").fetchone())
         self.assertEqual(b"fixture-image", (restored / "artifacts/example.png").read_bytes())
         self.assertNotIn("rulepacks", manifest)
+        self.assertNotIn("gmail_receipts", manifest)
         self.assertFalse((restored / "rulepacks").exists())
+        self.assertFalse((restored / "gmail-drafts.sqlite3").exists())
         self.assertEqual(0o700, snapshot.stat().st_mode & 0o777)
         self.assertEqual(0o600, (snapshot / "database.sqlite").stat().st_mode & 0o777)
         self.assertEqual(0o600, (snapshot / "artifacts/example.png").stat().st_mode & 0o777)
@@ -125,6 +141,7 @@ class BackupTest(unittest.TestCase):
                      "--artifacts", str(self.artifacts), "--rulepacks", str(packs),
                      "--destination", str(self.root / "backups"), "--offline"]
         with patch.object(sys, "argv", arguments), contextlib.redirect_stdout(output), \
+                patch.object(backup, "__file__", str(self.root / "bin/backup-local.py")), \
                 patch.object(backup.signal, "signal"), patch.object(backup.os, "umask"), \
                 patch.object(backup, "paused_project", return_value=contextlib.nullcontext()):
             self.assertEqual(0, backup.main())
@@ -134,6 +151,200 @@ class BackupTest(unittest.TestCase):
         self.assertEqual(1, snapshots[0]["rulepack_files"])
         self.assertEqual(b"private-cli-pack", (snapshots[0]["path"] / "rulepacks/local.pack").read_bytes())
         self.assertEqual(1, json.loads(output.getvalue().splitlines()[-1])["rulepack_files"])
+
+    def test_gmail_receipts_preserve_wal_restore_privately_and_count_in_retention(self):
+        receipts = self.create_receipts()
+        self.assertGreater(Path(str(receipts) + "-wal").stat().st_size, 0)
+        snapshot, manifest = self.snapshot(gmail_receipts=receipts)
+        saved = snapshot / "gmail-drafts.sqlite3"
+        self.assertEqual({"size": saved.stat().st_size, "sha256": backup.digest(saved)},
+                         manifest["gmail_receipts"])
+        self.assertEqual(0o600, saved.stat().st_mode & 0o777)
+        before = backup.tree_manifest(snapshot)
+        verified = self.cli("verify", snapshot)
+        self.assertEqual(0, verified.returncode, verified.stderr)
+        self.assertEqual(1, json.loads(verified.stdout.splitlines()[-1])["gmail_receipt_files"])
+        self.assertNotIn("Private fixture mail body", verified.stdout)
+        self.assertEqual(before, backup.tree_manifest(snapshot))
+        restored = self.root / "restored-gmail"
+        self.assertEqual(manifest, backup.restore(snapshot, restored))
+        self.assertEqual(0o700, restored.stat().st_mode & 0o777)
+        self.assertEqual(0o600, (restored / "gmail-drafts.sqlite3").stat().st_mode & 0o777)
+        with contextlib.closing(backup.open_readonly(restored / "gmail-drafts.sqlite3", immutable=True)) as connection:
+            self.assertEqual(("fake-attempt", "unknown", "Private fixture mail body"),
+                             connection.execute("SELECT * FROM receipt").fetchone())
+        inventory, skipped = backup.snapshot_inventory(snapshot.parent)
+        self.assertEqual([], skipped)
+        self.assertEqual(1, inventory[0]["gmail_receipt_files"])
+        total = sum(path.stat().st_size for path in snapshot.rglob("*") if path.is_file())
+        self.assertEqual(total, inventory[0]["bytes"])
+        plan = backup.prune_snapshots(snapshot.parent, 0, dry_run=True)
+        self.assertEqual(total, plan["bytes"])
+        self.assertTrue(saved.exists())
+        self.assertEqual([str(snapshot)], backup.prune_snapshots(snapshot.parent, 0)["selected"])
+        self.assertFalse(snapshot.exists())
+        self.assertTrue(receipts.exists())
+
+    def test_create_cli_discovers_default_gmail_receipts_and_honors_explicit_path(self):
+        default = self.root / "storage/gmail-drafts/gmail-drafts.sqlite3"
+        for name in ("absent-default", "present-default", "explicit", "missing-explicit"):
+            with self.subTest(name=name):
+                extra = []
+                if name == "present-default":
+                    self.create_receipts(default)
+                elif name == "explicit":
+                    extra = ["--gmail-receipts", str(self.create_receipts())]
+                elif name == "missing-explicit":
+                    extra = ["--gmail-receipts", str(self.root / "absent.sqlite3")]
+                output, errors = io.StringIO(), io.StringIO()
+                arguments = [backup.__file__, "create", "--database", str(self.database),
+                             "--artifacts", str(self.artifacts), "--destination", str(self.root / name),
+                             "--offline", *extra]
+                with patch.object(sys, "argv", arguments), contextlib.redirect_stdout(output), \
+                        contextlib.redirect_stderr(errors), \
+                        patch.object(backup, "__file__", str(self.root / "bin/backup-local.py")), \
+                        patch.object(backup.signal, "signal"), patch.object(backup.os, "umask"), \
+                        patch.object(backup, "paused_project", return_value=contextlib.nullcontext()):
+                    self.assertEqual(int(name == "missing-explicit"), backup.main(), errors.getvalue())
+                if name == "missing-explicit":
+                    self.assertIn("must exist", errors.getvalue())
+                    self.assertFalse((self.root / name).exists())
+                else:
+                    expected = int(name != "absent-default")
+                    self.assertEqual(expected, json.loads(output.getvalue().splitlines()[-1])["gmail_receipt_files"])
+                    inventory, skipped = backup.snapshot_inventory(self.root / name)
+                    self.assertEqual([], skipped)
+                    self.assertEqual(expected, inventory[0]["gmail_receipt_files"])
+
+    def test_gmail_source_rejects_missing_nonprivate_and_symlink_paths(self):
+        receipts = self.create_receipts()
+        for mode in (0o644, 0o666):
+            receipts.chmod(mode)
+            with self.assertRaisesRegex(RuntimeError, "private file"):
+                self.snapshot(gmail_receipts=receipts)
+        receipts.chmod(0o600)
+        receipts.parent.chmod(0o755)
+        with self.assertRaisesRegex(RuntimeError, "private file"):
+            self.snapshot(gmail_receipts=receipts)
+        receipts.parent.chmod(0o700)
+        link = self.root / "linked.sqlite3"
+        link.symlink_to(receipts)
+        linked_parent = self.root / "linked-directory"
+        linked_parent.symlink_to(receipts.parent, target_is_directory=True)
+        dangling = self.root / "dangling.sqlite3"
+        dangling.symlink_to(self.root / "absent.sqlite3")
+        for path in (link, linked_parent / receipts.name, dangling):
+            with self.subTest(path=path.name), self.assertRaisesRegex(RuntimeError, "symlink"):
+                self.snapshot(gmail_receipts=path)
+        for path in (self.root / "absent.sqlite3", receipts.parent):
+            with self.subTest(path=path.name), self.assertRaisesRegex(RuntimeError, "regular file"):
+                self.snapshot(gmail_receipts=path)
+        self.assertFalse((self.root / "backups").exists())
+
+    def test_gmail_source_rejects_symlink_or_nonprivate_sidecars(self):
+        receipts = self.create_receipts()
+        wal = Path(str(receipts) + "-wal")
+        wal.chmod(0o644)
+        with self.assertRaisesRegex(RuntimeError, "sidecars must be private"):
+            self.snapshot(gmail_receipts=receipts)
+        wal.chmod(0o600)
+        shm = Path(str(receipts) + "-shm")
+        original = shm.with_name("original-shm")
+        shm.rename(original)
+        shm.symlink_to(original)
+        try:
+            with self.assertRaisesRegex(RuntimeError, "sidecars must be regular"):
+                self.snapshot(gmail_receipts=receipts)
+        finally:
+            shm.unlink()
+            original.rename(shm)
+        self.assertFalse((self.root / "backups").exists())
+
+    def test_gmail_receipt_corruption_or_untracked_data_refuses_restore_and_prune(self):
+        receipts = self.create_receipts()
+        for damage in ("bytes", "size", "missing", "untracked", "symlink", "wal", "path", "public"):
+            with self.subTest(damage=damage):
+                snapshot, manifest = self.snapshot(gmail_receipts=receipts)
+                saved = snapshot / "gmail-drafts.sqlite3"
+                if damage == "bytes":
+                    saved.write_bytes(b"broken sqlite")
+                elif damage == "size":
+                    manifest["gmail_receipts"]["size"] += 1
+                elif damage == "missing":
+                    saved.unlink()
+                elif damage == "untracked":
+                    del manifest["gmail_receipts"]
+                elif damage == "symlink":
+                    saved.unlink()
+                    saved.symlink_to(receipts)
+                elif damage == "wal":
+                    (snapshot / "gmail-drafts.sqlite3-wal").write_bytes(b"unaccounted receipt")
+                elif damage == "path":
+                    manifest["gmail_receipts"]["path"] = "../private-gmail/gmail-drafts.sqlite3"
+                elif damage == "public":
+                    saved.chmod(0o644)
+                (snapshot / "manifest.json").write_text(json.dumps(manifest))
+                self.assertEqual(1, self.cli("verify", snapshot).returncode)
+                destination = self.root / ("invalid-gmail-restore-" + damage)
+                self.assertEqual(1, self.cli("restore", snapshot, destination).returncode)
+                self.assertFalse(destination.exists())
+                plan = backup.prune_snapshots(snapshot.parent, 0)
+                self.assertEqual([], plan["selected"])
+                self.assertTrue(snapshot.exists())
+
+    def test_gmail_receipt_integrity_is_checked_even_with_matching_hash(self):
+        snapshot, manifest = self.snapshot(gmail_receipts=self.create_receipts())
+        saved = snapshot / "gmail-drafts.sqlite3"
+        saved.write_bytes(b"not a sqlite database")
+        manifest["gmail_receipts"] = {"size": saved.stat().st_size, "sha256": backup.digest(saved)}
+        (snapshot / "manifest.json").write_text(json.dumps(manifest))
+        self.assertEqual(1, self.cli("verify", snapshot).returncode)
+        self.assertEqual([], backup.prune_snapshots(snapshot.parent, 0)["selected"])
+
+    def test_gmail_restore_and_backup_reject_symlink_destination_parents_before_writing(self):
+        receipts = self.create_receipts()
+        snapshot, _ = self.snapshot(gmail_receipts=receipts)
+        target = self.root / "destination-target"
+        target.mkdir(mode=0o700)
+        link = self.root / "linked-destination"
+        link.symlink_to(target, target_is_directory=True)
+        with self.assertRaisesRegex(RuntimeError, "symlink"):
+            backup.restore(snapshot, link / "restored")
+        with self.assertRaisesRegex(RuntimeError, "symlink"):
+            backup.create_snapshot(self.database, self.artifacts, link / "backups", "fixture",
+                                   gmail_receipts=receipts)
+        self.assertEqual([], list(target.iterdir()))
+
+    def test_create_cli_rejects_dangling_default_receipt_directory(self):
+        storage = self.root / "storage"
+        storage.mkdir()
+        (storage / "gmail-drafts").symlink_to(self.root / "absent-private-directory", target_is_directory=True)
+        output, errors = io.StringIO(), io.StringIO()
+        arguments = [backup.__file__, "create", "--database", str(self.database),
+                     "--artifacts", str(self.artifacts), "--destination", str(self.root / "backups"), "--offline"]
+        with patch.object(sys, "argv", arguments), contextlib.redirect_stdout(output), \
+                contextlib.redirect_stderr(errors), \
+                patch.object(backup, "__file__", str(self.root / "bin/backup-local.py")), \
+                patch.object(backup.signal, "signal"), patch.object(backup.os, "umask"):
+            self.assertEqual(1, backup.main())
+        self.assertIn("symlink", errors.getvalue())
+        self.assertFalse((self.root / "backups").exists())
+
+    def test_default_receipts_do_not_hide_access_errors_or_orphaned_sidecars(self):
+        receipts = self.root / "missing-gmail.sqlite3"
+        with patch.object(Path, "lstat", side_effect=PermissionError("Cannot inspect private receipts")):
+            with self.assertRaisesRegex(PermissionError, "Cannot inspect"):
+                backup.default_receipt_database(receipts)
+        self.assertIsNone(backup.default_receipt_database(receipts))
+        for suffix in ("-wal", "-shm"):
+            with self.subTest(suffix=suffix):
+                sidecar = Path(str(receipts) + suffix)
+                sidecar.write_bytes(b"unaccounted receipt")
+                try:
+                    with self.assertRaisesRegex(RuntimeError, "without the database"):
+                        backup.default_receipt_database(receipts)
+                finally:
+                    sidecar.unlink()
 
     def test_rulepack_corruption_refuses_verify_restore_and_pruning(self):
         packs = self.root / "private-packs"

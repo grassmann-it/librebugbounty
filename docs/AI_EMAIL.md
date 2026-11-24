@@ -1,15 +1,19 @@
-# Prepare an email with OpenAI
+# Prepare an email and save a Gmail draft
 
 Development feature on `feat/2.3.0`; not part of the tagged 2.2.0 release.
 
 Open a case and choose **Prepare email** (**E-Mail vorbereiten**). Select German
 or English, inspect the outgoing data, then explicitly generate a draft. You can
-edit, copy or download the result. The draft exists in the current page until
-you leave or reload it; download text you want to keep.
+edit, copy or download the result, or save it as a Gmail draft when the optional
+connector is configured. The editor exists in the current page until you leave
+or reload it; download text you want to keep locally.
 
-The first version composes one case at a time. It does not send email, create a
-Gmail draft, mark a case as reported, discover contacts or scan a target. A
-selected web reporting route can also receive the generated submission text.
+The first version composes one case at a time. You can start without AI or
+explicitly request an OpenAI introduction. An optional Gmail connection can
+save your reviewed text as a draft. Preparing or saving a draft does not send
+email, mark a case as reported, discover contacts or scan a target. A selected
+web reporting route can receive copied submission text; it cannot create a Gmail
+draft addressed to a website URL.
 
 ## What goes to OpenAI
 
@@ -38,7 +42,8 @@ requests. Never put the key in browser JavaScript or commit it.
 The default model is `gpt-6.2-sol` with medium reasoning. The backend uses
 Symfony HttpClient to call the Responses API directly; no SDK or curl subprocess
 is required in the web request. The API key stays server-side. Without a key,
-local preview and request export remain available.
+local preview, request export and **Start without AI** remain available. The
+Gmail connector does not require an OpenAI key.
 
 Optional server settings are `OPENAI_EMAIL_MODEL` (`gpt-6.2-sol` or
 `gpt-6.2-astra`) and `OPENAI_EMAIL_REASONING` (`low`, `medium`, `high`, `xhigh` or
@@ -88,6 +93,90 @@ does not claim to know them. Check the official [API credits
 guide](https://developers.openai.com/api/docs/guides/chatgpt-api-credits) and your
 API billing settings. If purchased credits remain after free credits run out,
 requests can continue against the purchased balance.
+
+## Save the edited text as a Gmail draft
+
+Review the final recipient, subject, message and optional local signature, then
+select the review checkbox and choose **Save as Gmail draft**. Editing the text
+clears that checkbox. Gmail receives the final edited message, including the
+original PoC and signature; those fields are still excluded from OpenAI input.
+
+The server rechecks the current case and selected email route. It reserves a
+durable attempt before contacting the Gmail adapter. The adapter creates the
+draft and reads that same draft back to verify its recipient, subject, complete
+text and draft status. A create response alone is not a verified success.
+
+An ambiguous result keeps the attempt locked. Check its existing receipt instead
+of creating another draft. Reconciliation reads a known draft ID; it never
+guesses that a timeout means no draft was created. A proven rejection before any
+Gmail write can permit an explicit new attempt after its cause is fixed. If the
+case changes while Gmail is creating the draft, the result can exist remotely
+and be marked stale locally. It is not silently deleted or recreated.
+
+This protects attempts made through this connector, including concurrent tabs
+and lost replies. It is not a full reconciliation of every message, draft or
+external reporting tool in your mailbox. An existing Gmail draft is edited in
+Gmail; this first connector does not update, delete, star or send it.
+
+The optional host adapter in `bin/gmail-draft-bridge.py` reuses an existing
+`report_gen` installation and its OAuth client. It exposes a small local Unix
+socket, not an internet port. In DDEV the socket is accessible through the
+existing project mount; Google credentials and the Python environment remain
+on the host. The bridge and web process must use the same Unix user. Its socket
+directory and private receipts are owner-only. No new OAuth token store is
+created by this integration.
+
+Set `EMAIL_GMAIL_SOCKET` to the socket path as seen by the PHP process and
+`EMAIL_GMAIL_ACCOUNT` to the expected Gmail account. Run the database migration
+for durable attempt receipts before enabling the connector. The adapter's
+`--help` lists its configured host paths and launch options. Do not expose its
+socket or receipt directory through the document root. The existing report-gen
+authentication client is responsible for refreshing its token.
+
+For a host checkout at `/absolute/path/to/librebugbounty`, an example launch is:
+
+```sh
+/absolute/path/to/report-gen/.venv/bin/python -B \
+  /absolute/path/to/librebugbounty/bin/gmail-draft-bridge.py \
+  --socket /absolute/path/to/librebugbounty/var/gmail-bridge/bridge.sock \
+  --report-gen-root /absolute/path/to/report-gen \
+  --account operator@example.invalid \
+  --receipt-dir /absolute/path/to/librebugbounty/storage/gmail-drafts
+```
+
+Replace all paths and the account with your existing installation. For DDEV,
+the corresponding application settings are:
+
+```dotenv
+EMAIL_GMAIL_SOCKET=/var/www/html/var/gmail-bridge/bridge.sock
+EMAIL_GMAIL_ACCOUNT=operator@example.invalid
+```
+
+Run `ddev exec php bin/console doctrine:migrations:migrate --no-interaction`
+before enabling the connector. A user service can supervise the launch command
+with `UMask=0077` and `Restart=on-failure`. Run it as the project owner, not root;
+it checks the connecting process's Unix identity. Starting the service creates
+local storage but makes no Google request. Stop the service before replacing
+its storage or authentication installation.
+
+The socket is replaceable runtime state. The host database
+`storage/gmail-drafts/gmail-drafts.sqlite3` is persistent private data: it
+contains submitted message text and remote IDs needed to prevent duplicate
+attempts. Do not clear it as a cache. The application database separately keeps
+attempt receipts without the message body. The [backup tool](../BACKUP.md)
+automatically includes the host database at this default path; use
+`--gmail-receipts /absolute/path/to/gmail-drafts.sqlite3` for a custom location.
+Keep the bridge and other host writers stopped during backup and recovery.
+Restore writes the host database beside `database.sqlite` in a new directory;
+it does not switch the running bridge. Restoring an old snapshot does not undo
+newer Gmail operations, so reconcile intervening operations before creating
+more drafts.
+
+Only an explicit draft operation uses Gmail. Local status reads and application
+startup do not read the mailbox. The implementation uses the documented
+[draft creation](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.drafts/create)
+and [draft retrieval](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.drafts/get)
+operations; it has no send operation.
 
 ## Skills and MCP
 

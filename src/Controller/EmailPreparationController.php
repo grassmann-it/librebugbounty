@@ -7,6 +7,7 @@ use App\Entity\Finding;
 use App\Repository\FindingRepository;
 use App\Service\EmailPreparationException;
 use App\Service\EmailPreparationService;
+use App\Service\GmailDraftService;
 use App\Service\UiTranslator;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -19,7 +20,7 @@ use Symfony\Component\Uid\Uuid;
 final class EmailPreparationController
 {
     public function __construct(private readonly FindingRepository $findings, private readonly EmailPreparationService $emails,
-        private readonly CsrfTokenManagerInterface $csrf, private readonly UiTranslator $i18n) {}
+        private readonly CsrfTokenManagerInterface $csrf, private readonly UiTranslator $i18n, private readonly GmailDraftService $gmail) {}
 
     #[Route('/findings/{id}/prepare-email', name: 'finding_prepare_email', methods: ['GET'])]
     public function page(string $id, Request $request): Response
@@ -31,6 +32,7 @@ final class EmailPreparationController
         $languageReturnPath = $request->getRequestUri();
         $csrfToken = $this->csrf->getToken('email_prepare_'.$id)->getValue();
         $initialState = $this->emails->initialState($finding, $locale);
+        $initialState['gmail'] = $this->gmail->state($finding);
         if ($initialState['error'] !== null) $initialState['error'] = $this->publicMessage($initialState['code'] ?? '', $initialState['error']);
         ob_start();
         require dirname(__DIR__, 2).'/templates/studio/prepare-email.php';

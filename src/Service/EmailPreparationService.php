@@ -48,7 +48,14 @@ final class EmailPreparationService
     public function preview(Finding $finding, string $language): array
     {
         $context = $this->context($finding, $language);
-        return $this->previewFor($context, $language);
+        $preview = $this->previewFor($context, $language);
+        $draft = $this->render($context, $language, [
+            'subject' => $language === 'de' ? 'Sicherheitsmeldung zu '.$context['host'] : 'Security report for '.$context['host'],
+            'opening' => $language === 'de' ? "Guten Tag,\n\nich möchte Ihnen den folgenden Sicherheitsbefund mitteilen." : "Hello,\n\nI would like to share the following security finding with your team.",
+            'closing' => $language === 'de' ? "Vielen Dank für die Prüfung.\n\nMit freundlichen Grüßen" : "Thank you for reviewing this report.\n\nKind regards",
+        ]);
+        $preview['manualDraft'] = $draft + ['fingerprint' => $preview['fingerprint']];
+        return $preview;
     }
 
     public function generate(Finding $finding, string $language, string $fingerprint): array
@@ -64,6 +71,11 @@ final class EmailPreparationService
         catch (EmailPreparationException) { throw $this->stale(); }
         if (!hash_equals($after['fingerprint'], $fingerprint)) throw $this->stale();
         $this->checkNeutralProse($draft);
+        return $this->render($context, $language, $draft);
+    }
+
+    private function render(array $context, string $language, array $draft): array
+    {
         $paragraphs = [$draft['opening'], ($language === 'de' ? 'Betroffene Website: ' : 'Affected website: ').$context['host']];
         foreach ($context['codes'] as $code) $paragraphs[] = $this->componentText($code, $language);
         $paragraphs[] = ($language === 'de' ? 'Fundstelle / Original-PoC:' : 'Affected location / original PoC:')."\n".$context['poc'];
@@ -71,6 +83,37 @@ final class EmailPreparationService
         return ['subject' => $draft['subject'], 'body' => implode("\n\n", $paragraphs),
             'recipient' => $context['contact']['destination'], 'channel' => $context['contact']['channel'],
             'model' => $this->client->model(), 'language' => $language, 'usage' => $draft['usage'] ?? [], 'reviewed' => false];
+    }
+
+    /** Bind the human-edited, final text to the same reviewed source, without a model call. */
+    public function gmailSubmission(Finding $finding, string $language, string $fingerprint, string $subject, string $body): array
+    {
+        $context = $this->context($finding, $language);
+        $preview = $this->previewFor($context, $language);
+        if (!hash_equals($preview['fingerprint'], $fingerprint)) throw $this->stale();
+        if ($context['contact']['channel'] !== 'email') throw new EmailPreparationException('gmail_form_route', 'The selected reporting route is a form. Use its submission text; do not create an email draft.');
+        if (!filter_var($context['contact']['destination'], FILTER_VALIDATE_EMAIL)) throw new EmailPreparationException('contact_missing', 'Choose a valid reporting email address first.');
+        if ($subject === '' || trim($subject) !== $subject || mb_strlen($subject) > 250 || strlen($subject) > 1024
+            || !mb_check_encoding($subject, 'UTF-8') || preg_match('/[\x00-\x1f\x7f]/u', $subject)
+            || trim($body) === '' || strlen($body) > 65536 || !mb_check_encoding($body, 'UTF-8') || preg_match('/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/u', $body)) {
+            throw new EmailPreparationException('gmail_invalid_text', 'Check the subject and final email text. The subject must be one line and the body at most 64 KiB.', 400);
+        }
+        if (!str_contains($body, $context['poc'])) throw new EmailPreparationException('gmail_poc_missing', 'Keep the complete, unchanged original PoC in the final email text.');
+        $prose = $subject."\n".str_replace($context['poc'], '', $body);
+        if (preg_match('/librebugbounty|\bLBB\b|\b(?:sourceInstanceId|basisRevision|findingId|decisionRevision|workerProof|pocRevision)\b/iu', $prose)
+            || (!in_array('sqli_suspected', $context['codes'], true) && preg_match('/\b(?:dringend\w*|urgent\w*|kritisch\w*|critical)\b/iu', $subject))
+            || (in_array('sqli_suspected', $context['codes'], true) && preg_match('/(?:confirmed|proven|bestätigte|nachgewiesene)\s+SQL[- ]?Injection/iu', $prose))
+            || (in_array('xss_confirmed', $context['codes'], true) && preg_match('/(?:possible|unconfirmed|suspected|mögliche|unbestätigte|vermutete)\s+(?:XSS|cross.site.scripting)/iu', $prose))) {
+            throw new EmailPreparationException('gmail_invalid_claims', 'Remove internal case metadata and preserve the stated certainty of the selected findings.');
+        }
+        return ['caseKey' => hash('sha256', $context['binding'][0]['sourceInstanceId']."\0".$finding->getId()),
+            'fingerprint' => $fingerprint, 'language' => $language, 'recipient' => $context['contact']['destination'], 'subject' => $subject, 'body' => $body];
+    }
+
+    public function draftBasisCurrent(Finding $finding, string $language, string $fingerprint): bool
+    {
+        try { return hash_equals($this->previewFor($this->context($finding, $language), $language)['fingerprint'], $fingerprint); }
+        catch (\Throwable) { return false; }
     }
 
     private function context(Finding $finding, string $language): array

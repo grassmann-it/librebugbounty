@@ -277,8 +277,10 @@ independently of the chart period; reason links open matching Inventory cases.
 
 Case details offer **Prepare email** for a local German or English draft. Review
 the exact outgoing data before starting an OpenAI request, then edit, copy or
-download the result. PoCs and recipients remain local; preparing text does not
-mark a report as sent. Drafts are held only on the current page. See the
+download the result. PoCs and recipients stay out of OpenAI requests; preparing
+text does not mark a report as sent. You can also start without AI. An optional
+Gmail connection stores the final reviewed text as a draft after an explicit
+click. Until downloaded or saved to Gmail, text is held only on the current page. See the
 [AI email guide](docs/AI_EMAIL.md) for server configuration, API credits, scope
 and a direct curl example.
 

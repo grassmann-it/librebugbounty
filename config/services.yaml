@@ -1,6 +1,8 @@
 parameters:
   app.email_model: 'gpt-6.2-sol'
   app.email_reasoning: 'medium'
+  app.email_gmail_socket: ''
+  app.email_gmail_account: ''
   app.cribrum_candidate_directory: ''
   app.cribrum_candidate_mode: 'shadow'
   app.evidence_storage_dir: '%env(resolve:EVIDENCE_STORAGE_DIR)%'
@@ -31,6 +33,15 @@ services:
       - '../src/Service/EmailPreparationException.php'
 
   App\Service\EmailDraftClientInterface: '@App\Service\OpenAiEmailDraftClient'
+  App\Service\GmailDraftGatewayInterface: '@App\Service\UnixSocketGmailDraftGateway'
+
+  App\Service\UnixSocketGmailDraftGateway:
+    arguments:
+      $socketPath: '%env(default:app.email_gmail_socket:EMAIL_GMAIL_SOCKET)%'
+
+  App\Service\GmailDraftService:
+    arguments:
+      $account: '%env(default:app.email_gmail_account:EMAIL_GMAIL_ACCOUNT)%'
 
   # Dedicated untraced, non-retrying transport: credentials and draft data must
   # not be collected by the application's HTTP profiler.

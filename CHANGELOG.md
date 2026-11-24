@@ -8,8 +8,13 @@ repository's tagged commits.
 - Prepare a local DE/EN email draft from a current, eligible case with an explicit
   OpenAI request preview. The first slice keeps recipients and PoCs local, adds
   controlled factual sections, and supports editing, copying and text download.
-  Direct Responses API configuration and a curl example are documented; no
-  email sending, Gmail integration or MCP server is included.
+  Direct Responses API configuration and a curl example are documented. Optional
+  Gmail draft creation uses the final reviewed text, durable attempt receipts
+  and exact readback verification through a local host adapter. Manual drafting
+  remains available without an OpenAI key. No sending or MCP server is included.
+- Local backups include the optional host Gmail receipt database at its default
+  path or through `--gmail-receipts`; verification and restoration preserve its
+  private permissions and duplicate-prevention records.
 - Review preloading is configurable in Settings from 0 to 50 upcoming cases and
   stored screenshots (default 5; 0 disables it). Small batches fill the buffer,
   and each assessment immediately starts replenishing it while saves remain
