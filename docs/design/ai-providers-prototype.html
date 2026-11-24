@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="de" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="Interaktiver Designentwurf für KI-Anbieter, feste Modellwahl und Empfehlungslinks in LibreBugBounty 2.3.0. Keine API-Aufrufe oder gespeicherten Zugangsdaten.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+  <title>KI-Anbieter · LibreBugBounty 2.3.0 · Designentwurf</title>
+  <script>
+    (() => {
+      let preference = 'system';
+      try { preference = localStorage.getItem('lbb-design-230-theme') || 'system'; } catch (_) {}
+      if (!['dark', 'light', 'system'].includes(preference)) preference = 'system';
+      document.documentElement.dataset.preference = preference;
+      document.documentElement.dataset.theme = preference === 'system' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : preference;
+    })();
+  </script>
+  <style>
+    /* Same semantic roles as prototype.html. Standalone design, no product imports. */
+    :root {
+      color-scheme: dark;
+      --ui-bg-canvas: #121416;
+      --ui-bg-panel: #1b1e22;
+      --ui-bg-raised: #24282d;
+      --ui-bg-inset: #15181c;
+      --ui-text-primary: #eef1f4;
+      --ui-text-secondary: #c0c7d0;
+      --ui-text-muted: #a4adb8;
+      --ui-border-subtle: #343a42;
+      --ui-border-control: #7d8793;
+      --ui-accent-solid: #6aa7ff;
+      --ui-accent-hover: #8abbff;
+      --ui-accent-soft: #25344a;
+      --ui-accent-ink: #a3c7ff;
+      --ui-accent-on-solid: #121416;
+      --ui-status-success-ink: #a7efcb;
+      --ui-status-success-surface: #20382d;
+      --ui-status-success-border: #648c76;
+      --ui-status-warning-ink: #e8be72;
+      --ui-status-warning-surface: #352c1d;
+      --ui-status-warning-border: #9b8054;
+      --ui-focus-ring: #8abbff;
+      --ui-radius-sm: 4px;
+      --ui-radius-md: 6px;
+      --ui-radius-lg: 10px;
+      --ui-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --ui-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --ui-bg-canvas: #f3f4f5;
+      --ui-bg-panel: #ffffff;
+      --ui-bg-raised: #eceff2;
+      --ui-bg-inset: #f6f7f8;
+      --ui-text-primary: #20252b;
+      --ui-text-secondary: #46515f;
+      --ui-text-muted: #596675;
+      --ui-border-subtle: #d6dbe1;
+      --ui-border-control: #78828d;
+      --ui-accent-solid: #245dad;
+      --ui-accent-hover: #164b93;
+      --ui-accent-soft: #e7effb;
+      --ui-accent-ink: #245dad;
+      --ui-accent-on-solid: #ffffff;
+      --ui-status-success-ink: #256342;
+      --ui-status-success-surface: #e9f4ed;
+      --ui-status-success-border: #738f7e;
+      --ui-status-warning-ink: #775311;
+      --ui-status-warning-surface: #fff4da;
+      --ui-status-warning-border: #9b824d;
+      --ui-focus-ring: #245dad;
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; background: var(--ui-bg-canvas); color: var(--ui-text-primary); font: 14px/1.5 var(--ui-font-sans); }
+    button, input, select { font: inherit; }
+    button, select, summary { cursor: pointer; }
+    a { color: var(--ui-accent-ink); text-underline-offset: 3px; }
+    button, a, select, summary { -webkit-tap-highlight-color: transparent; }
+    :focus-visible { outline: 3px solid var(--ui-focus-ring); outline-offset: 3px; }
+    button:disabled { color: var(--ui-text-muted); border-color: var(--ui-border-subtle); background: var(--ui-bg-raised); cursor: not-allowed; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 28px; font-weight: 650; line-height: 1.25; letter-spacing: -.7px; }
+    h2 { font-size: 17px; font-weight: 650; line-height: 1.4; letter-spacing: -.2px; }
+    h3 { font-size: 14px; font-weight: 650; line-height: 1.5; }
+    svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto; }
+    code { font: 12px/1.6 var(--ui-font-mono); overflow-wrap: anywhere; }
+    .muted, .meta { color: var(--ui-text-muted); }
+    .meta { font-size: 12px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    .skip-link { position: fixed; z-index: 10; left: 16px; top: -100px; padding: 10px 16px; border-radius: var(--ui-radius-md); background: var(--ui-bg-panel); }
+    .skip-link:focus { top: 12px; }
+    .app-header { display: flex; justify-content: space-between; gap: 24px; align-items: center; min-height: 64px; padding: 12px 32px; border-bottom: 1px solid var(--ui-border-subtle); background: var(--ui-bg-panel); }
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .brand > svg { width: 26px; height: 26px; color: var(--ui-accent-solid); }
+    .brand strong { font-size: 15px; font-weight: 650; letter-spacing: -.3px; }
+    .brand .meta { margin-left: 8px; }
+    .header-tools, .theme-field { display: flex; align-items: center; gap: 12px; }
+    .theme-field { gap: 8px; font-size: 12px; color: var(--ui-text-muted); }
+    .theme-field select { min-height: 36px; padding-block: 4px; }
+    .ui-pill { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 24px; max-width: 100%; padding: 2px 7px; border: 1px solid var(--ui-border-subtle); border-radius: var(--ui-radius-sm); background: var(--ui-bg-raised); color: var(--ui-text-secondary); font-size: 11px; font-weight: 550; line-height: 1.4; }
+    .ui-pill[data-tone="info"] { border-color: var(--ui-accent-solid); background: var(--ui-accent-soft); color: var(--ui-accent-ink); }
+    .ui-pill[data-tone="success"] { border-color: var(--ui-status-success-border); background: var(--ui-status-success-surface); color: var(--ui-status-success-ink); }
+    .ui-pill[data-tone="warning"] { border-color: var(--ui-status-warning-border); background: var(--ui-status-warning-surface); color: var(--ui-status-warning-ink); }
+    .ui-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; max-width: 100%; padding: 8px 12px; border: 1px solid var(--ui-border-control); border-radius: var(--ui-radius-md); background: var(--ui-bg-panel); color: var(--ui-text-primary); font-size: 12px; line-height: 1.5; font-weight: 600; text-align: center; text-decoration: none; }
+    .ui-button:not(:disabled):hover { background: var(--ui-bg-raised); }
+    .ui-button[data-variant="primary"]:not(:disabled) { color: var(--ui-accent-on-solid); background: var(--ui-accent-solid); border-color: var(--ui-accent-solid); }
+    .ui-button[data-variant="primary"]:not(:disabled):hover { background: var(--ui-accent-hover); border-color: var(--ui-accent-hover); }
+    .ui-button[data-variant="quiet"] { background: transparent; border-color: transparent; color: var(--ui-text-secondary); }
+    select { min-height: 40px; width: 100%; min-width: 0; max-width: 100%; padding: 8px 30px 8px 10px; border: 1px solid var(--ui-border-control); border-radius: var(--ui-radius-md); background: var(--ui-bg-inset); color: var(--ui-text-primary); font-size: 13px; }
+    main { width: min(100%, 1320px); margin: 0 auto; padding: 28px 32px 40px; }
+    .breadcrumb { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 12px; color: var(--ui-text-muted); }
+    .breadcrumb a { text-decoration: none; }
+    .page-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 20px; }
+    .page-heading p { color: var(--ui-text-muted); margin-top: 7px; }
+    .demo-note { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 20px; font-size: 12px; color: var(--ui-text-muted); }
+    .demo-note svg { width: 16px; height: 16px; margin-top: 1px; }
+    .support { border: 1px solid var(--ui-accent-solid); border-radius: var(--ui-radius-lg); background: var(--ui-accent-soft); padding: 20px 24px; margin-bottom: 24px; }
+    .support-heading { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 16px; }
+    .support-heading > svg { width: 22px; height: 22px; color: var(--ui-accent-ink); margin-top: 2px; }
+    .support-heading p { margin-top: 4px; color: var(--ui-text-secondary); font-size: 12px; }
+    .support-heading .ui-pill { margin-left: auto; flex: 0 0 auto; }
+    .support-links { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .support-option { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+    .support-option .ui-button { min-height: 44px; }
+    .support-option small { color: var(--ui-text-secondary); font-size: 11px; }
+    .support details { margin-top: 12px; font-size: 12px; color: var(--ui-text-secondary); }
+    summary { width: fit-content; max-width: 100%; padding: 6px 0; }
+    .disclosure-content { margin-top: 8px; line-height: 1.7; }
+    .disclosure-content p + p { margin-top: 6px; }
+    .more-referrals { display: flex; flex-wrap: wrap; gap: 4px 20px; margin-top: 8px; }
+    .more-referrals a { display: inline-flex; align-items: center; min-height: 32px; }
+    .setup-layout { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+    .provider-area, .configuration { min-width: 0; }
+    .section-title { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .step { display: inline-flex; justify-content: center; align-items: center; width: 26px; height: 26px; flex: 0 0 auto; border: 1px solid var(--ui-border-control); border-radius: 50%; color: var(--ui-text-secondary); font-size: 12px; font-weight: 600; }
+    .section-title .ui-pill { margin-left: auto; }
+    .mode-switch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; background: var(--ui-bg-inset); border: 1px solid var(--ui-border-subtle); border-radius: var(--ui-radius-md); }
+    .mode-switch button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 8px; border: 1px solid transparent; border-radius: var(--ui-radius-sm); background: transparent; color: var(--ui-text-muted); font-size: 13px; font-weight: 600; }
+    .mode-switch button[aria-pressed="true"] { color: var(--ui-accent-ink); background: var(--ui-accent-soft); border-color: var(--ui-accent-solid); }
+    .mode-description { margin: 10px 0 16px; min-height: 36px; font-size: 12px; color: var(--ui-text-muted); }
+    .provider-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .provider-choice { display: flex; flex-direction: column; min-width: 0; }
+    .provider-card { display: flex; flex-direction: column; align-items: stretch; flex: 1; gap: 9px; min-width: 0; min-height: 108px; padding: 14px; border: 1px solid var(--ui-border-control); border-radius: var(--ui-radius-md); background: var(--ui-bg-panel); color: var(--ui-text-primary); text-align: left; }
+    .provider-card:hover { background: var(--ui-bg-raised); }
+    .provider-card[aria-pressed="true"] { border-color: var(--ui-accent-solid); outline: 1px solid var(--ui-accent-solid); outline-offset: -2px; background: var(--ui-accent-soft); }
+    .provider-card:focus-visible { outline: 3px solid var(--ui-focus-ring); outline-offset: 3px; }
+    .provider-card-top { display: flex; align-items: center; gap: 10px; }
+    .provider-symbol { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex: 0 0 auto; background: var(--ui-bg-raised); border: 1px solid var(--ui-border-subtle); border-radius: var(--ui-radius-md); color: var(--ui-text-secondary); font: 600 12px/1 var(--ui-font-mono); }
+    .provider-name { font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
+    .selection-mark { margin-left: auto; color: var(--ui-accent-ink); flex: 0 0 auto; font-size: 16px; }
+    .provider-detail { color: var(--ui-text-muted); font-size: 12px; line-height: 1.45; }
+    .provider-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin-top: auto; }
+    .provider-tags .ui-pill { min-height: 22px; font-size: 10px; padding-inline: 6px; }
+    .provider-footer { margin-top: 14px; color: var(--ui-text-muted); font-size: 12px; }
+    .provider-footer a { display: inline-flex; align-items: center; min-height: 32px; }
+    .mobile-configure { display: none; }
+    .configuration { border: 1px solid var(--ui-border-subtle); border-radius: var(--ui-radius-lg); background: var(--ui-bg-panel); overflow: clip; }
+    .configuration-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--ui-border-subtle); }
+    .configuration-header .section-title { margin-bottom: 12px; }
+    .configuration-identity { display: flex; align-items: center; gap: 10px; }
+    .configuration-identity h3 { font-size: 18px; }
+    .configuration-identity .ui-pill { margin-left: auto; }
+    .configuration-header .meta { margin-top: 5px; }
+    .configuration-body { display: flex; flex-direction: column; gap: 20px; padding: 20px 24px; }
+    .signup { background: var(--ui-accent-soft); border: 1px solid var(--ui-accent-solid); border-radius: var(--ui-radius-md); padding: 14px; }
+    .signup-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+    .signup p { color: var(--ui-text-secondary); font-size: 12px; }
+    .signup .ui-button { width: 100%; margin-top: 12px; min-height: 44px; }
+    .signup-links { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; font-size: 11px; }
+    .signup-links a { display: inline-flex; align-items: center; min-height: 32px; }
+    .setting-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+    .setting-row p { margin-top: 3px; font-size: 12px; color: var(--ui-text-muted); }
+    .setting-row .ui-button { flex: 0 0 auto; }
+    .field { min-width: 0; }
+    .field > label, .field-label { display: block; margin-bottom: 7px; font-size: 12px; font-weight: 650; }
+    .field-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 7px; }
+    .field-heading label { font-size: 12px; font-weight: 650; }
+    .field-heading button { min-height: 32px; padding: 4px 7px; font-size: 11px; }
+    .model-description { margin-top: 6px; font-size: 12px; color: var(--ui-text-muted); }
+    .model-id { display: block; padding: 6px 9px; margin-top: 8px; border: 1px solid var(--ui-border-subtle); border-radius: var(--ui-radius-sm); background: var(--ui-bg-inset); color: var(--ui-text-secondary); }
+    .ui-notice { padding: 12px 14px; border: 1px solid var(--ui-status-warning-border); border-radius: var(--ui-radius-md); background: var(--ui-status-warning-surface); color: var(--ui-status-warning-ink); font-size: 12px; }
+    .ui-notice p + p { margin-top: 4px; }
+    .ui-notice[data-tone="success"] { border-color: var(--ui-status-success-border); background: var(--ui-status-success-surface); color: var(--ui-status-success-ink); }
+    .effort-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+    .profile-value { display: flex; align-items: center; min-height: 40px; padding: 8px 10px; border: 1px solid var(--ui-border-subtle); border-radius: var(--ui-radius-md); background: var(--ui-bg-inset); font-size: 12px; }
+    .configuration-footer { border-top: 1px solid var(--ui-border-subtle); background: var(--ui-bg-inset); padding: 16px 24px; }
+    .configuration-footer .ui-button { width: 100%; min-height: 44px; }
+    .configuration-footer p { margin-top: 7px; color: var(--ui-text-muted); font-size: 11px; }
+    .demo-controls { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--ui-border-subtle); font-size: 12px; color: var(--ui-text-muted); }
+    .demo-controls .setting-row { align-items: flex-start; margin-top: 8px; }
+    .check-label { display: flex; align-items: center; gap: 8px; min-height: 40px; color: var(--ui-text-secondary); }
+    input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--ui-accent-solid); flex: 0 0 auto; }
+    .saved-preview { margin-top: 24px; }
+    .saved-preview h2 { font-size: 15px; }
+    .saved-preview p { overflow-wrap: anywhere; }
+    .page-footer { margin-top: 28px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 24px; font-size: 11px; color: var(--ui-text-muted); }
+    .page-footer a { display: inline-flex; align-items: center; min-height: 32px; }
+    .toast { position: fixed; z-index: 5; bottom: 20px; left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); display: flex; align-items: center; gap: 14px; padding: 12px 16px; border: 1px solid var(--ui-border-control); border-radius: var(--ui-radius-md); background: var(--ui-bg-panel); color: var(--ui-text-primary); box-shadow: 0 8px 30px #0003; font-size: 12px; }
+    .toast button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex: 0 0 auto; background: transparent; color: var(--ui-text-secondary); border: 1px solid var(--ui-border-subtle); border-radius: var(--ui-radius-sm); }
+    @media (max-width: 1090px) {
+      .setup-layout { gap: 20px; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); }
+      .provider-grid { grid-template-columns: minmax(0, 1fr); }
+      .provider-card { min-height: 88px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 8px; padding: 12px 14px; }
+      .provider-card-top { grid-column: 1 / -1; }
+      .provider-detail { grid-column: 1 / -1; }
+      .provider-tags { grid-column: 1 / -1; }
+      .configuration-header, .configuration-body { padding-inline: 20px; }
+      .configuration-footer { padding-inline: 20px; }
+      .setting-row { flex-wrap: wrap; gap: 10px; }
+    }
+    @media (max-width: 760px) {
+      main { padding: 24px 20px 32px; }
+      .app-header { padding-inline: 20px; gap: 12px; }
+      .brand .meta, .header-tools > .ui-pill { display: none; }
+      .setup-layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+      .provider-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .provider-card { display: flex; min-height: 120px; }
+      .mode-description { min-height: 0; }
+      .page-heading { align-items: flex-start; gap: 16px; }
+      .page-heading > .ui-pill { display: none; }
+      .support { padding: 16px; }
+      .support-links { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+      .support-option { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .9fr); align-items: center; gap: 12px; }
+      .support-heading .ui-pill { display: none; }
+      .setting-row { flex-wrap: nowrap; }
+      .provider-footer { margin-top: 10px; }
+      .mobile-configure { display: inline-flex; width: 100%; margin: 6px 0 0; }
+    }
+    @media (max-width: 430px) {
+      body { font-size: 13px; }
+      h1 { font-size: 25px; }
+      .app-header { flex-wrap: wrap; padding: 12px 16px; }
+      .header-tools { margin-left: auto; }
+      .brand { gap: 8px; }
+      .brand strong { font-size: 14px; }
+      .brand > svg { width: 22px; height: 22px; }
+      .theme-field { gap: 5px; }
+      .theme-field > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+      .theme-field select { width: 95px; min-height: 36px; padding: 5px 20px 5px 7px; font-size: 12px; }
+      main { padding: 20px 16px 32px; }
+      .support-option { display: flex; align-items: stretch; gap: 5px; }
+      .support-heading { gap: 8px; }
+      .support-heading > svg { width: 18px; height: 18px; }
+      .provider-grid { gap: 8px; }
+      .provider-card { padding: 12px 10px; gap: 8px; }
+      .provider-card-top { gap: 7px; flex-wrap: wrap; }
+      .provider-symbol { width: 26px; height: 26px; font-size: 11px; }
+      .provider-name { flex-basis: calc(100% - 35px); font-size: 12px; }
+      .selection-mark { display: none; }
+      .provider-detail { font-size: 11px; }
+      .configuration-header, .configuration-body, .configuration-footer { padding-inline: 16px; }
+      .configuration-identity { flex-wrap: wrap; gap: 8px; }
+      .configuration-identity h3 { font-size: 16px; }
+      .setting-row { flex-wrap: wrap; }
+      .setting-row .ui-button { width: 100%; }
+      .field-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
+      .field-heading button { padding-left: 0; }
+      .effort-row { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+      .ui-button, .mode-switch button { min-height: 44px; }
+      .demo-controls .setting-row .ui-button { width: auto; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+    @media (forced-colors: active) {
+      .provider-card[aria-pressed="true"], .mode-switch button[aria-pressed="true"] { border: 2px solid Highlight; outline: none; }
+      .ui-pill { border-color: CanvasText; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Zum Inhalt</a>
+  <header class="app-header">
+    <div class="brand">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 2 9 5v10l-9 5-9-5V7zM8 8v8m4-11v14m4-11v8M5 10h14M5 14h14"/></svg>
+      <div><strong>LibreBugBounty</strong><span class="meta">2.3.0</span></div>
+    </div>
+    <div class="header-tools">
+      <span class="ui-pill">Designentwurf</span>
+      <label class="theme-field"><span>Darstellung</span><select id="theme"><option value="system">System</option><option value="dark">Dark</option><option value="light">Light</option></select></label>
+    </div>
+  </header>
+  <main id="main" tabindex="-1">
+    <nav class="breadcrumb" aria-label="Orientierung"><a href="prototype.html">Designübersicht</a><span aria-hidden="true">/</span><span>KI-Anbieter</span></nav>
+    <div class="page-heading">
+      <div><h1>Dein Modell. Deine Verbindung.</h1><p>Wähle, womit du E-Mails vorbereitest. Anbieter und Modell bleiben deine Entscheidung.</p></div>
+      <span class="ui-pill" data-tone="info">Bevorzugt: Kimi K3</span>
+    </div>
+    <p class="demo-note"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>Interaktive Vorschau: Modellkataloge und Verbindungen sind Beispieldaten. Keine API-Aufrufe, keine Zugangsdaten. Externe Links öffnen erst durch Anklicken.</span></p>
+
+    <section class="support" aria-labelledby="support-title">
+      <div class="support-heading">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>
+        <div><h2 id="support-title">Neu anmelden &amp; LibreBugBounty unterstützen</h2><p>Nutze einen Empfehlungslink. Der Maintainer kann bei einer qualifizierten Anmeldung oder Buchung eine Prämie erhalten.</p></div>
+        <span class="ui-pill" data-tone="info">Referral</span>
+      </div>
+      <div class="support-links">
+        <div class="support-option"><a class="ui-button" data-variant="primary" href="https://synthetic.new/?referral=TteV9RBa" target="_blank" rel="sponsored noopener noreferrer">Synthetic · Empfehlungslink ↗</a><small>Angebot und Modellzugang beim Anbieter prüfen.</small></div>
+        <div class="support-option"><a class="ui-button" data-variant="primary" href="https://nano-gpt.com/r/cJTE7kJm" target="_blank" rel="sponsored noopener noreferrer">NanoGPT · Empfehlungslink ↗</a><small>Anbindung für LibreBugBounty noch nicht geprüft.</small></div>
+        <div class="support-option"><a class="ui-button" data-variant="primary" href="https://z.ai/subscribe?ic=DZKB87ELPY" target="_blank" rel="sponsored noopener noreferrer">Z.ai · GLM Coding ↗</a><small>Empfehlungslink zum Coding-Abo. API-Zugang getrennt prüfen.</small></div>
+      </div>
+      <details id="referral-disclosure"><summary>Weitere Empfehlungslinks &amp; was dabei gilt</summary><div class="disclosure-content">
+        <p>Die Links wurden vom Maintainer bereitgestellt. Aktuelle Prämien und Zuordnung wurden hier nicht geprüft; es gibt kein Bonus- oder Rabattversprechen. Ein Abo allein bestätigt weder ein bestimmtes Modell noch API-Zugriff.</p>
+        <div class="more-referrals">
+          <a href="https://www.kimi.ai/activities/en/invite/share?scenario=subscribe&amp;from=share_poster&amp;invitation_code=EXNE59" target="_blank" rel="sponsored noopener noreferrer">Kimi-Mitgliedschaft ↗</a>
+          <a href="https://venice.ai/chat?ref=oTNWrc" target="_blank" rel="sponsored noopener noreferrer">Venice ↗</a>
+          <a href="https://platform.xiaomimimo.com?ref=6BLV24" target="_blank" rel="sponsored noopener noreferrer">Xiaomi MiMo ↗</a>
+        </div>
+        <p>Kimi: Mitgliedschaft, kein belegter API-Zugang. Venice und MiMo: Anbindung offen. Vorhandene Konten kannst du unabhängig davon einrichten; ihre Verbindung fügt keinen Empfehlungslink hinzu.</p>
+      </div></details>
+    </section>
+
+    <div class="setup-layout">
+      <section class="provider-area" aria-labelledby="provider-title">
+        <div class="section-title"><span class="step" aria-hidden="true">1</span><h2 id="provider-title">Verbindung wählen</h2></div>
+        <div class="mode-switch" role="group" aria-label="Verbindungsart">
+          <button type="button" data-mode="api" aria-pressed="true"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m8 7-5 5 5 5m8-10 5 5-5 5m-3-14-2 18"/></svg>Direkte API</button>
+          <button type="button" data-mode="cli" aria-pressed="false"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3m6 0h4"/></svg>Lokale CLI</button>
+        </div>
+        <p class="mode-description" id="mode-description">Verbindung über einen API-Schlüssel. Der Produktstand unterstützt OpenAI; weitere Adapter sind geplant.</p>
+        <div class="provider-grid" id="provider-grid" role="group" aria-label="API-Anbieter"></div>
+        <p class="provider-footer">Reihenfolge zeigt Einrichtungsoptionen, keine Bewertung der Modellqualität.<br><a href="2.3.0-ai-providers-and-referrals.md">Anbindungen &amp; Quellen im Entwurf ↗</a></p>
+      </section>
+
+      <section class="configuration" aria-labelledby="configuration-title">
+        <div class="configuration-header">
+          <div class="section-title"><span class="step" aria-hidden="true">2</span><h2 id="configuration-title">Modell festlegen</h2></div>
+          <div class="configuration-identity"><span class="provider-symbol" id="current-symbol" aria-hidden="true">CC</span><h3 id="current-provider">Command Code</h3><span class="ui-pill" id="adapter-status">Adapter geplant</span></div>
+          <p class="meta" id="provider-context">Direkte API · Einrichtung im Produkt noch nicht verfügbar</p>
+        </div>
+        <div class="configuration-body">
+          <div class="signup" id="signup">
+            <div class="signup-heading"><h3 id="signup-title">Noch kein Konto?</h3><span class="ui-pill" data-tone="info">Referral</span></div>
+            <p id="signup-description">Starte über einen Empfehlungslink und unterstütze die Weiterentwicklung.</p>
+            <a class="ui-button" data-variant="primary" id="referral-link" target="_blank" rel="sponsored noopener noreferrer" hidden>Mit Empfehlungslink starten ↗</a>
+            <button class="ui-button" id="referral-pending" disabled>Empfehlungslink folgt</button>
+            <div class="signup-links"><a id="direct-link" target="_blank" rel="noopener noreferrer">Direkt zum Anbieter ↗</a><span class="muted" id="signup-scope">Noch kein persönlicher Link hinterlegt.</span></div>
+          </div>
+          <div class="setting-row">
+            <div><h3 id="connection-title">Verbindung</h3><p id="connection-status">Demo: noch nicht verbunden</p></div>
+            <button type="button" class="ui-button" id="simulate-connection">Verbindung simulieren</button>
+          </div>
+          <div class="field">
+            <div class="field-heading"><label for="model">Modell</label><button type="button" class="ui-button" data-variant="quiet" id="refresh-models"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3A7 7 0 0 0 17.9 17"/></svg>Modellliste aktualisieren</button></div>
+            <select id="model" aria-describedby="catalog-source model-id model-description"></select>
+            <p class="model-description" id="catalog-source">Beispielkatalog · kein Livezugriff</p>
+            <code class="model-id" id="model-id">moonshotai/Kimi-K3</code>
+            <p class="model-description" id="model-description">Exakte Modell-ID. Kein automatischer Wechsel zu K3.1.</p>
+          </div>
+          <div class="ui-notice" id="missing-model" role="status" hidden><p><strong>Kimi K3 nicht verfügbar</strong></p><p id="missing-model-detail">Wähle einen anderen Anbieter oder ausdrücklich ein anderes Modell. K3.1 wird nicht automatisch gewählt.</p><button type="button" class="ui-button" id="simulate-model-access" style="margin-top: 10px" hidden>Modellzugang simulieren</button></div>
+          <div class="effort-row">
+            <div class="field"><label for="effort">Reasoning</label><select id="effort" aria-describedby="effort-hint"></select><p class="model-description" id="effort-hint">Nur Optionen dieses Modells.</p></div>
+            <div class="field"><span class="field-label">Schreibprofil</span><div class="profile-value">Responsible Disclosure · v1</div><p class="model-description">Sprache wählst du im Fall.</p></div>
+          </div>
+        </div>
+        <div class="configuration-footer">
+          <button type="button" class="ui-button" data-variant="primary" id="apply-selection" disabled>Auswahl in Vorschau übernehmen</button>
+          <p id="apply-hint">Zuerst eine Verbindung simulieren. Die Auswahl gilt nur für diesen Tab.</p>
+        </div>
+      </section>
+    </div>
+
+    <section class="saved-preview ui-notice" data-tone="success" id="saved-preview" aria-labelledby="saved-title" hidden><h2 id="saved-title">Auswahl in dieser Vorschau übernommen</h2><p id="saved-value"></p><p>Keine Produkteinstellung geändert, kein Modell aufgerufen. Beim Neuladen wird diese Auswahl zurückgesetzt.</p></section>
+    <details class="demo-controls" id="demo-controls"><summary>Demozustände ausprobieren</summary>
+      <div class="setting-row"><div><label class="check-label"><input type="checkbox" id="simulate-missing">Kimi K3 fehlt beim nächsten Katalogabgleich</label><p>Die angeheftete Modell-ID bleibt erhalten. Die Aktion wird gesperrt, bis du dich bewusst entscheidest.</p></div><button type="button" class="ui-button" id="reset-demo">Demo zurücksetzen</button></div>
+      <p class="disclosure-content">Installationen, Kontozugang und Modellverfügbarkeit werden hier nicht geprüft. „Aktualisieren“ simuliert eine Antwort mit Beispieldaten. Nur die Theme-Präferenz wird im Browser gespeichert.</p>
+    </details>
+    <footer class="page-footer"><span>LibreBugBounty 2.3.0 · Designentwurf · 24. November 2026</span><a href="2.3.0-design-system.md">Gemeinsame Designsprache ↗</a></footer>
+  </main>
+  <div class="toast" id="toast" hidden><span id="toast-message" role="status" aria-live="polite"></span><button type="button" id="dismiss-toast" aria-label="Meldung schließen">×</button></div>
+  <noscript><p style="padding: 24px">Für die interaktive Vorschau wird JavaScript benötigt. Die Empfehlungslinks oben bleiben nutzbar.</p></noscript>
+  <script>
+    (() => {
+      'use strict';
+      // Public documentation informs examples, not runtime access or account eligibility.
+      // Referral URLs are maintainer-supplied from LAIN docs/provider-referrals.md.
+      // No network calls, CLI execution, API keys, real cases or preference persistence.
+      const models = {
+        command: [
+          { id: 'moonshotai/Kimi-K3', name: 'Kimi K3', preferred: true },
+          { id: 'stepfun/Step-5-Preview', name: 'Step 5 Preview' },
+          { id: 'zai-org/GLM-5.3', name: 'GLM 5.3' }
+        ],
+        synthetic: [
+          { id: 'hf:moonshotai/Kimi-K3', name: 'Kimi K3 · Zugang ungeprüft', preferred: true, accessUnverified: true },
+          { id: 'hf:moonshotai/Kimi-K3.1-Pro', name: 'Kimi K3.1 Pro · anderes Modell' },
+          { id: 'hf:zai-org/GLM-5.3', name: 'GLM 5.3 · Beta' }
+        ],
+        kimi: [{ id: 'kimi-k3', name: 'Kimi K3', preferred: true, efforts: ['low', 'high', 'max'] }],
+        openai: [
+          { id: 'gpt-6.2-sol', name: 'GPT-6.2 Sol', efforts: ['low', 'medium', 'high', 'xhigh', 'max'] },
+          { id: 'gpt-6.2-astra', name: 'GPT-6.2 Astra', efforts: ['low', 'medium', 'high', 'xhigh', 'max'] }
+        ],
+        codex: [
+          { id: 'gpt-6.1-sol', name: 'GPT-6.1 Sol', efforts: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'] },
+          { id: 'gpt-6-astra', name: 'GPT-6 Astra', efforts: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'] }
+        ],
+        stepfun: [{ id: 'step-5-preview', name: 'Step 5 Preview', efforts: ['low', 'medium', 'high'] }],
+        zai: [{ id: 'glm-5.3', name: 'GLM 5.3' }],
+        kilo: [], anthropic: [], opencode: [], claude: []
+      };
+      const referrals = {
+        synthetic: { url: 'https://synthetic.new/?referral=TteV9RBa', scope: 'Angebot und Modellzugang prüfen.', description: 'Mit deiner Anmeldung kannst du die Weiterentwicklung unterstützen. Bedingungen und Modellzugang bestimmt Synthetic.' },
+        zai: { url: 'https://z.ai/subscribe?ic=DZKB87ELPY', scope: 'GLM Coding-Abo · API getrennt prüfen.', description: 'Empfehlungslink zum GLM Coding-Abo. Er bestätigt keinen Zugang zur hier gezeigten direkten API.' },
+        kimi: { url: 'https://www.kimi.ai/activities/en/invite/share?scenario=subscribe&from=share_poster&invitation_code=EXNE59', scope: 'Mitgliedschaft · kein belegter API-Zugang.', description: 'Unterstützen über eine Kimi-Mitgliedschaft. Dieser Link ist kein Angebot für die Kimi-API.' }
+      };
+      const providers = {
+        api: [
+          { id: 'synthetic', name: 'Synthetic', symbol: 'Sy', description: 'Kimi K3 · Modellzugang ungeprüft', site: 'https://synthetic.new/', catalog: 'synthetic', referral: 'synthetic' },
+          { id: 'zai', name: 'Z.ai', symbol: 'Z', description: 'GLM 5.3 als Beispiel', site: 'https://z.ai/', catalog: 'zai', referral: 'zai' },
+          { id: 'command', name: 'Command Code', symbol: 'CC', description: 'Kimi K3, Step 5, GLM 5.3', site: 'https://commandcode.ai/', catalog: 'command', pendingReferral: true },
+          { id: 'kilo', name: 'Kilo', symbol: 'Ki', description: 'Gateway-Katalog noch abgleichen', site: 'https://kilo.ai/', catalog: 'kilo', pendingReferral: true },
+          { id: 'kimi', name: 'Kimi', symbol: 'K', description: 'Kimi K3 direkt', site: 'https://www.kimi.ai/', catalog: 'kimi', referral: 'kimi' },
+          { id: 'openai', name: 'OpenAI', symbol: 'O', description: 'Sol und Astra als Beispiele', site: 'https://developers.openai.com/', catalog: 'openai', implemented: true },
+          { id: 'anthropic', name: 'Anthropic', symbol: 'A', description: 'Katalog noch nicht eingebunden', site: null, catalog: 'anthropic' },
+          { id: 'stepfun', name: 'StepFun', symbol: 'S', description: 'Step 5 Preview als Beispiel', site: 'https://platform.stepfun.ai/', catalog: 'stepfun' }
+        ],
+        cli: [
+          { id: 'opencode', name: 'OpenCode', symbol: '>_', description: 'Demo: installiert · Konto offen', site: null, catalog: 'opencode', installed: true },
+          { id: 'codex', name: 'Codex CLI', symbol: '>_', description: 'Demo: installiert · Konto offen', site: 'https://developers.openai.com/codex/', catalog: 'codex', installed: true },
+          { id: 'claude', name: 'Claude Code', symbol: '>_', description: 'Demo: nicht installiert', site: null, catalog: 'claude', installed: false },
+          { id: 'command-cli', name: 'Command Code', symbol: '>_', description: 'Demo: nicht installiert', site: 'https://commandcode.ai/', catalog: 'command', installed: false, pendingReferral: true }
+        ]
+      };
+      const $ = (id) => document.getElementById(id);
+      const media = matchMedia('(prefers-color-scheme: dark)');
+      const theme = $('theme');
+      theme.value = document.documentElement.dataset.preference;
+      function resolveTheme() { document.documentElement.dataset.theme = theme.value === 'system' ? (media.matches ? 'dark' : 'light') : theme.value; }
+      theme.addEventListener('change', () => { document.documentElement.dataset.preference = theme.value; resolveTheme(); try { localStorage.setItem('lbb-design-230-theme', theme.value); } catch (_) {} });
+      media.addEventListener('change', resolveTheme);
+
+      let mode = 'api';
+      let providerId = 'command';
+      let catalogMissing = false;
+      let refreshTimer;
+      let toastTimer;
+      let toastReturnFocus;
+      let refreshing = false;
+      const selected = new Map();
+      const connected = new Set();
+      const installed = new Set();
+      const modelAccess = new Set();
+      const effortChoice = new Map();
+      const lastProvider = { api: 'command', cli: 'opencode' };
+      const key = () => `${mode}:${providerId}`;
+      const provider = () => providers[mode].find((entry) => entry.id === providerId);
+      const catalog = () => models[provider().catalog] || [];
+      const isInstalled = () => mode === 'api' || provider().installed || installed.has(key());
+      const currentModels = () => catalog().filter((entry) => !(catalogMissing && entry.preferred));
+      function getSelected() {
+        if (!selected.has(key())) selected.set(key(), catalog().find((entry) => entry.preferred)?.id || '');
+        return selected.get(key());
+      }
+      function selectedModel() { return currentModels().find((entry) => entry.id === getSelected()); }
+      function showToast(message) {
+        clearTimeout(toastTimer);
+        if (!$('toast').contains(document.activeElement)) toastReturnFocus = document.activeElement;
+        $('toast-message').textContent = message;
+        $('toast').hidden = false;
+        toastTimer = setTimeout(() => { if (!$('toast').contains(document.activeElement)) $('toast').hidden = true; }, 6000);
+      }
+      $('dismiss-toast').addEventListener('click', () => {
+        $('toast').hidden = true;
+        const target = toastReturnFocus?.isConnected && !toastReturnFocus.disabled ? toastReturnFocus : $('simulate-connection');
+        target.focus();
+      });
+      function element(tag, className, content) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (content !== undefined) node.textContent = content;
+        return node;
+      }
+      function pill(label, tone) {
+        const node = element('span', 'ui-pill', label);
+        if (tone) node.dataset.tone = tone;
+        return node;
+      }
+      function openConfiguration() {
+        $('configuration-title').tabIndex = -1;
+        $('configuration-title').focus();
+        $('configuration-title').scrollIntoView({ block: 'start', behavior: 'auto' });
+      }
+      function renderProviders() {
+        const grid = $('provider-grid');
+        grid.replaceChildren();
+        grid.setAttribute('aria-label', mode === 'api' ? 'API-Anbieter' : 'Lokale CLIs');
+        providers[mode].forEach((entry) => {
+          const card = element('button', 'provider-card');
+          card.type = 'button'; card.dataset.provider = entry.id;
+          card.setAttribute('aria-pressed', String(entry.id === providerId));
+          card.setAttribute('aria-controls', 'configuration-title');
+          const top = element('span', 'provider-card-top');
+          const symbol = element('span', 'provider-symbol', entry.symbol); symbol.setAttribute('aria-hidden', 'true');
+          top.append(symbol, element('span', 'provider-name', entry.name));
+          if (entry.id === providerId) { const check = element('span', 'selection-mark', '✓'); check.setAttribute('aria-hidden', 'true'); top.append(check); }
+          let description = entry.description;
+          if (mode === 'cli') {
+            const entryKey = `${mode}:${entry.id}`;
+            description = connected.has(entryKey) ? 'Demo: installiert · verbunden' : entry.installed || installed.has(entryKey) ? 'Demo: installiert · Konto offen' : 'Demo: nicht installiert';
+          }
+          card.append(top, element('span', 'provider-detail', description));
+          const tags = element('span', 'provider-tags');
+          if (entry.referral) tags.append(pill(entry.id === 'kimi' ? 'Mitgliedschaft · Referral' : entry.id === 'zai' ? 'Coding-Abo · Referral' : 'Empfehlungslink', 'info'));
+          else if (entry.pendingReferral) tags.append(pill('Referral folgt'));
+          else tags.append(pill(entry.implemented ? 'Adapter vorhanden' : 'Adapter geplant', entry.implemented ? 'success' : undefined));
+          card.append(tags);
+          card.addEventListener('click', () => {
+            providerId = entry.id; lastProvider[mode] = entry.id;
+            cancelRefresh(); renderProviders(); renderConfiguration();
+            const replacement = grid.querySelector(`[data-provider="${entry.id}"]`);
+            replacement.focus({ preventScroll: true });
+            showToast(`${entry.name} ausgewählt. Modell und Verbindung im zweiten Schritt festlegen.`);
+          });
+          const choice = element('div', 'provider-choice');
+          choice.append(card);
+          if (entry.id === providerId) {
+            const jump = element('button', 'ui-button mobile-configure', 'Modell wählen ↓');
+            jump.type = 'button'; jump.id = 'mobile-configure';
+            jump.setAttribute('aria-label', `${entry.name}: weiter zur Modellwahl`);
+            jump.addEventListener('click', openConfiguration);
+            choice.append(jump);
+          }
+          grid.append(choice);
+        });
+      }
+      function cancelRefresh() {
+        clearTimeout(refreshTimer); refreshing = false;
+        $('refresh-models').disabled = false;
+        $('model').removeAttribute('aria-busy');
+      }
+      function renderConfiguration() {
+        const entry = provider();
+        $('current-provider').textContent = entry.name;
+        $('current-symbol').textContent = entry.symbol;
+        $('adapter-status').textContent = entry.implemented ? 'Adapter vorhanden' : 'Adapter geplant';
+        $('adapter-status').dataset.tone = entry.implemented ? 'success' : '';
+        $('provider-context').textContent = entry.implemented ? 'Direkte API · OpenAI ist im Produkt bereits angebunden' : `${mode === 'api' ? 'Direkte API' : 'Lokale CLI'} · Einrichtung im Produkt noch nicht verfügbar`;
+        const referral = referrals[entry.referral];
+        $('signup').hidden = !referral && !entry.pendingReferral;
+        $('signup-title').textContent = entry.id === 'kimi' ? 'Kimi-Mitgliedschaft' : entry.id === 'zai' ? 'GLM Coding-Abo' : 'Noch kein Konto?';
+        $('signup-description').textContent = referral?.description || 'Der persönliche Empfehlungslink fehlt noch. Du kannst den Anbieter unabhängig davon direkt öffnen.';
+        $('referral-link').hidden = !referral;
+        $('referral-pending').hidden = !!referral;
+        if (referral) $('referral-link').href = referral.url; else $('referral-link').removeAttribute('href');
+        $('referral-link').textContent = entry.id === 'kimi' ? 'Mitgliedschaft per Empfehlungslink ↗' : entry.id === 'zai' ? 'Coding-Abo per Empfehlungslink ↗' : 'Mit Empfehlungslink starten ↗';
+        $('signup-scope').textContent = referral?.scope || 'Noch kein persönlicher Link hinterlegt.';
+        $('direct-link').hidden = !entry.site;
+        if (entry.site) $('direct-link').href = entry.site; else $('direct-link').removeAttribute('href');
+        $('connection-title').textContent = mode === 'api' ? 'Verbindung' : 'Lokale CLI';
+        const active = connected.has(key());
+        $('connection-status').textContent = !isInstalled() ? 'Demo: Installation fehlt' : active ? 'Demo: verbunden · kein echter Kontozugriff' : mode === 'cli' ? 'Demo: installiert · Konto noch nicht verbunden' : 'Demo: noch nicht verbunden';
+        $('simulate-connection').textContent = !isInstalled() ? 'Installation simulieren' : active ? 'Demo trennen' : 'Verbindung simulieren';
+        renderModels();
+      }
+      function renderModels() {
+        const select = $('model'); const value = getSelected(); const available = currentModels();
+        const missingPinned = !!value && !available.some((entry) => entry.id === value);
+        select.replaceChildren();
+        if (!value || missingPinned) {
+          const option = element('option', '', missingPinned ? 'Kimi K3 fehlt · Auswahl beibehalten' : available.length ? 'Modell bewusst auswählen …' : 'Kein verifizierter Beispielkatalog');
+          option.value = missingPinned ? value : ''; option.disabled = true; select.append(option);
+        }
+        available.forEach((entry) => { const option = element('option', '', entry.name + (entry.preferred ? ' · bevorzugt' : '')); option.value = entry.id; select.append(option); });
+        select.value = value;
+        select.disabled = !available.length;
+        const current = selectedModel();
+        const accessPending = current?.accessUnverified && !modelAccess.has(`${key()}:${value}`);
+        $('model-id').textContent = value || 'Noch keine Modell-ID ausgewählt';
+        $('catalog-source').textContent = current?.accessUnverified ? 'Lokaler Katalog weicht von öffentlicher Liste ab · Zugang ungeprüft' : `${mode === 'cli' ? 'Lokaler CLI-Katalog (Beispiel)' : 'Anbieter-Katalog (Beispiel)'} · kein Livezugriff`;
+        $('model-description').textContent = missingPinned ? 'Angeheftete ID bleibt erhalten. Der Katalogabgleich ersetzt sie nicht.' : value ? 'Exakte Modell-ID. Ein anderes Modell braucht deine Auswahl.' : 'Kimi K3 ist bevorzugt. Keine automatische Auswahl eines anderen Modells.';
+        const noK3 = !available.some((entry) => entry.preferred);
+        $('missing-model').hidden = !missingPinned && !(noK3 && !value) && !current?.accessUnverified;
+        $('missing-model').dataset.tone = current?.accessUnverified && !accessPending ? 'success' : 'warning';
+        $('missing-model').querySelector('strong').textContent = current?.accessUnverified ? accessPending ? 'Kimi K3: Zugang ungeprüft' : 'Kimi-K3-Zugang nur simuliert' : !available.length && !missingPinned ? 'Modellkatalog noch offen' : 'Kimi K3 fehlt im Demokatalog';
+        $('missing-model-detail').textContent = current?.accessUnverified ? accessPending ? 'Die lokale Quelle führt K3, die öffentliche Liste nicht. Die feste ID bleibt wählbar; erst ein erfolgreicher Modellcheck würde den Zugang bestätigen.' : 'Nur in dieser Vorschau freigegeben. Es wurde kein Anbieter kontaktiert und keine echte Modellverfügbarkeit bestätigt.' : !available.length && !missingPinned ? 'Für diese Route gibt es hier keine bestätigten Beispiel-IDs. Aktualisieren simuliert den Ablauf; es erfindet keine Verfügbarkeit.' : 'Wähle einen anderen Anbieter oder ausdrücklich ein anderes Modell. K3.1 wird nicht automatisch gewählt.';
+        $('simulate-model-access').hidden = !accessPending;
+        $('simulate-model-access').disabled = !connected.has(key());
+        $('simulate-model-access').textContent = connected.has(key()) ? 'Modellzugang simulieren' : 'Zuerst Verbindung simulieren';
+        renderEfforts(); updateApply();
+      }
+      function renderEfforts() {
+        const model = selectedModel(); const options = model?.efforts || [];
+        const select = $('effort'); select.replaceChildren();
+        if (!options.length) {
+          const option = element('option', '', 'Anbietervorgabe'); option.value = ''; select.append(option);
+        } else options.forEach((value) => { const option = element('option', '', value); option.value = value; select.append(option); });
+        const effortKey = `${key()}:${getSelected()}`;
+        const previous = effortChoice.get(effortKey);
+        select.value = options.includes(previous) ? previous : options.includes('medium') ? 'medium' : options.includes('high') ? 'high' : options[0] || '';
+        select.disabled = !options.length;
+        $('effort-hint').textContent = options.length ? 'Beispielwerte dieses Modells.' : 'Optionen für diese Route noch offen.';
+      }
+      function updateApply() {
+        const current = selectedModel();
+        const accessPending = current?.accessUnverified && !modelAccess.has(`${key()}:${getSelected()}`);
+        const ready = connected.has(key()) && !!current && !refreshing && !accessPending;
+        $('apply-selection').disabled = !ready;
+        $('apply-hint').textContent = refreshing ? 'Demo-Katalog wird abgeglichen …' : !isInstalled() ? 'Zuerst die Installation und Verbindung simulieren.' : !connected.has(key()) ? 'Zuerst eine Verbindung simulieren. Die Auswahl gilt nur für diesen Tab.' : !current ? 'Eine verfügbare Modell-ID ausdrücklich wählen. Kein automatischer Ersatz.' : accessPending ? 'Die Verbindung allein bestätigt das Modell nicht. Den Modellzugang separat simulieren.' : 'Nur eine Demoauswahl für diesen Tab. Keine Produkteinstellung wird geändert.';
+      }
+      document.querySelectorAll('[data-mode]').forEach((button) => {
+        button.addEventListener('click', () => {
+          mode = button.dataset.mode; providerId = lastProvider[mode]; cancelRefresh();
+          document.querySelectorAll('[data-mode]').forEach((other) => other.setAttribute('aria-pressed', String(other === button)));
+          $('mode-description').textContent = mode === 'api' ? 'Verbindung über einen API-Schlüssel. Der Produktstand unterstützt OpenAI; weitere Adapter sind geplant.' : 'Nutze eine CLI mit ihrem eigenen Konto. Installation, Anmeldung und Modellkatalog sind getrennte Schritte. Adapter sind geplant.';
+          renderProviders(); renderConfiguration();
+        });
+      });
+      $('simulate-connection').addEventListener('click', () => {
+        if (!isInstalled()) { installed.add(key()); showToast('Demo: CLI als installiert markiert. Es wurde kein Programm ausgeführt.'); }
+        else if (connected.has(key())) {
+          connected.delete(key());
+          for (const value of modelAccess) if (value.startsWith(`${key()}:`)) modelAccess.delete(value);
+          showToast('Demoverbindung getrennt.');
+        }
+        else { connected.add(key()); showToast('Demoverbindung hergestellt. Kein Konto oder API-Schlüssel wurde verwendet.'); }
+        renderProviders(); renderConfiguration();
+      });
+      $('model').addEventListener('change', () => { selected.set(key(), $('model').value); renderModels(); });
+      $('simulate-model-access').addEventListener('click', () => {
+        if (!connected.has(key()) || !selectedModel()?.accessUnverified) return;
+        modelAccess.add(`${key()}:${getSelected()}`); renderModels();
+        $('apply-selection').focus();
+        showToast('Modellzugang nur simuliert. Kein Anbieter wurde kontaktiert.');
+      });
+      $('effort').addEventListener('change', () => effortChoice.set(`${key()}:${getSelected()}`, $('effort').value));
+      $('refresh-models').addEventListener('click', () => {
+        refreshing = true; $('refresh-models').disabled = true; $('model').setAttribute('aria-busy', 'true'); updateApply();
+        $('catalog-source').textContent = 'Demokatalog wird aktualisiert …';
+        refreshTimer = setTimeout(() => {
+          refreshing = false; catalogMissing = $('simulate-missing').checked;
+          $('refresh-models').disabled = false; $('model').removeAttribute('aria-busy'); renderModels();
+          $('catalog-source').textContent = 'Beispielkatalog gerade abgeglichen · kein Livezugriff';
+          showToast('Modellliste in der Demo aktualisiert. Die Modellwahl bleibt unverändert.');
+        }, 650);
+      });
+      $('apply-selection').addEventListener('click', () => {
+        if ($('apply-selection').disabled) return;
+        const current = selectedModel();
+        $('saved-value').textContent = `${provider().name} · ${mode === 'api' ? 'API' : 'CLI'} · ${current.name} · ${current.id}${$('effort').value ? ` · Reasoning: ${$('effort').value}` : ''}`;
+        $('saved-preview').hidden = false;
+        showToast('Auswahl nur in dieser Vorschau übernommen.');
+      });
+      $('reset-demo').addEventListener('click', () => {
+        cancelRefresh(); mode = 'api'; providerId = 'command'; catalogMissing = false;
+        selected.clear(); connected.clear(); installed.clear(); modelAccess.clear(); effortChoice.clear();
+        lastProvider.api = 'command'; lastProvider.cli = 'opencode';
+        $('simulate-missing').checked = false; $('saved-preview').hidden = true;
+        document.querySelectorAll('[data-mode]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.mode === 'api')));
+        $('mode-description').textContent = 'Verbindung über einen API-Schlüssel. Der Produktstand unterstützt OpenAI; weitere Adapter sind geplant.';
+        renderProviders(); renderConfiguration(); showToast('Demo zurückgesetzt. Die Darstellung bleibt erhalten.');
+      });
+      renderProviders(); renderConfiguration();
+    })();
+  </script>
+</body>
+</html>
