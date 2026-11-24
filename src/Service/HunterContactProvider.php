@@ -53,7 +53,11 @@ final class HunterContactProvider implements ExplicitContactDiscoveryProviderInt
             // Never persist a key echoed by a proxy/provider in otherwise accepted fields.
             if (str_contains($raw, $this->apiKey)) throw new \RuntimeException('Unexpected credential echo');
             $payload = json_decode($raw, true, 32, JSON_THROW_ON_ERROR);
-            if (str_contains(json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), $this->apiKey)) throw new \RuntimeException('Unexpected credential echo');
+            if (is_array($payload)) {
+                array_walk_recursive($payload, function (mixed $value): void {
+                    if (is_string($value) && str_contains($value, $this->apiKey)) throw new \RuntimeException('Unexpected credential echo');
+                });
+            }
             $data = is_array($payload) ? ($payload['data'] ?? null) : null;
             if (!is_array($data) || !array_key_exists('domain', $data) || !empty($payload['errors']) || !is_array($data['emails'] ?? null)
                 || !array_is_list($data['emails']) || count($data['emails']) > 10) throw new \RuntimeException('Invalid response');
