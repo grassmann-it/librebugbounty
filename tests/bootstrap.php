@@ -18,6 +18,10 @@ foreach ([
     'PLAYWRIGHT_INTERACTIVE_URL' => 'http://127.0.0.1:1',
     'PLAYWRIGHT_WORKER_TOKEN' => 'isolated-phpunit-worker-token',
     'PLAYWRIGHT_GATEWAY_TOKEN' => 'isolated-phpunit-gateway-token',
+    // Local connector configuration must never give tests a live mail/API writer.
+    'OPENAI_API_KEY' => '',
+    'EMAIL_GMAIL_SOCKET' => '',
+    'EMAIL_GMAIL_ACCOUNT' => '',
 ] as $key => $value) {
     putenv($key.'='.$value);
     $_SERVER[$key] = $_ENV[$key] = $value;
