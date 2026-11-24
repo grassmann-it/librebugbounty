@@ -5,6 +5,8 @@ Back up both together to retain cases, notes, contacts, assessments, and evidenc
 history. JSON and ZIP reporting exports do not contain the complete history.
 If the optional Gmail connector is enabled, preserve its private host receipt
 database as well: it records submitted text and remote draft IDs.
+Writing profiles, historical example emails and Hunter lookup reservations are
+part of the main application database. These remain private backup contents.
 
 The bundled backup tool requires Python 3.11 or newer. Creating a snapshot also
 requires Docker access; list, prune, verify and restore work without Docker.

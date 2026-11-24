@@ -37,6 +37,8 @@ final class GmailDraftService
         foreach (['attemptId', 'language', 'fingerprint', 'subject', 'body', 'expectedAccount'] as $field) {
             if (!is_string($input[$field] ?? null)) throw new EmailPreparationException('gmail_invalid_input', 'Check the draft and review confirmation.', 400);
         }
+        $profileId = $input['profileId'] ?? EmailWritingProfileService::BUILTIN;
+        if (!is_string($profileId)) throw new EmailPreparationException('gmail_invalid_input', 'Choose a writing profile.', 400);
         if (($input['reviewed'] ?? null) !== true || !Uuid::isValid($input['attemptId'])) throw new EmailPreparationException('gmail_review_required', 'Review the complete email and confirm it before creating a Gmail draft.', 400);
         if ($input['expectedAccount'] !== $this->account) throw new EmailPreparationException('gmail_account_changed', 'The configured Gmail account changed. Reload the page and review the account before creating a draft.', 409);
         // A replay is answered from its receipt even if the original source has since changed.
@@ -44,17 +46,21 @@ final class GmailDraftService
         if ($prior !== null) {
             if ($prior['finding_id'] !== $finding->getId() || $prior['account'] !== $this->account
                 || $prior['fingerprint'] !== $input['fingerprint'] || $prior['language'] !== $input['language']
+                || ($prior['profile_id'] ?? EmailWritingProfileService::BUILTIN) !== $profileId
                 || !hash_equals($prior['content_sha256'], $this->digest($prior['recipient'], $input['subject'], $input['body']))) throw $this->conflict();
             return $this->receipt($finding, $prior, true);
         }
         if (!$this->configured()) throw new EmailPreparationException('gmail_not_configured', 'Configure the local Gmail connection and expected account first.', 503);
-        $submission = $this->emails->gmailSubmission($finding, $input['language'], $input['fingerprint'], $input['subject'], $input['body']);
+        $submission = $this->emails->gmailSubmission($finding, $input['language'], $input['fingerprint'], $input['subject'], $input['body'], $profileId);
+        $profileColumns = (bool)$this->connection->fetchOne("SELECT 1 FROM pragma_table_info('gmail_draft_attempt') WHERE name='profile_id'");
+        if (!$profileColumns && $profileId !== EmailWritingProfileService::BUILTIN) throw new EmailPreparationException('profile_migration_required', 'Apply the writing profile migration before creating this Gmail draft.', 503);
         $now = (new \DateTimeImmutable())->format(DATE_ATOM);
         $row = ['attempt_id' => $input['attemptId'], 'case_key' => $submission['caseKey'], 'finding_id' => $finding->getId(),
             'account' => $this->account, 'fingerprint' => $input['fingerprint'], 'language' => $input['language'],
             'content_sha256' => $this->digest($submission['recipient'], $input['subject'], $input['body']),
             'recipient' => $submission['recipient'], 'subject' => $input['subject'], 'state' => 'pending',
             'draft_id' => null, 'message_id' => null, 'stale' => 0, 'safe_to_retry' => 0, 'receipt_revision' => 0, 'error_code' => null, 'created_at' => $now, 'updated_at' => $now];
+        if ($profileColumns) $row += ['profile_id' => $profileId, 'profile_revision' => $submission['profile']['revision'], 'profile_sha256' => $submission['profile']['payloadHash']];
         try {
             $this->connection->transactional(function () use ($finding, $row): void {
                 // Acquire a write lock before the per-case check and reserve before any provider call.
@@ -63,7 +69,7 @@ final class GmailDraftService
                 $this->connection->insert('gmail_draft_attempt', $row);
             });
         } catch (UniqueConstraintViolationException) { throw $this->conflict(); }
-        if (!$this->emails->draftBasisCurrent($finding, $row['language'], $row['fingerprint'])) {
+        if (!$this->emails->draftBasisCurrent($finding, $row['language'], $row['fingerprint'], $row['profile_id'] ?? EmailWritingProfileService::BUILTIN)) {
             $this->update($row, ['state' => 'rejected', 'safe_to_retry' => 1, 'stale' => 1, 'error_code' => 'stale_preview']);
             return $this->receipt($finding, $this->byAttempt($row['attempt_id']));
         }
@@ -112,7 +118,7 @@ final class GmailDraftService
         if ($error !== null && (!is_string($error) || !preg_match('/^[a-z][a-z0-9_]{0,63}$/D', $error))) $error = 'gmail_uncertain';
         $changes = ['state' => $state, 'safe_to_retry' => (int)$safe, 'error_code' => $error,
             'draft_id' => $result['draft_id'] ?? $row['draft_id'], 'message_id' => $result['message_id'] ?? $row['message_id'],
-            'stale' => (int)((bool)$row['stale'] || !$this->emails->draftBasisCurrent($finding, $row['language'], $row['fingerprint']))];
+            'stale' => (int)((bool)$row['stale'] || !$this->emails->draftBasisCurrent($finding, $row['language'], $row['fingerprint'], $row['profile_id'] ?? EmailWritingProfileService::BUILTIN))];
         // Merge against the locked current receipt: late readbacks cannot erase newer proof or unlock a create.
         $this->connection->transactional(function () use ($row, $changes): void {
             $this->connection->executeStatement('UPDATE gmail_draft_attempt SET receipt_revision=receipt_revision WHERE attempt_id=?', [$row['attempt_id']]);
@@ -136,7 +142,7 @@ final class GmailDraftService
 
     private function receipt(Finding $finding, array $row, bool $reused = false, ?bool $canCreate = null): array
     {
-        $stale = (bool)$row['stale'] || !$this->emails->draftBasisCurrent($finding, $row['language'], $row['fingerprint']);
+        $stale = (bool)$row['stale'] || !$this->emails->draftBasisCurrent($finding, $row['language'], $row['fingerprint'], $row['profile_id'] ?? EmailWritingProfileService::BUILTIN);
         $error = $row['error_code'];
         if ($canCreate === null) {
             $source = $this->emails->initialState($finding, $row['language']);
@@ -146,6 +152,7 @@ final class GmailDraftService
         }
         return ['state' => $row['state'], 'attemptId' => $row['attempt_id'], 'draftId' => $row['draft_id'], 'messageId' => $row['message_id'],
             'gmailUrl' => $row['draft_id'] === null ? null : 'https://mail.google.com/mail/?authuser='.rawurlencode($row['account']).'#drafts', 'account' => $row['account'],
+            'profileId' => $row['profile_id'] ?? EmailWritingProfileService::BUILTIN, 'profileRevision' => (int)($row['profile_revision'] ?? 1), 'profileHash' => $row['profile_sha256'] ?? '',
             'stale' => $stale, 'reused' => $reused, 'canCreate' => $canCreate,
             'safeToRetry' => (bool)$row['safe_to_retry'], 'code' => $error,
             'error' => $error === null ? null : ($row['safe_to_retry'] ? 'No Gmail draft was created by this attempt. Fix the connection or refresh the case, then explicitly try again.'

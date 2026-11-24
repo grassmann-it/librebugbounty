@@ -34,6 +34,9 @@
 .email-payload pre { max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; background: var(--studio-bg); padding: 10px; border-radius: 4px; }
 .email-text-button { display: inline-flex; align-items: center; justify-self: start; min-height: 30px; padding: 2px 0; border: 0; background: transparent; color: var(--studio-blue); cursor: pointer; text-align: left; font-size: 12px; }
 .email-model { color: var(--studio-muted); font-size: 11px; overflow-wrap: anywhere; }
+.email-profile-link { font-size: 12px; overflow-wrap: anywhere; }
+.email-profile-summary { margin: 12px 0 8px; font-size: 13px; overflow-wrap: anywhere; }
+.email-draft-profile, .email-manual-note { margin: 0 0 16px; }
 .email-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .email-card-heading h2 { margin-bottom: 0; }
 .email-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 26px; padding: 3px 9px; border: 1px solid var(--studio-line); border-radius: 20px; color: var(--studio-muted); font-size: 11px; line-height: 1.3; }

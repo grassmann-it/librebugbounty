@@ -8,6 +8,7 @@ use App\Service\ContactRouteService;
 use App\Service\EmailDraftClientInterface;
 use App\Service\EmailPreparationException;
 use App\Service\EmailPreparationService;
+use App\Service\EmailWritingProfileService;
 use App\Service\FindingService;
 use App\Service\GmailDraftGatewayInterface;
 use App\Service\GmailDraftService;
@@ -340,6 +341,81 @@ final class GmailDraftServiceTest extends DatabaseTestCase
         }
     }
 
+    public function testProfileMigrationAndDefaultSwitchPreserveAnExistingBuiltinReceipt(): void
+    {
+        $finding = $this->finding(); $input = $this->input($finding);
+        $created = $this->drafts->create($finding, $input);
+        $profiles = $this->writingProfiles();
+        $custom = $profiles->save($this->profileInput());
+        $profiles->setDefault($custom['id'], $custom['revision'], $profiles->defaultSelection()['revision']);
+        $row = $this->entityManager->getConnection()->fetchAssociative('SELECT * FROM gmail_draft_attempt WHERE attempt_id=?', [$input['attemptId']]);
+        self::assertSame('builtin', $row['profile_id']);
+        self::assertSame(1, (int) $row['profile_revision']);
+        self::assertSame('', $row['profile_sha256']);
+        $receipt = $this->drafts->state($finding)['receipt'];
+        self::assertSame($created['draftId'], $receipt['draftId']);
+        self::assertFalse($receipt['stale'], 'A new default must not reinterpret a historical built-in draft.');
+        self::assertSame($created['draftId'], $this->drafts->create($finding, $input)['draftId']);
+        self::assertCount(1, $this->gateway->submissions);
+    }
+
+    public function testSelectedProfileRevisionIsCheckedBeforeGmailAndRetainedWhenItChangesDuringCreation(): void
+    {
+        $finding = $this->finding(); $profiles = $this->writingProfiles();
+        $profile = $profiles->save($this->profileInput());
+        $oldInput = $this->input($finding, $profile['id']);
+        $current = $profiles->save($this->profileInput(['action' => 'update', 'profileId' => $profile['id'], 'revision' => $profile['revision'], 'instructions' => 'Updated style preferences.']));
+        try { $this->drafts->create($finding, $oldInput); self::fail('Old writing profile accepted for Gmail.'); }
+        catch (EmailPreparationException $error) { self::assertSame(409, $error->httpStatus); self::assertCount(0, $this->gateway->submissions); }
+        $input = $this->input($finding, $profile['id']);
+        $this->gateway->duringSubmit = function (array $request) use ($profiles, $current): void {
+            self::assertStringNotContainsString('PRIVATE_GMAIL_STYLE_EXAMPLE', json_encode($request, JSON_THROW_ON_ERROR));
+            $profiles->save($this->profileInput(['action' => 'update', 'profileId' => $current['id'], 'revision' => $current['revision'], 'instructions' => 'A newer profile version.']));
+        };
+        $receipt = $this->drafts->create($finding, $input);
+        self::assertSame('verified', $receipt['state']);
+        self::assertTrue($receipt['stale']);
+        self::assertNotNull($receipt['draftId']);
+        $row = $this->entityManager->getConnection()->fetchAssociative('SELECT * FROM gmail_draft_attempt WHERE attempt_id=?', [$input['attemptId']]);
+        self::assertSame($current['id'], $row['profile_id']);
+        self::assertSame($current['revision'], (int) $row['profile_revision']);
+        self::assertSame($current['payloadHash'], $row['profile_sha256']);
+        self::assertCount(1, $this->gateway->submissions);
+    }
+
+    public function testChangingOnlyTheDefaultDuringGmailDoesNotInvalidateTheSelectedProfile(): void
+    {
+        $finding = $this->finding(); $profiles = $this->writingProfiles();
+        $selected = $profiles->save($this->profileInput(['name' => 'Selected profile']));
+        $other = $profiles->save($this->profileInput(['name' => 'New default']));
+        $input = $this->input($finding, $selected['id']);
+        $this->gateway->duringSubmit = static fn () => $profiles->setDefault($other['id'], $other['revision'], $profiles->defaultSelection()['revision']);
+        $receipt = $this->drafts->create($finding, $input);
+        self::assertSame('verified', $receipt['state']);
+        self::assertFalse($receipt['stale']);
+        self::assertSame($selected['id'], $this->entityManager->getConnection()->fetchOne('SELECT profile_id FROM gmail_draft_attempt WHERE attempt_id=?', [$input['attemptId']]));
+        self::assertFalse($this->drafts->state($finding)['receipt']['stale']);
+    }
+
+    private function writingProfiles(): EmailWritingProfileService
+    {
+        require_once dirname(__DIR__).'/migrations/Version20261124010000.php';
+        $db = $this->entityManager->getConnection();
+        $migration = new \DoctrineMigrations\Version20261124010000($db, new NullLogger());
+        $migration->up(new Schema());
+        foreach ($migration->getSql() as $sql) $db->executeStatement($sql->getStatement());
+        $profiles = new EmailWritingProfileService($db);
+        $this->emails = new EmailPreparationService($db, $this->reports, $this->contacts, new GmailDraftTestEmailClient(), $profiles);
+        $this->drafts = new GmailDraftService($db, $this->emails, $this->gateway, self::ACCOUNT);
+        return $profiles;
+    }
+
+    private function profileInput(array $changes = []): array
+    {
+        return array_replace(['action' => 'create', 'name' => 'Disclosure style', 'instructions' => 'Use a concise, calm voice.',
+            'example_names' => ['Style example'], 'example_texts' => ['PRIVATE_GMAIL_STYLE_EXAMPLE']], $changes);
+    }
+
     public function testControllerGetIsReadOnlyAndDraftCreationNeedsCsrfReviewAndTheServerSelectedRecipient(): void
     {
         self::getContainer()->set(EmailPreparationService::class, $this->emails);
@@ -402,11 +478,11 @@ final class GmailDraftServiceTest extends DatabaseTestCase
             'destination' => $destination, 'source' => 'https://example.org/security']);
     }
 
-    private function input(Finding $finding): array
+    private function input(Finding $finding, string $profileId = 'builtin'): array
     {
-        $preview = $this->emails->preview($finding, 'en');
+        $preview = $this->emails->preview($finding, 'en', $profileId);
         $draft = $preview['manualDraft'];
-        return ['language' => 'en', 'fingerprint' => $preview['fingerprint'], 'attemptId' => Uuid::v7()->toRfc4122(), 'expectedAccount' => self::ACCOUNT,
+        return ($profileId === 'builtin' ? [] : ['profileId' => $profileId]) + ['language' => 'en', 'fingerprint' => $preview['fingerprint'], 'attemptId' => Uuid::v7()->toRfc4122(), 'expectedAccount' => self::ACCOUNT,
             'subject' => $draft['subject'], 'body' => $draft['body'], 'reviewed' => true];
     }
 

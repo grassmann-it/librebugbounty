@@ -251,6 +251,14 @@ currently supported. Failed lookups retain earlier results; repeat clicks within
 one minute are coalesced. Closed/discarded or contact/check-blocked cases cannot
 start a lookup.
 
+With `HUNTER_API_KEY` configured, **Hunter.io** offers a separate explicit domain
+search. It shows possible credit use before the request and returns contact
+candidates with provider metadata and source links. You still choose the
+disclosure route yourself. A seven-day cache and durable application-local
+reservations avoid duplicate paid lookups across cases of the same exact domain.
+See [Hunter setup and limits](docs/HUNTER.md) for configuration, the local
+four-search limit and recovery behavior.
+
 **Chosen disclosure route** stores one local choice per case. Choose an email or
 form/portal suggestion using **Choose as disclosure route**, or use **Add contact
 manually**, also when no security.txt exists. Manual entries accept an email or
@@ -277,12 +285,22 @@ independently of the chart period; reason links open matching Inventory cases.
 
 Case details offer **Prepare email** for a local German or English draft. Review
 the exact outgoing data before starting an OpenAI request, then edit, copy or
-download the result. PoCs and recipients stay out of OpenAI requests; preparing
-text does not mark a report as sent. You can also start without AI. An optional
+download the result. Current-case PoCs and recipients are not automatically
+included in OpenAI requests; preparing text does not mark a report as sent. You
+can also start without AI. An optional
 Gmail connection stores the final reviewed text as a draft after an explicit
 click. Until downloaded or saved to Gmail, text is held only on the current page. See the
 [AI email guide](docs/AI_EMAIL.md) for server configuration, API credits, scope
 and a direct curl example.
+
+**Settings → AI management** stores your own writing profiles, style instructions
+and example emails. Choose a profile in the editor and inspect its contents in
+the request preview before generating. Selected instructions and examples go to
+OpenAI, including any personal information you entered there. Saving a profile
+alone makes no external call. Edits create versions; setting a default affects
+new editors, and archiving keeps the profile history. The model still writes
+only the subject, opening and closing; technical findings and original PoCs are
+assembled locally.
 
 ## Disclosure record and reminders (2.0.2)
 

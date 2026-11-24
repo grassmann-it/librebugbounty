@@ -9,7 +9,12 @@ $copy = $de ? [
     'draft'=>'Ungeprüfter Entwurf', 'draftStatus'=>'Entwurfsstatus', 'setup'=>'Vorbereitung', 'language'=>'Sprache des Entwurfs',
     'contact'=>'Gewählter Meldeweg', 'noContact'=>'Wähle zuerst einen Meldeweg im Fall.',
     'contactEdit'=>'Meldeweg im Fall bearbeiten', 'preview'=>'Angaben prüfen', 'previewTitle'=>'Das wird an OpenAI übermittelt',
-    'data'=>'Domain, ausgewählte Erkenntnisse und Sprache. Empfänger und vollständiger PoC werden lokal eingesetzt.',
+    'data'=>'Domain, ausgewählte Erkenntnisse, Sprache und das gewählte Schreibprofil. Empfänger und vollständiger PoC dieses Falls werden lokal eingesetzt.',
+    'profile'=>'Schreibprofil', 'profileManage'=>'Profile und Beispielmails verwalten', 'profileHelp'=>'Eigene Anweisungen und Beispiele gestalten Betreff, Einleitung und Schluss. Die fachlichen Absätze bleiben fest vorgegeben.',
+    'profileVersion'=>'Version', 'profileExamples'=>'Beispielmails', 'profileExample'=>'Beispielmail', 'profileBuiltin'=>'Integriertes Profil',
+    'profileSharing'=>'Eigene Anweisungen und alle Beispiele dieses Profils werden vollständig an OpenAI übermittelt. Darin eingegebene persönliche Angaben werden nicht automatisch entfernt.',
+    'profileChanged'=>'Schreibprofil geändert. Bitte die Angaben erneut prüfen.', 'draftProfile'=>'Grundlage dieses Entwurfs',
+    'manualProfile'=>'Lokal erstellt: Eigene Anweisungen und Beispiele wurden nicht durch ein Modell angewendet.',
     'payload'=>'Genaue API-Anfrage ansehen', 'downloadRequest'=>'Anfrage als JSON herunterladen',
     'generate'=>'Mit OpenAI entwerfen', 'manual'=>'Ohne KI beginnen', 'localSource'=>'Lokal', 'review'=>'Betreff, Aussagen, PoC und Empfänger vor der Verwendung prüfen.',
     'empty'=>'Dein Entwurf erscheint hier', 'emptyHelp'=>'Prüfe zuerst die Angaben. Beginne anschließend lokal oder erstelle den Entwurf mit OpenAI.',
@@ -33,7 +38,7 @@ $copy = $de ? [
     'timeout'=>'Die Anfrage hat zu lange gedauert. Das Ergebnis ist unbekannt; es wurde kein zweiter Aufruf gestartet.',
     'invalid'=>'Die Antwort konnte nicht verarbeitet werden. Deine Eingaben bleiben erhalten.',
     'changed'=>'Sprache geändert. Bitte die Angaben erneut prüfen.',
-    'stale'=>'Der Fall oder Meldeweg hat sich geändert. Bitte die Angaben erneut prüfen.',
+    'stale'=>'Der Fall, Meldeweg oder das Schreibprofil hat sich geändert. Bitte die Angaben erneut prüfen.',
     'leave'=>'Dein Entwurf wurde noch nicht heruntergeladen oder kopiert.',
     'requestFailed'=>'Die Anfrage ist fehlgeschlagen.', 'newPreview'=>'Angaben erneut prüfen',
     'certainty'=>['confirmed'=>'Bestätigt', 'suspected'=>'Verdacht', 'observed'=>'Beobachtet'],
@@ -47,7 +52,7 @@ $copy = $de ? [
     'gmailCheck'=>'Status bei Gmail prüfen', 'gmailCheckLocal'=>'Gespeicherten Status prüfen', 'gmailChecking'=>'Entwurfsstatus wird geprüft …',
     'gmailOpen'=>'Gmail-Entwürfe öffnen', 'gmailDraftId'=>'Entwurfs-ID',
     'gmailUnknown'=>'Der Ausgang dieses Versuchs ist unbekannt. Prüfe den gespeicherten Status, bevor du fortfährst. Es wird kein weiterer Entwurf angelegt.',
-    'gmailStale'=>'Der Fall oder Meldeweg hat sich inzwischen geändert. Der Gmail-Entwurf kann bereits existieren; prüfe seine Angaben in Gmail.',
+    'gmailStale'=>'Der Fall, Meldeweg oder das Schreibprofil hat sich inzwischen geändert. Der Gmail-Entwurf kann bereits existieren; prüfe seine Angaben in Gmail.',
     'gmailLocked'=>'Die Fassung dieses Versuchs bleibt erhalten. Einen vorhandenen Gmail-Entwurf kannst du direkt in Gmail bearbeiten.',
     'gmailNoAttempt'=>'Es wurde kein Entwurfsversuch gespeichert. Prüfe den Text erneut, bevor du einen neuen Versuch startest.',
     'gmailRejectedSafe'=>'Es wurde kein Gmail-Entwurf angelegt. Prüfe die Verbindung und den Text erneut. Danach kannst du einen neuen Versuch starten.', 'gmailRetry'=>'Neuen Gmail-Versuch starten',
@@ -59,7 +64,12 @@ $copy = $de ? [
     'draft'=>'Unreviewed draft', 'draftStatus'=>'Draft status', 'setup'=>'Preparation', 'language'=>'Draft language',
     'contact'=>'Selected contact route', 'noContact'=>'Choose a contact route in the case first.',
     'contactEdit'=>'Edit contact route in case', 'preview'=>'Review details', 'previewTitle'=>'What will be shared with OpenAI',
-    'data'=>'Domain, selected findings and language. The recipient and full PoC are inserted locally.',
+    'data'=>'Domain, selected findings, language and the selected writing profile. This case’s recipient and full PoC are inserted locally.',
+    'profile'=>'Writing profile', 'profileManage'=>'Manage profiles and example emails', 'profileHelp'=>'Custom instructions and examples shape the subject, opening and closing. Technical paragraphs remain fixed.',
+    'profileVersion'=>'Version', 'profileExamples'=>'example emails', 'profileExample'=>'example email', 'profileBuiltin'=>'Built-in profile',
+    'profileSharing'=>'Custom instructions and all examples in this profile are shared with OpenAI in full. Personal details entered in them are not removed automatically.',
+    'profileChanged'=>'Writing profile changed. Review the details again.', 'draftProfile'=>'Basis for this draft',
+    'manualProfile'=>'Created locally: custom instructions and examples were not applied by a model.',
     'payload'=>'View exact API request', 'downloadRequest'=>'Download request as JSON',
     'generate'=>'Draft with OpenAI', 'manual'=>'Start without AI', 'localSource'=>'Local', 'review'=>'Check the subject, statements, PoC and recipient before using the draft.',
     'empty'=>'Your draft will appear here', 'emptyHelp'=>'Review the details first. Then start locally or create your draft with OpenAI.',
@@ -83,7 +93,7 @@ $copy = $de ? [
     'timeout'=>'The request timed out. Its outcome is unknown; no second request was started.',
     'invalid'=>'The response could not be processed. Your input has been kept.',
     'changed'=>'Language changed. Review the details again.',
-    'stale'=>'The case or contact route changed. Review the details again.',
+    'stale'=>'The case, contact route or writing profile changed. Review the details again.',
     'leave'=>'Your draft has not been downloaded or copied yet.',
     'requestFailed'=>'The request failed.', 'newPreview'=>'Review details again',
     'certainty'=>['confirmed'=>'Confirmed', 'suspected'=>'Suspected', 'observed'=>'Observed'], 'findingLabels'=>[],
@@ -96,7 +106,7 @@ $copy = $de ? [
     'gmailCheck'=>'Check status with Gmail', 'gmailCheckLocal'=>'Check saved status', 'gmailChecking'=>'Checking draft status …',
     'gmailOpen'=>'Open Gmail drafts', 'gmailDraftId'=>'Draft ID',
     'gmailUnknown'=>'The outcome of this attempt is unknown. Check the saved status before continuing. No additional draft will be created.',
-    'gmailStale'=>'The case or contact route has since changed. The Gmail draft may already exist; review its details in Gmail.',
+    'gmailStale'=>'The case, contact route or writing profile has since changed. The Gmail draft may already exist; review its details in Gmail.',
     'gmailLocked'=>'The text for this attempt is kept intact. You can edit an existing Gmail draft directly in Gmail.',
     'gmailNoAttempt'=>'No draft attempt was saved. Review the text again before starting a new attempt.',
     'gmailRejectedSafe'=>'No Gmail draft was created. Check the connection and review the text again, then you can start a new attempt.', 'gmailRetry'=>'Start a new Gmail attempt',
@@ -109,6 +119,8 @@ $languageReturnPath = $basePath;
 $initialState['language'] = in_array($initialState['language'] ?? null, ['de', 'en'], true) ? $initialState['language'] : $locale;
 $config = ['basePath'=>$basePath, 'csrfToken'=>$csrfToken, 'initialState'=>$initialState, 'copy'=>$copy];
 $contact = $initialState['contact'] ?? [];
+$writingProfiles = $initialState['profiles'] ?? [['id'=>'builtin', 'name'=>$copy['profileBuiltin'], 'revision'=>1, 'exampleCount'=>0]];
+$defaultWritingProfile = $initialState['defaultProfileId'] ?? 'builtin';
 ?>
 <!doctype html>
 <html lang="<?= $escape($locale) ?>">
@@ -140,12 +152,14 @@ $contact = $initialState['contact'] ?? [];
         <section class="email-card email-prepare" aria-labelledby="email-prepare-title">
           <h2 id="email-prepare-title"><span class="email-step" aria-hidden="true">1</span> <?= $escape($copy['setup']) ?></h2>
           <div class="email-field"><label for="email-language"><?= $escape($copy['language']) ?></label><select id="email-language" data-email-language><option value="de"<?= $initialState['language'] === 'de' ? ' selected' : '' ?>>Deutsch</option><option value="en"<?= $initialState['language'] === 'en' ? ' selected' : '' ?>>English</option></select></div>
+          <div class="email-field"><label for="email-profile"><?= $escape($copy['profile']) ?></label><select id="email-profile" data-email-profile aria-describedby="email-profile-help"><?php foreach ($writingProfiles as $writingProfile): ?><option value="<?= $escape($writingProfile['id']) ?>"<?= $writingProfile['id'] === $defaultWritingProfile ? ' selected' : '' ?>><?= $escape($writingProfile['id'] === 'builtin' ? $copy['profileBuiltin'] : $writingProfile['name']) ?> · <?= $escape($copy['profileVersion']) ?> <?= $escape($writingProfile['revision']) ?></option><?php endforeach; ?></select><p class="email-hint" id="email-profile-help"><?= $escape($copy['profileHelp']) ?></p><a class="email-profile-link" href="/settings/ai"><?= $escape($copy['profileManage']) ?> →</a></div>
           <div class="email-contact"><h3><?= $escape($copy['contact']) ?></h3><p data-email-contact><?= $escape($contact['destination'] ?? $copy['noContact']) ?></p><a href="<?= $escape($findingPath) ?>#kontakte"><?= $escape($copy['contactEdit']) ?> →</a></div>
           <?php if (!($initialState['eligible'] ?? false)): ?><p class="email-notice" data-email-ineligible><?= $escape($initialState['error'] ?? $copy['unavailable']) ?></p><?php endif; ?>
           <button class="email-button" type="button" data-email-preview<?= !($initialState['eligible'] ?? false) ? ' disabled' : '' ?>><?= $escape($copy['preview']) ?></button>
           <section class="email-preview" data-email-preview-content hidden aria-labelledby="email-preview-title">
             <h3 id="email-preview-title"><?= $escape($copy['previewTitle']) ?></h3>
             <p class="email-hint"><?= $escape($copy['data']) ?></p>
+            <p class="email-profile-summary" data-email-profile-summary></p><p class="email-hint" data-email-profile-sharing hidden><?= $escape($copy['profileSharing']) ?></p>
             <ul class="email-facts" data-email-facts></ul>
             <details class="email-payload"><summary><?= $escape($copy['payload']) ?></summary><pre data-email-payload tabindex="0"></pre><button class="email-text-button" type="button" data-email-download-request><?= $escape($copy['downloadRequest']) ?></button></details>
             <p class="email-model" data-email-model><?= $escape($initialState['model'] ?? '') ?></p>
@@ -162,6 +176,7 @@ $contact = $initialState['contact'] ?? [];
           <div class="email-empty" data-email-empty><svg viewBox="0 0 48 48" width="48" height="48" fill="none" aria-hidden="true"><rect x="5" y="10" width="38" height="28" rx="4" stroke="currentColor" stroke-width="1.5"/><path d="m6 12 18 14 18-14" stroke="currentColor" stroke-width="1.5"/></svg><h3><?= $escape($copy['empty']) ?></h3><p><?= $escape($copy['emptyHelp']) ?></p></div>
           <div data-email-editor hidden>
             <p class="email-review-note"><?= $escape($copy['review']) ?></p>
+            <p class="email-hint email-draft-profile" data-email-draft-profile></p><p class="email-hint email-manual-note" data-email-manual-note hidden><?= $escape($copy['manualProfile']) ?></p>
             <div class="email-recipient" data-email-recipient-wrap><strong data-email-recipient-label><?= $escape($copy['recipient']) ?></strong><span data-email-recipient></span></div>
             <div class="email-field"><label for="email-subject"><?= $escape($copy['subject']) ?></label><input id="email-subject" data-email-subject type="text" maxlength="300" autocomplete="off"><button class="email-text-button" type="button" data-email-copy-subject><?= $escape($copy['copySubject']) ?></button></div>
             <div class="email-field"><label for="email-body"><?= $escape($copy['body']) ?></label><textarea id="email-body" data-email-body rows="18" autocomplete="off" spellcheck="true"></textarea></div>

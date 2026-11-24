@@ -19,7 +19,12 @@ final class ContactRouteService
     {
         if (!self::available($this->connection)) return ['available' => false, 'selected' => null, 'revision' => 'none'];
         $row = $this->connection->fetchAssociative('SELECT * FROM finding_contact_route WHERE finding_id = ?', [$finding->getId()]);
-        if ($row) $row['provenance'] = json_decode($row['provenance'], true, 32, JSON_THROW_ON_ERROR);
+        if ($row) {
+            $row['provenance'] = json_decode($row['provenance'], true, 32, JSON_THROW_ON_ERROR);
+            if (($row['provenance']['provider'] ?? '') === 'hunter') {
+                $row['provenance']['source_current'] = ContactDiscoveryService::bindingCurrent($this->connection, $finding, $row['provenance']);
+            }
+        }
         return ['available' => true, 'selected' => $row ?: null, 'revision' => $row['revision'] ?? 'none'];
     }
 
@@ -51,9 +56,15 @@ final class ContactRouteService
                 $contact = $result['contacts'][(int) $index] ?? null;
                 $expires = $result['expires'] ?? null;
                 if (!self::suggestionCurrent($result) || !is_array($contact)) throw new \InvalidArgumentException('Kontaktvorschlag nicht verfügbar.');
+                if ($attempt['provider'] === 'hunter' && !ContactDiscoveryService::bindingCurrent($this->connection, $finding, $result)) throw new \InvalidArgumentException('Kontaktvorschlag nicht verfügbar.');
                 [$channel, $destination] = $this->destination($contact['channel'] ?? '', $contact['value'] ?? '');
                 $source = $this->text($result['source'] ?? '', 2048);
                 $provenance = ['origin' => 'suggestion', 'attempt_id' => $id, 'provider' => $attempt['provider'], 'fetched_at' => $attempt['fetched_at'], 'expires' => $expires];
+                if ($attempt['provider'] === 'hunter') {
+                    $provenance['queried_domain'] = $result['queried_domain'];
+                    $provenance['case_binding'] = $result['case_binding'];
+                    $provenance['hunter'] = $contact['hunter'] ?? [];
+                }
             } else {
                 [$channel, $destination] = $this->destination($input['channel'] ?? '', $input['destination'] ?? '');
                 $provenance = ['origin' => 'manual'];

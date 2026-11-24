@@ -1,6 +1,7 @@
 <?php
 use App\Value\PursuitStatus;
 $statusLabels = ['pending' => 'Abruf vorgemerkt', 'found' => 'Kontaktvorschläge gefunden', 'expired' => 'Abgelaufene Angaben', 'not_found' => 'Keine security.txt gefunden', 'invalid' => 'Ungültige Angaben', 'error' => 'Abruf fehlgeschlagen'];
+$contactProviderOptions ??= [];
 ?>
 <div class="studio-follow-up-intro" aria-label="<?= $escape($t('Kontakt und Nachverfolgung')) ?>">
   <p class="studio-follow-up-kicker"><?= $escape($t('Kontakt und Nachverfolgung')) ?></p>
@@ -55,21 +56,26 @@ $statusLabels = ['pending' => 'Abruf vorgemerkt', 'found' => 'Kontaktvorschläge
     <?php if ($workState['available'] && !$workState['checksBlocked'] && !$workState['contactBlocked'] && !$finding->isDiscarded()): ?>
       <form method="post" action="<?= $escape($findingPath) ?>/contact-discovery" data-contact-discovery>
         <?= $csrfField('finding_contact_discovery_'.$finding->getId()) ?><?= $returnField ?>
-        <?php foreach ($contactProviders as $providerId => $providerLabel): ?><button class="studio-detail-button" type="submit" name="provider" value="<?= $escape($providerId) ?>"><?= $escape($t('Kontakte suchen: {provider}', ['provider' => $providerLabel])) ?></button><?php endforeach; ?>
+        <?php foreach ($contactProviders as $providerId => $providerLabel): if ($contactProviderOptions[$providerId]['requiresConsent'] ?? false) continue; ?><button class="studio-detail-button" type="submit" name="provider" value="<?= $escape($providerId) ?>"><?= $escape($t('Kontakte suchen: {provider}', ['provider' => $providerLabel])) ?></button><?php endforeach; ?>
       </form>
+      <?php if (isset($contactProviderOptions['hunter'])): require __DIR__.'/hunter-contact-discovery.php'; endif; ?>
     <?php else: ?><p data-contact-discovery-blocked><?= $escape($t('Kontaktermittlung ist für diesen Fall nicht verfügbar oder gesperrt.')) ?></p><?php endif; ?>
-    <?php if ($contactHistory === []): ?><p class="studio-follow-up-empty" data-no-contact-lookup><?= $escape($t('Noch keine Kontaktabfrage gespeichert. Es gibt daher keine Vorschläge aus security.txt.')) ?></p><?php endif; ?>
+    <?php if ($contactHistory === []): ?><p class="studio-follow-up-empty" data-no-contact-lookup><?= $escape($t('Noch keine Kontaktabfrage gespeichert.')) ?></p><?php endif; ?>
     <?php require __DIR__.'/contact-route.php'; ?>
     <ol class="studio-record-list" data-contact-history>
       <?php foreach ($contactHistory as $attempt): $result = $attempt['result']; ?>
         <li class="studio-record" data-contact-status="<?= $escape($result['status']) ?>">
-          <h3><?= $escape($t($statusLabels[$result['status']] ?? 'Ungültige Angaben')) ?></h3>
+          <h3><?= $escape($t($attempt['provider'] === 'hunter' && $result['status'] === 'not_found' ? 'Keine Hunter-Kontaktvorschläge gefunden' : ($statusLabels[$result['status']] ?? 'Ungültige Angaben'))) ?></h3>
           <p><?= $escape($t('Abruf über')) ?> <?= $escape($contactProviders[$attempt['provider']] ?? $attempt['provider']) ?> · <?= $escape($storedTime($attempt['fetched_at'])) ?></p>
           <?php if ($result['source'] !== ''): ?><p><?= $escape($t('Quelle')) ?>: <code><?= $escape($result['source']) ?></code></p><?php endif; ?>
-          <?php if ($result['expires'] !== null): ?><p><?= $escape($t('Veröffentlichtes Ablaufdatum')) ?>: <?= $escape($storedTime($result['expires'])) ?></p><?php endif; ?>
+          <?php if (isset($result['queried_domain'])): ?><p><?= $escape($t('Abgefragte Domain')) ?>: <code><?= $escape($result['queried_domain']) ?></code></p><?php endif; ?>
+          <?php if (isset($result['metadata']['cached_from'])): ?><p class="studio-detail-hint"><?= $escape($t('Aus dem lokalen Hunter-Cache; ursprünglicher Abruf')) ?>: <?= $escape($storedTime($result['metadata']['origin_fetched_at'])) ?></p><?php endif; ?>
+          <?php if (isset($result['metadata']['credits_used'], $result['metadata']['credits_unit'])): ?><p class="studio-detail-hint"><?= $escape($t('Vom Anbieter gemeldeter Verbrauch beim ursprünglichen Abruf')) ?>: <?= $escape($result['metadata']['credits_used'].' '.$result['metadata']['credits_unit']) ?></p><?php endif; ?>
+          <?php if ($result['expires'] !== null): ?><p><?= $escape($t($attempt['provider'] === 'hunter' ? 'Lokal gültig bis' : 'Veröffentlichtes Ablaufdatum')) ?>: <?= $escape($storedTime($result['expires'])) ?></p><?php endif; ?>
           <?php if ($result['status'] !== 'found' && $result['contacts'] !== []): ?><p class="studio-detail-hint"><?= $escape($t('Nicht als aktuelle Kontaktfreigabe verwenden.')) ?></p><?php endif; ?>
           <?php if ($result['contacts'] === []): ?><p class="studio-detail-hint"><?= $escape($t('Dieser Abruf enthält keinen verwendbaren Kontaktvorschlag.')) ?></p><?php endif; ?>
           <ul><?php foreach ($result['contacts'] as $contactIndex => $contact): ?><li><?= $escape($t($contact['channel'] === 'email' ? 'E-Mail' : 'Formular oder Meldeportal')) ?>: <code><?= $escape($contact['value']) ?></code>
+            <?php if (isset($contact['hunter'])): require __DIR__.'/hunter-contact-metadata.php'; endif; ?>
             <?php if ($contactRoute['available'] && \App\Service\ContactRouteService::suggestionCurrent($result)): ?>
               <form method="post" action="<?= $escape($findingPath) ?>/contact-route" data-contact-route-suggestion>
                 <?= $csrfField('finding_contact_route_'.$finding->getId()) ?><?= $returnField ?>
@@ -85,6 +91,6 @@ $statusLabels = ['pending' => 'Abruf vorgemerkt', 'found' => 'Kontaktvorschläge
         </li>
       <?php endforeach; ?>
     </ol>
-    <p class="studio-detail-hint"><?= $escape($t('Letzte zehn Abfragen. Fehler ersetzen keine früheren Vorschläge. Ein erneuter Abruf innerhalb einer Minute wird zusammengefasst.')) ?></p>
+    <p class="studio-detail-hint"><?= $escape($t('Letzte zehn Abfragen. Fehler ersetzen keine früheren Vorschläge. security.txt-Abfragen innerhalb einer Minute werden zusammengefasst; für Hunter gelten Cache und lokales Limit.')) ?></p>
   </section>
 </div>

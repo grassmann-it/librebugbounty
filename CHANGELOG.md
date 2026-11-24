@@ -5,6 +5,13 @@ repository's tagged commits.
 
 ## Unreleased
 
+- Optional Hunter.io Domain Search adds explicit contact suggestions with source
+  metadata, exact-domain binding, a seven-day cache and durable local credit
+  reservations. It does not automatically choose a recipient or send messages.
+- AI management stores versioned writing profiles with custom style instructions
+  and example emails. Profiles can be selected in the email editor, made the
+  default or archived; the exact outbound preview includes selected examples.
+  Profile revisions remain bound to generated text and Gmail attempts.
 - Prepare a local DE/EN email draft from a current, eligible case with an explicit
   OpenAI request preview. The first slice keeps recipients and PoCs local, adds
   controlled factual sections, and supports editing, copying and text download.

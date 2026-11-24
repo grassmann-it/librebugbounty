@@ -158,6 +158,14 @@ jobs:
         run: node tests/browser/email-preparation.cjs
         env:
           EMAIL_UI_OUTPUT: var/email-preparation-ui-ci
+      - name: Test AI profile management, form retention and responsive layout
+        run: node tests/browser/ai-settings.cjs
+        env:
+          AI_SETTINGS_UI_OUTPUT: var/ai-settings-ui-ci
+      - name: Test explicit Hunter lookup controls and responsive contact metadata
+        run: node tests/browser/hunter-contact.cjs
+        env:
+          HUNTER_UI_OUTPUT: var/hunter-contact-ui-ci
       - name: Test embedded noVNC controls with synthetic RFB fixtures
         run: node tests/browser/studio-review-novnc-ui.cjs
         env:
@@ -182,6 +190,8 @@ jobs:
             var/intake-acceptance-*/
             var/utilities-ui-acceptance/
             var/email-preparation-ui-ci/
+            var/ai-settings-ui-ci/
+            var/hunter-contact-ui-ci/
             var/novnc-ui-acceptance/
             var/novnc-e2e-acceptance/
           if-no-files-found: ignore

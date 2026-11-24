@@ -40,6 +40,7 @@
             <p class="studio-eyebrow"><?= $escape($t('Arbeitsumgebung')) ?></p>
             <h1><?= $escape($t('Einstellungen')) ?></h1>
             <p><?= $escape($t('Standardwerte für künftige Aktionen. Sie ändern keine bestehende Fallentscheidung.')) ?></p>
+            <p><a href="/settings/ai"><?= $locale === 'de' ? 'KI-Verwaltung: Schreibprofile und Beispielmails' : 'AI management: writing profiles and example emails' ?> →</a></p>
           </div>
         </header>
 

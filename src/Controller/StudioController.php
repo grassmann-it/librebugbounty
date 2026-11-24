@@ -201,6 +201,7 @@ final class StudioController
         $workState = $this->followUp->state($view->finding);
         $workHistory = $this->followUp->history($view->finding);
         $contactProviders = $this->contacts->providers();
+        $contactProviderOptions = $this->contacts->providerOptions($view->finding);
         $contactHistory = $this->contacts->history($view->finding);
         $contactRoute = $this->contactRoutes->state($view->finding);
         $disclosureRecord = $this->disclosureRecords->state($view->finding);

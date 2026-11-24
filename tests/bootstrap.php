@@ -20,6 +20,7 @@ foreach ([
     'PLAYWRIGHT_GATEWAY_TOKEN' => 'isolated-phpunit-gateway-token',
     // Local connector configuration must never give tests a live mail/API writer.
     'OPENAI_API_KEY' => '',
+    'HUNTER_API_KEY' => '',
     'EMAIL_GMAIL_SOCKET' => '',
     'EMAIL_GMAIL_ACCOUNT' => '',
 ] as $key => $value) {

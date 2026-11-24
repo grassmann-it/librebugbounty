@@ -19,11 +19,15 @@ draft addressed to a website URL.
 
 The request preview shows the exact JSON body: the hostname, language and
 qualified report components with their certainty, plus the writing instructions
-and output schema. Only clicking **Draft with OpenAI** starts the external
+and output schema. A selected custom writing profile adds its instructions and
+example emails. Only clicking **Draft with OpenAI** starts the external
 request. Previewing or downloading the JSON makes no model call.
 
-Recipient addresses, the original PoC URL, stored screenshots, raw response
-bodies, internal case IDs and private report-gen examples are not model input.
+The application does not automatically include the current case's recipient,
+original PoC URL, stored screenshots, raw response bodies, internal case IDs or
+private report-gen files in model input. Text you manually enter into a profile
+or example is included when you select that profile: remove names, addresses or
+URLs you do not want to transmit and inspect the exact request preview.
 The application adds the exact original PoC and controlled factual paragraphs
 locally. The model supplies the subject, opening and closing. Unsupported,
 missing or stale report projections cannot be used; changing the case or contact
@@ -32,6 +36,37 @@ after preview requires another preview.
 Read the whole result before using it. Schema and local checks do not establish
 that generated prose is factually correct. Preparing a draft is not a review
 receipt or evidence of a sent report.
+
+## Manage writing profiles and example emails
+
+Open **Settings → AI management** (`/settings/ai`) to create a named writing
+profile. Give it your own style instructions and optional named example emails.
+Saving or editing a profile stores it locally; it makes no provider request and
+does not import Gmail messages or personal skill files. The built-in profile
+remains available as a fixed starting point.
+
+Choose a profile in the email editor before previewing or generating. Its name
+and version identify the instructions and examples in the request. A profile
+can be selected as the default for newly opened editors. Already prepared text
+keeps its original profile binding; changing the default does not retarget it.
+
+Profiles guide the AI-written subject, opening and closing. They do not change
+case findings, certainty, technical paragraphs or the exact original PoC. Example
+emails illustrate style; their facts and recipients are not facts about the
+current case. The application's fixed writing rules and output validation still
+apply. Manual drafting uses the local starting text rather than running these
+instructions.
+
+Edits create a new revision. Concurrent edits are rejected while preserving the
+submitted form for correction. Archiving removes a profile from new selections
+without deleting its history. A changed or archived profile makes an earlier
+request preview stale; review a new preview before generating again. Existing
+Gmail receipts remain tied to the profile used for their reviewed message.
+
+Profiles and their historical example texts are private application data in the
+SQLite database and therefore included in the normal database backup. Archive
+is not erasure. Keep backups private too. The connection panel displays the
+configured provider and model; API keys remain server configuration.
 
 ## Server configuration
 
@@ -180,9 +215,10 @@ operations; it has no send operation.
 
 ## Skills and MCP
 
-The first implementation adapts general report-writing constraints into a
-bounded application workflow. It does not execute a personal skill file or
-upload private examples. A later skill/profile system and MCP adapter should
-share the same case projection and validation rules. The [2.3.0 architecture
+The implementation adapts general report-writing constraints into a bounded
+application workflow. It does not execute personal skill files or import their
+examples. User-entered profiles are managed locally and their selected content
+is part of the explicit request preview. A later profile-package importer and
+MCP adapter should share the same case projection and validation rules. The [2.3.0 architecture
 proposal](design/2.3.0-ai-email-and-mcp.md) describes that separation and the
 remaining work; an MCP server is not included in this slice.

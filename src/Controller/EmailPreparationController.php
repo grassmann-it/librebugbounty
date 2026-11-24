@@ -51,15 +51,17 @@ final class EmailPreparationController
             if (strlen($request->getContent()) > 8192 || $request->getContentTypeFormat() !== 'json') throw new EmailPreparationException('invalid_input', 'Invalid request. Reload the page.', 400);
             try { $input = json_decode($request->getContent(), true, 8, JSON_THROW_ON_ERROR); }
             catch (\JsonException) { throw new EmailPreparationException('invalid_input', 'Invalid request. Reload the page.', 400); }
-            if (!is_array($input) || array_is_list($input) || array_diff(array_keys($input), ['_token', 'language', 'fingerprint'])
+            if (!is_array($input) || array_is_list($input) || array_diff(array_keys($input), ['_token', 'language', 'fingerprint', 'profileId'])
                 || !is_string($input['_token'] ?? null) || !is_string($input['language'] ?? null)
+                || (array_key_exists('profileId', $input) && !is_string($input['profileId']))
                 || ($generate && !is_string($input['fingerprint'] ?? null))) throw new EmailPreparationException('invalid_input', 'Invalid request. Reload the page.', 400);
             if (!$this->csrf->isTokenValid(new CsrfToken('email_prepare_'.$id, $input['_token']))) throw new EmailPreparationException('invalid_csrf', 'Invalid form. Reload the page.', 403);
             $finding = Uuid::isValid($id) ? $this->findings->find($id) : null;
             if (!$finding instanceof Finding) throw new EmailPreparationException('not_found', 'Case not found.', 404);
             // Release PHP's session lock before the provider call, keeping Review usable in another tab.
             if ($request->hasSession() && $request->getSession()->isStarted()) $request->getSession()->save();
-            $result = $generate ? $this->emails->generate($finding, $input['language'], $input['fingerprint']) : $this->emails->preview($finding, $input['language']);
+            $profileId = $input['profileId'] ?? \App\Service\EmailWritingProfileService::BUILTIN;
+            $result = $generate ? $this->emails->generate($finding, $input['language'], $input['fingerprint'], $profileId) : $this->emails->preview($finding, $input['language'], $profileId);
             return $this->json(['ok' => true] + $result);
         } catch (EmailPreparationException $error) {
             return $this->json(['ok' => false, 'error' => $this->publicMessage($error->errorCode, $error->getMessage()), 'code' => $error->errorCode], $error->httpStatus);
@@ -82,6 +84,7 @@ final class EmailPreparationController
             'invalid_language' => 'Wähle Deutsch oder Englisch.',
             'not_found' => 'Fall nicht gefunden.',
             'stale_preview' => 'Fall, Kontakt oder Anfrage haben sich geändert. Zeige vor dem nächsten Generieren eine neue Vorschau an.',
+            'profile_missing', 'profile_stale' => 'Das Schreibprofil wurde geändert oder archiviert. Wähle ein verfügbares Profil und zeige die Anfrage erneut an.',
             'projection_stale', 'projection_ineligible', 'no_components', 'unsupported_component' => 'Die ausgewählten Erkenntnisse sind noch nicht für eine Meldung freigegeben. Bitte prüfe den Fall zuerst.',
             'workflow_blocked' => 'Für diesen Fall kann kein neuer Erstkontakt vorbereitet werden. Prüfe Status und Meldeverlauf.',
             'contact_blocked' => 'Die Kontaktaufnahme ist gesperrt oder der Fall wurde geändert. Prüfe zuerst die Kontaktsperren.',

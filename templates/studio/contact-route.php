@@ -14,8 +14,8 @@
         <p class="studio-detail-hint"><?= $escape($t($selectedRoute['provenance']['origin'] === 'manual' ? 'Manuell erfasst' : 'Aus Kontaktvorschlag gewählt')) ?> · <?= $escape($storedTime($selectedRoute['changed_at'])) ?></p>
         <?php if ($selectedRoute['provenance']['origin'] === 'suggestion'): ?>
           <p class="studio-detail-hint"><?= $escape($t('Abrufdatum')) ?>: <?= $escape($storedTime($selectedRoute['provenance']['fetched_at'])) ?></p>
-          <?php if ($selectedRoute['provenance']['expires'] !== null): ?><p class="studio-detail-hint"><?= $escape($t('Veröffentlichtes Ablaufdatum')) ?>: <?= $escape($storedTime($selectedRoute['provenance']['expires'])) ?></p><?php endif; ?>
-          <?php if (!\App\Service\ContactRouteService::suggestionCurrent(['status' => 'found', 'expires' => $selectedRoute['provenance']['expires']])): ?><p><?= $escape($t('Die gewählte Quelle ist inzwischen abgelaufen. Bitte vor einer Kontaktaufnahme erneut prüfen.')) ?></p><?php endif; ?>
+          <?php if ($selectedRoute['provenance']['expires'] !== null): ?><p class="studio-detail-hint"><?= $escape($t(($selectedRoute['provenance']['provider'] ?? '') === 'hunter' ? 'Lokal gültig bis' : 'Veröffentlichtes Ablaufdatum')) ?>: <?= $escape($storedTime($selectedRoute['provenance']['expires'])) ?></p><?php endif; ?>
+          <?php if (($selectedRoute['provenance']['source_current'] ?? true) === false || !\App\Service\ContactRouteService::suggestionCurrent(['status' => 'found', 'expires' => $selectedRoute['provenance']['expires']])): ?><p><?= $escape($t('Die gewählte Quelle ist inzwischen abgelaufen. Bitte vor einer Kontaktaufnahme erneut prüfen.')) ?></p><?php endif; ?>
         <?php endif; ?>
       </div>
     <?php else: ?><p class="studio-follow-up-empty" data-no-contact-route><?= $escape($t('Noch kein Meldeweg gewählt. Vorschläge werden nicht automatisch übernommen.')) ?></p><?php endif; ?>

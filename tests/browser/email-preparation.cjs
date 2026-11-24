@@ -26,12 +26,17 @@ $finding = (new \App\Entity\Finding())->setDomain((new \App\Entity\Domain())->se
 $csrfToken = 'synthetic-csrf-token';
 $initialState = ['eligible'=>getenv('EMAIL_FIXTURE_ELIGIBLE') !== '0', 'error'=>'Synthetic case needs review.', 'configured'=>getenv('EMAIL_FIXTURE_CONFIGURED') !== '0', 'model'=>'gpt-6.2-sol', 'language'=>$locale, 'contact'=>['channel'=>'email','destination'=>'security@example.test']];
 $initialState['gmail'] = json_decode(getenv('EMAIL_FIXTURE_GMAIL'), true, 512, JSON_THROW_ON_ERROR);
+$initialState['profiles'] = json_decode(getenv('EMAIL_FIXTURE_PROFILES'), true, 512, JSON_THROW_ON_ERROR);
+$initialState['defaultProfileId'] = getenv('EMAIL_FIXTURE_DEFAULT_PROFILE') ?: 'builtin';
 require getcwd().'/templates/studio/prepare-email.php';
 `;
+const builtinProfile = {id: 'builtin', name: 'Responsible disclosure', revision: 1, builtin: true, archived: false, isDefault: true, exampleCount: 0, payloadHash: 'builtin-profile-hash'};
+const customProfile = {id: '1c27938e-6fa0-4a81-9d7a-887a379bd2ce', name: 'Short & personal', revision: 3, builtin: false, archived: false, isDefault: false, exampleCount: 1, payloadHash: 'custom-profile-revision-3-hash'};
+const profiles = [builtinProfile, customProfile];
 const initialGmail = {configured: true, account: 'writer@example.test', canCreate: true, receipt: null};
 const receipt = (attemptId, extra = {}) => ({state: 'verified', attemptId, draftId: 'synthetic-draft-id', messageId: 'synthetic-message-id', gmailUrl: 'https://mail.google.com/mail/u/writer@example.test/#drafts', account: 'writer@example.test', stale: false, canCreate: false, ...extra});
 const existingAttempt = '40fa4036-764e-4995-889e-77440dd76847';
-const render = (locale, configured = true, eligible = true, gmail = initialGmail) => execFileSync('php', ['-r', php], {cwd: root, encoding: 'utf8', env: {...process.env, EMAIL_FIXTURE_LOCALE: locale, EMAIL_FIXTURE_CONFIGURED: configured ? '1' : '0', EMAIL_FIXTURE_ELIGIBLE: eligible ? '1' : '0', EMAIL_FIXTURE_GMAIL: JSON.stringify(gmail)}});
+const render = (locale, configured = true, eligible = true, gmail = initialGmail, defaultProfile = 'builtin') => execFileSync('php', ['-r', php], {cwd: root, encoding: 'utf8', env: {...process.env, EMAIL_FIXTURE_LOCALE: locale, EMAIL_FIXTURE_CONFIGURED: configured ? '1' : '0', EMAIL_FIXTURE_ELIGIBLE: eligible ? '1' : '0', EMAIL_FIXTURE_GMAIL: JSON.stringify(gmail), EMAIL_FIXTURE_PROFILES: JSON.stringify(profiles), EMAIL_FIXTURE_DEFAULT_PROFILE: defaultProfile}});
 const html = Object.fromEntries(['de', 'en'].map(locale => [locale, render(locale)]));
 const checks = [];
 const mark = text => { checks.push(text); console.log('PASS ' + text); };
@@ -49,6 +54,7 @@ let gmailStatus = null;
 let reconcileStatus = null;
 const injection = '</pre><script>window.EMAIL_INJECTION = true</script>';
 const payload = {model: 'gpt-6.2-sol', store: false, input: [{role: 'user', content: JSON.stringify({host: 'example.test', findings: ['confirmed XSS', injection]})}]};
+const customPayload = {...payload, input: [...payload.input, {role: 'user', content: JSON.stringify({writing_profile: {instructions: 'Keep the introduction short and polite.', examples: [{name: 'Short introduction', text: `Hello team,\nA synthetic style example. ${injection}`}]}})}]};
 const previewResponse = {ok: true, fingerprint: 'fixture-revision-1', request: payload, contact: {channel: 'email', destination: 'security@example.test'}, model: 'gpt-6.2-sol', language: 'en', eligible: true, summary: {host: 'security-review.example.test', components: [{label: 'Cross-site scripting', certainty: 'confirmed'}, {label: injection, certainty: 'observed'}]}};
 
 async function main() {
@@ -68,7 +74,7 @@ async function main() {
           gmail.receipt = receipt(existingAttempt, {state: 'rejected', draftId: null, messageId: null, gmailUrl: null, canCreate: true});
         }
       }
-      response.end(url.search ? render(locale, url.searchParams.get('configured') !== '0', url.searchParams.get('eligible') !== '0', gmail) : html[locale]);
+      response.end(url.search ? render(locale, url.searchParams.get('configured') !== '0', url.searchParams.get('eligible') !== '0', gmail, url.searchParams.get('default') === 'custom' ? customProfile.id : 'builtin') : html[locale]);
       return;
     }
     if (request.method !== 'GET' || !/^\/(css|js)\/[a-zA-Z0-9_.-]+$/.test(url.pathname)) { response.writeHead(404); response.end(); return; }
@@ -100,7 +106,10 @@ async function main() {
       posts.push({path: url.pathname, data});
       assert.equal(data._token, 'synthetic-csrf-token');
       if (url.pathname.endsWith('/preview')) {
-        await route.fulfill({status: 200, json: {...previewResponse, language: data.language, manualDraft: {subject: `Local ${data.language} subject`, body: `Local ${data.language} factual text\n\nhttps://example.test/?q=%22+%3Cscript%3E`, recipient: previewResponse.contact.destination, channel: previewResponse.contact.channel, language: data.language, fingerprint: previewResponse.fingerprint}}});
+        const profile = profiles.find(item => item.id === data.profileId);
+        assert.ok(profile, 'Preview selects an existing profile by ID');
+        const request = profile.builtin ? payload : customPayload;
+        await route.fulfill({status: 200, json: {...previewResponse, request, profile, language: data.language, manualDraft: {subject: `Local ${data.language} subject`, body: `Local ${data.language} factual text\n\nhttps://example.test/?q=%22+%3Cscript%3E`, recipient: previewResponse.contact.destination, channel: previewResponse.contact.channel, language: data.language, fingerprint: previewResponse.fingerprint, profileId: profile.id, profile}}});
         return;
       }
       if (url.pathname.endsWith('/gmail-draft/reconcile')) {
@@ -118,7 +127,9 @@ async function main() {
       }
       assert.ok(url.pathname.endsWith('/generate'), 'Only prepare-email local endpoints may be posted');
       if (holdGenerate) await holdGenerate;
-      await route.fulfill({status: generateResponse.status, json: generateResponse.body});
+      const generatedProfile = profiles.find(item => item.id === data.profileId);
+      assert.ok(generatedProfile, 'Generation uses the previewed profile ID');
+      await route.fulfill({status: generateResponse.status, json: {...generateResponse.body, ...(generateResponse.body.ok ? {profile: generatedProfile, profileId: generatedProfile.id} : {})}});
     });
     const page = await context.newPage();
     page.on('pageerror', error => errors.push(error.message));
@@ -146,6 +157,11 @@ async function main() {
     assert.equal(posts.length, 0, 'Loading never starts preview or generation');
     mark('DE/EN layout at 320, 390, 768, 960 and 1440; no page/main horizontal overflow or automatic requests');
 
+    await page.goto(`${origin}/fixture/en?default=custom`);
+    assert.equal(await q('profile').inputValue(), customProfile.id);
+    assert.equal(posts.length, 0, 'A saved default profile does not start an external request');
+    assert.equal(await page.locator('a[href="/settings/ai"]').count(), 1);
+
     await page.setViewportSize({width: 1440, height: 1000});
     await page.goto(`${origin}/fixture/en`);
     assert.equal(await q('generate').isVisible(), false);
@@ -163,12 +179,32 @@ async function main() {
     assert.equal(posts.at(-1).data.language, 'de');
     mark('Preview shows exact escaped payload, JSON download matches, changing language invalidates preview');
 
+    const postsBeforeProfileChange = posts.length;
+    await q('profile').selectOption(customProfile.id);
+    assert.equal(await q('preview-content').isVisible(), false);
+    assert.equal(posts.length, postsBeforeProfileChange, 'Selecting a profile alone makes no request');
+    await preview();
+    assert.equal(posts.at(-1).data.profileId, customProfile.id);
+    assert.equal(await q('payload').textContent(), JSON.stringify(customPayload, null, 2));
+    assert.equal(await page.evaluate(() => Boolean(window.EMAIL_INJECTION)), false);
+    assert.equal(await q('payload').locator('script').count(), 0);
+    if (!(await page.locator('.email-payload').evaluate(element => element.open))) await page.locator('.email-payload summary').click();
+    const [profileRequestDownload] = await Promise.all([page.waitForEvent('download'), q('download-request').click()]);
+    assert.deepEqual(JSON.parse(await fs.readFile(await profileRequestDownload.path(), 'utf8')), customPayload);
+    await q('profile').selectOption('builtin');
+    assert.equal(await q('preview-content').isVisible(), false);
+    await preview();
+    assert.equal(posts.at(-1).data.profileId, 'builtin');
+    mark('Saved default and selected profile remain local until preview; exact custom style/example request is escaped and downloadable');
+
     holdGenerate = new Promise(resolve => { releaseGenerate = resolve; });
     await q('generate').click();
     await page.waitForFunction(() => document.querySelector('[data-email-generate]').disabled);
     await q('generate').evaluate(button => { button.click(); button.click(); });
     assert.equal(posts.filter(post => post.path.endsWith('/generate')).length, 1);
     assert.equal(await q('language').isDisabled(), true);
+    assert.equal(await q('profile').isDisabled(), true);
+    assert.equal(posts.at(-1).data.profileId, 'builtin');
     releaseGenerate(); holdGenerate = null;
     await waitStatus();
     assert.equal(await q('body').inputValue(), generateResponse.body.body);
@@ -271,12 +307,14 @@ async function main() {
     mark('Manual draft works without OpenAI; preview/copy/download make no Gmail call; editing resets explicit review');
 
     await page.goto(`${origin}/fixture/de`);
+    await q('profile').selectOption(customProfile.id);
     previewResponse.fingerprint = 'original-de-fingerprint';
     await preview(); await q('manual').click();
     await q('subject').fill('Edited Gmail subject');
     await q('body').fill('Edited Gmail body\n\nhttps://example.test/?q=%22+%3Cscript%3E');
     await q('signature').fill('LOCAL SIGNATURE');
     await q('language').selectOption('en');
+    await q('profile').selectOption('builtin');
     previewResponse.fingerprint = 'new-en-fingerprint';
     await preview(); await q('replace-confirm').check();
     generateResponse = {status: 502, body: {ok: false, code: 'provider_failed', error: 'Failed replacement generation'}};
@@ -291,6 +329,7 @@ async function main() {
     const submitted = gmailWrites().at(-1).data;
     assert.equal(submitted.language, 'de');
     assert.equal(submitted.fingerprint, 'original-de-fingerprint');
+    assert.equal(submitted.profileId, customProfile.id);
     assert.equal(submitted.subject, 'Edited Gmail subject');
     assert.equal(submitted.body, 'Edited Gmail body\n\nhttps://example.test/?q=%22+%3Cscript%3E\n\nLOCAL SIGNATURE');
     assert.equal(submitted.reviewed, true);
@@ -306,7 +345,7 @@ async function main() {
     assert.equal(await q('gmail-account').textContent(), 'writer@example.test');
     assert.equal(await q('gmail-open').getAttribute('href'), receipt(submitted.attemptId).gmailUrl);
     assert.equal(await unloadBlocked(), false, 'Verified exact submitted version clears local unsaved guard');
-    mark('Gmail preserves original draft language/fingerprint after failed replacement; one explicit create stores edited body and signature');
+    mark('Gmail preserves original manual draft language/fingerprint/profile after failed replacement; one explicit create stores edited body and signature');
 
     const beforeReceiptLoad = {writes: gmailWrites().length, reads: gmailReads.length, reconciles: reconciles().length};
     await page.goto(`${origin}/fixture/en?receipt=verified`);
@@ -444,6 +483,22 @@ async function main() {
     await gmailCreate();
     assert.equal(gmailWrites().at(-1).data.expectedAccount, 'new-writer@example.test');
     mark('Reload and flat reconciliation keep historical receipt account separate from current retry account');
+
+    await page.goto(`${origin}/fixture/en?default=custom`);
+    previewResponse.fingerprint = 'generated-custom-profile';
+    generateResponse = {status: 200, body: {ok: true, subject: 'Generated custom profile subject', body: 'Generated text\n\nhttps://example.test/?q=%22+%3Cscript%3E', recipient: 'security@example.test', channel: 'email', model: 'gpt-6.2-sol', language: 'en'}};
+    await preview(); await generate();
+    assert.equal(posts.at(-1).data.profileId, customProfile.id);
+    await q('profile').selectOption('builtin');
+    previewResponse.fingerprint = 'replacement-builtin-profile';
+    await preview(); await q('replace-confirm').check();
+    generateResponse = {status: 502, body: {ok: false, code: 'provider_failed', error: 'Failed generated-profile replacement'}};
+    await generate();
+    assert.equal(await q('subject').inputValue(), 'Generated custom profile subject');
+    await gmailCreate();
+    assert.equal(gmailWrites().at(-1).data.profileId, customProfile.id);
+    assert.equal(gmailWrites().at(-1).data.fingerprint, 'generated-custom-profile');
+    mark('Generated draft keeps its original profile for Gmail after a different preview and failed replacement');
 
     previewResponse.contact = {channel: 'web', destination: 'https://example.test/report'};
     await startManual();

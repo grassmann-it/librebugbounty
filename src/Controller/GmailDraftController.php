@@ -43,7 +43,7 @@ final class GmailDraftController
             if (strlen($request->getContent()) > 163840 || $request->getContentTypeFormat() !== 'json') throw new EmailPreparationException('gmail_invalid_input', 'Invalid draft request.', 400);
             try { $input = json_decode($request->getContent(), true, 8, JSON_THROW_ON_ERROR); }
             catch (\JsonException) { throw new EmailPreparationException('gmail_invalid_input', 'Invalid draft request.', 400); }
-            $allowed = $reconcile ? ['_token', 'attemptId'] : ['_token', 'attemptId', 'expectedAccount', 'language', 'fingerprint', 'subject', 'body', 'reviewed'];
+            $allowed = $reconcile ? ['_token', 'attemptId'] : ['_token', 'attemptId', 'expectedAccount', 'language', 'fingerprint', 'subject', 'body', 'reviewed', 'profileId'];
             if (!is_array($input) || array_is_list($input) || array_diff(array_keys($input), $allowed) || !is_string($input['_token'] ?? null)
                 || !is_string($input['attemptId'] ?? null)) throw new EmailPreparationException('gmail_invalid_input', 'Invalid draft request.', 400);
             if (!$this->csrf->isTokenValid(new CsrfToken('email_prepare_'.$id, $input['_token']))) throw new EmailPreparationException('invalid_csrf', 'Invalid form. Reload the page.', 403);

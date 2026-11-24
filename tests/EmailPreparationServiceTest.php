@@ -12,6 +12,7 @@ use App\Service\CribrumProcessingService;
 use App\Service\EmailDraftClientInterface;
 use App\Service\EmailPreparationException;
 use App\Service\EmailPreparationService;
+use App\Service\EmailWritingProfileService;
 use App\Service\FindingService;
 use App\Service\FollowUpService;
 use App\Service\ReportProjectionService;
@@ -229,6 +230,65 @@ final class EmailPreparationServiceTest extends DatabaseTestCase
         self::assertFalse($preview['manualDraft']['reviewed']);
         self::assertSame($preview['fingerprint'], $preview['manualDraft']['fingerprint']);
         self::assertSame(0, $this->client->calls);
+    }
+
+    public function testOnlySelectedWritingProfileExamplesLeaveTheApplicationAndBuiltinBindingStaysCompatible(): void
+    {
+        $finding = $this->finding(); $legacy = $this->preparation->preview($finding, 'en');
+        $profiles = $this->writingProfiles();
+        $selected = $profiles->save($this->profileInput(['name' => 'Selected style', 'example_texts' => ['PRIVATE_SELECTED_STYLE: We confirmed SQL injection at other.example.org.']]));
+        $other = $profiles->save($this->profileInput(['name' => 'Other style', 'example_texts' => ['PRIVATE_UNSELECTED_STYLE']]));
+        $builtin = $this->preparation->preview($finding, 'en', 'builtin');
+        self::assertSame($legacy['request'], $builtin['request']);
+        self::assertSame($legacy['fingerprint'], $builtin['fingerprint']);
+        $preview = $this->preparation->preview($finding, 'en', $selected['id']);
+        $wire = json_encode($preview['request'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        self::assertStringContainsString('PRIVATE_SELECTED_STYLE', $wire);
+        self::assertStringNotContainsString('PRIVATE_UNSELECTED_STYLE', $wire);
+        self::assertStringNotContainsString(self::POC, $wire);
+        $originalFacts = json_decode($builtin['request']['input'][1]['content'], true, 512, JSON_THROW_ON_ERROR)['selected_findings'];
+        $selectedFacts = json_decode($preview['request']['input'][1]['content'], true, 512, JSON_THROW_ON_ERROR)['selected_findings'];
+        self::assertSame($originalFacts, $selectedFacts, 'A style example cannot add technical findings to this case.');
+        $profiles->setDefault($other['id'], $other['revision'], $profiles->defaultSelection()['revision']);
+        self::assertSame($preview['fingerprint'], $this->preparation->preview($finding, 'en', $selected['id'])['fingerprint']);
+        self::assertSame($builtin['fingerprint'], $this->preparation->preview($finding, 'en')['fingerprint'], 'An omitted profile ID retains the historic built-in binding.');
+        $draft = $this->preparation->generate($finding, 'en', $preview['fingerprint'], $selected['id']);
+        self::assertSame(1, $this->client->calls);
+        self::assertStringNotContainsString('PRIVATE_SELECTED_STYLE', $draft['body']);
+        self::assertStringNotContainsString('SQL injection', $draft['body']);
+        self::assertSame(1, substr_count($draft['body'], self::POC));
+    }
+
+    public function testWritingProfileChangesBeforeAndDuringGenerationInvalidateThePreview(): void
+    {
+        $finding = $this->finding(); $profiles = $this->writingProfiles();
+        $profile = $profiles->save($this->profileInput());
+        $preview = $this->preparation->preview($finding, 'en', $profile['id']);
+        $current = $profiles->save($this->profileInput(['action' => 'update', 'profileId' => $profile['id'], 'revision' => $profile['revision'], 'instructions' => 'Updated writing preferences.']));
+        try { $this->preparation->generate($finding, 'en', $preview['fingerprint'], $profile['id']); self::fail('Old writing profile revision accepted.'); }
+        catch (EmailPreparationException $error) { self::assertSame(409, $error->httpStatus); self::assertSame(0, $this->client->calls); }
+        $preview = $this->preparation->preview($finding, 'en', $profile['id']);
+        $this->client->duringGenerate = static fn () => $profiles->archive($current['id'], $current['revision']);
+        try { $this->preparation->generate($finding, 'en', $preview['fingerprint'], $profile['id']); self::fail('Archived writing profile accepted after generation.'); }
+        catch (EmailPreparationException $error) { self::assertSame(409, $error->httpStatus); self::assertSame(1, $this->client->calls); }
+    }
+
+    private function writingProfiles(): EmailWritingProfileService
+    {
+        require_once dirname(__DIR__).'/migrations/Version20261124010000.php';
+        $db = $this->entityManager->getConnection();
+        $migration = new \DoctrineMigrations\Version20261124010000($db, new NullLogger());
+        $migration->up(new Schema());
+        foreach ($migration->getSql() as $sql) $db->executeStatement($sql->getStatement());
+        $profiles = new EmailWritingProfileService($db);
+        $this->preparation = new EmailPreparationService($db, $this->reports, $this->contacts, $this->client, $profiles);
+        return $profiles;
+    }
+
+    private function profileInput(array $changes = []): array
+    {
+        return array_replace(['action' => 'create', 'name' => 'Local writing profile', 'instructions' => 'Be concise and calm.',
+            'example_names' => ['Example'], 'example_texts' => ['PRIVATE_STYLE_SAMPLE']], $changes);
     }
 
     public function testAnAlreadyContactedCaseIsNotANewDisclosureEvenWhenItsEvidenceIsEligible(): void

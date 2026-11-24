@@ -7,7 +7,7 @@
   try { config = JSON.parse(configElement.textContent); } catch (_) { return; }
   const copy = config.copy;
   const query = (selector) => root.querySelector(`[data-email-${selector}]`);
-  const ui = Object.fromEntries(['language', 'preview', 'preview-content', 'payload', 'facts', 'model', 'generate', 'manual', 'draft-source', 'draft-title', 'status', 'contact', 'editor', 'empty', 'subject', 'body', 'signature', 'recipient', 'recipient-label', 'recipient-wrap', 'replace', 'replace-confirm', 'gmail', 'gmail-account', 'gmail-help', 'gmail-create-controls', 'gmail-reviewed', 'gmail-create', 'gmail-receipt', 'gmail-state', 'gmail-stale', 'gmail-id-wrap', 'gmail-id', 'gmail-open', 'gmail-check', 'gmail-receipt-account-wrap', 'gmail-receipt-account'].map((name) => [name, query(name)]));
+  const ui = Object.fromEntries(['language', 'profile', 'profile-summary', 'profile-sharing', 'draft-profile', 'manual-note', 'preview', 'preview-content', 'payload', 'facts', 'model', 'generate', 'manual', 'draft-source', 'draft-title', 'status', 'contact', 'editor', 'empty', 'subject', 'body', 'signature', 'recipient', 'recipient-label', 'recipient-wrap', 'replace', 'replace-confirm', 'gmail', 'gmail-account', 'gmail-help', 'gmail-create-controls', 'gmail-reviewed', 'gmail-create', 'gmail-receipt', 'gmail-state', 'gmail-stale', 'gmail-id-wrap', 'gmail-id', 'gmail-open', 'gmail-check', 'gmail-receipt-account-wrap', 'gmail-receipt-account'].map((name) => [name, query(name)]));
   let preview = null;
   let busy = false;
   let operation = '';
@@ -33,6 +33,7 @@
   function buttons() {
     const locked = gmailLocked();
     ui.language.disabled = busy;
+    ui.profile.disabled = busy;
     ui.preview.disabled = busy || !config.initialState.eligible;
     ui.generate.disabled = busy || locked || !preview || !config.initialState.configured || (hasDraft && !ui['replace-confirm'].checked);
     ui.manual.disabled = busy || locked || !preview?.manualDraft || (hasDraft && !ui['replace-confirm'].checked);
@@ -88,15 +89,22 @@
   }
 
   ui.language.addEventListener('change', () => invalidate(copy.changed));
+  ui.profile.addEventListener('change', () => {
+    ui['gmail-reviewed'].checked = false;
+    invalidate(copy.profileChanged);
+  });
   ui['replace-confirm'].addEventListener('change', buttons);
   ui.preview.addEventListener('click', async () => {
     if (busy) return;
     invalidate();
     busy = true; operation = 'preview'; buttons(); status(copy.previewBusy);
     try {
-      const data = await request('preview', {language: ui.language.value});
+      const data = await request('preview', {language: ui.language.value, profileId: ui.profile.value});
       if (typeof data.fingerprint !== 'string' || !data.request || typeof data.request !== 'object') throw new Error(copy.invalid);
+      if ((data.profile?.id || 'builtin') !== ui.profile.value) throw new Error(copy.invalid);
       preview = data;
+      ui['profile-summary'].textContent = profileDescription(data.profile);
+      ui['profile-sharing'].hidden = !data.profile || data.profile.id === 'builtin';
       ui.payload.textContent = JSON.stringify(data.request, null, 2);
       ui.model.textContent = data.model || config.initialState.model;
       ui.contact.textContent = data.contact?.destination || copy.noContact;
@@ -122,7 +130,8 @@
 
   ui.generate.addEventListener('click', async () => {
     if (busy || gmailLocked() || !preview || !config.initialState.configured || (hasDraft && !ui['replace-confirm'].checked)) return;
-    const context = {language: ui.language.value, fingerprint: preview.fingerprint};
+    const context = previewContext();
+    const selectedProfile = preview.profile;
     busy = true; operation = 'generate'; buttons(); status(copy.generateBusy);
     // Keep the existing draft intact until generation succeeds.
     const originalValues = [ui.subject.value, ui.body.value];
@@ -132,7 +141,7 @@
       const data = await request('generate', context);
       if (typeof data.subject !== 'string' || typeof data.body !== 'string') throw new Error(copy.invalid);
       if (ui.subject.value !== originalValues[0] || ui.body.value !== originalValues[1]) throw new Error(copy.invalid);
-      installDraft(data, context, 'OpenAI');
+      installDraft(data, context, 'OpenAI', selectedProfile);
     } catch (error) {
       if (error.stale) invalidate();
       status(error.stale ? copy.stale : error.message, 'error');
@@ -143,7 +152,19 @@
     }
   });
 
-  function installDraft(data, context, source) {
+  function profileDescription(profile) {
+    if (!profile) return copy.profileBuiltin;
+    const name = profile.id === 'builtin' ? copy.profileBuiltin : (typeof profile.name === 'string' ? profile.name : copy.profileBuiltin);
+    const version = Number.isInteger(profile.revision) ? `${copy.profileVersion} ${profile.revision}` : '';
+    const count = Number.isInteger(profile.exampleCount) ? `${profile.exampleCount} ${profile.exampleCount === 1 ? copy.profileExample : copy.profileExamples}` : '';
+    return [name, version, count].filter(Boolean).join(' · ');
+  }
+
+  function previewContext() {
+    return {language: ui.language.value, fingerprint: preview.fingerprint, profileId: preview.profile?.id || 'builtin'};
+  }
+
+  function installDraft(data, context, source, profile) {
     if (typeof data.subject !== 'string' || typeof data.body !== 'string') throw new Error(copy.invalid);
     ui.subject.value = data.subject;
     ui.body.value = data.body;
@@ -160,6 +181,8 @@
     ui['gmail-reviewed'].checked = false;
     ui['draft-source'].textContent = source;
     ui['draft-source'].hidden = false;
+    ui['draft-profile'].textContent = `${copy.draftProfile}: ${profileDescription(profile)}`;
+    ui['manual-note'].hidden = source !== copy.localSource;
     hasDraft = true;
     dirty = true;
     copiedSubject = null;
@@ -171,7 +194,7 @@
 
   ui.manual.addEventListener('click', () => {
     if (busy || gmailLocked() || !preview?.manualDraft || (hasDraft && !ui['replace-confirm'].checked)) return;
-    try { installDraft(preview.manualDraft, {language: ui.language.value, fingerprint: preview.fingerprint}, copy.localSource); }
+    try { installDraft(preview.manualDraft, previewContext(), copy.localSource, preview.profile); }
     catch (error) { status(error.message, 'error'); }
   });
 

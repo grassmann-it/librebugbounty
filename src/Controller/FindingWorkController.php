@@ -38,8 +38,9 @@ final class FindingWorkController
         try {
             if ($discovery) {
                 if (!is_string($input['provider'] ?? null)) throw new \InvalidArgumentException('Unbekannter Kontaktanbieter.');
-                $this->contacts->discover($finding, $input['provider']);
-                $message = 'Kontaktvorschläge aktualisiert. Wiederholte Anfragen innerhalb einer Minute werden zusammengefasst.';
+                if ($request->hasSession() && $request->getSession()->isStarted()) $request->getSession()->save();
+                $this->contacts->discover($finding, $input['provider'], $input);
+                $message = $input['provider'] === 'hunter' ? 'Hunter-Kontaktabfrage abgeschlossen. Prüfe die gespeicherten Vorschläge und Quellen.' : 'Kontaktvorschläge aktualisiert. Wiederholte Anfragen innerhalb einer Minute werden zusammengefasst.';
             } else {
                 if (!is_string($input['revision'] ?? null)) throw new \InvalidArgumentException('Ungültige Formularrevision. Bitte lade die Seite neu.');
                 $this->followUp->save($finding, $input);
